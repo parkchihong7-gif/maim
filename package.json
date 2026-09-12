@@ -1,0 +1,40 @@
+{
+  "name": "maim",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Claude 기반 네이버 블로그 자동 발행 프로그램",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "setup": "tsx scripts/setup.ts",
+    "export-session": "tsx scripts/export-session.ts",
+    "import-session": "tsx scripts/import-session.ts",
+    "test:claude-cli": "tsx tests/test-claude-cli.ts",
+    "test:playwright-login": "tsx tests/test-playwright-login.ts",
+    "test:image-pipeline": "tsx tests/test-image-pipeline.ts",
+    "test:single-publish": "tsx tests/test-single-publish.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "dotenv": "^16.4.5",
+    "fastify": "^4.28.1",
+    "luxon": "^3.5.0",
+    "node-cron": "^3.0.3",
+    "playwright": "^1.48.0",
+    "sharp": "^0.33.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/luxon": "^3.4.2",
+    "@types/node": "^22.7.5",
+    "@types/node-cron": "^3.0.11",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3"
+  }
+}
