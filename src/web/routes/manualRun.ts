@@ -20,7 +20,13 @@ export async function manualRunRoutes(app: FastifyInstance) {
 
     const [directive] = assignDirectives(1);
     const post = await generatePost(category, directive);
-    await attachImage(post);
+
+    try {
+      await attachImage(post);
+    } catch (err) {
+      return { ...getPost(post.id), imageError: (err as Error).message };
+    }
+
     return getPost(post.id);
   });
 

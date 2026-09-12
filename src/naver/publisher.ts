@@ -33,19 +33,23 @@ async function typeHumanLike(locator: Locator, text: string): Promise<void> {
  * 셀렉터는 selectors.ts에 중앙화되어 있으며, 구조가 바뀌면 그쪽만 갱신하면 된다.
  */
 export async function publishPost(post: Post): Promise<void> {
-  if (!hasSavedSession()) {
-    throw new SessionExpiredError("저장된 네이버 세션이 없습니다. `npm run login`으로 먼저 로그인하세요.");
-  }
-  if (!post.image_path || !fs.existsSync(post.image_path)) {
-    throw new Error(`포스팅 ${post.id}에 유효한 이미지가 없습니다: ${post.image_path}`);
-  }
-
-  const browser = await launchBrowser();
-  const context = await createContext(browser);
-  const page = await context.newPage();
   const errorScreenshotPath = path.join(config.paths.generatedDir, String(post.id), "error.png");
+  let browser: Awaited<ReturnType<typeof launchBrowser>> | undefined;
+  let context: Awaited<ReturnType<typeof createContext>> | undefined;
+  let page: Awaited<ReturnType<Awaited<ReturnType<typeof createContext>>["newPage"]>> | undefined;
 
   try {
+    if (!hasSavedSession()) {
+      throw new SessionExpiredError("저장된 네이버 세션이 없습니다. `npm run login`으로 먼저 로그인하세요.");
+    }
+    if (!post.image_path || !fs.existsSync(post.image_path)) {
+      throw new Error(`포스팅 ${post.id}에 유효한 이미지가 없습니다: ${post.image_path}`);
+    }
+
+    browser = await launchBrowser();
+    context = await createContext(browser);
+    page = await context.newPage();
+
     await page.goto(sel.BLOG_WRITE_URL_TEMPLATE, { waitUntil: "domcontentloaded" });
 
     if (page.url().includes("nidlogin")) {
@@ -118,12 +122,14 @@ export async function publishPost(post: Post): Promise<void> {
 
     markPublished(post.id);
   } catch (err) {
-    fs.mkdirSync(path.dirname(errorScreenshotPath), { recursive: true });
-    await page.screenshot({ path: errorScreenshotPath }).catch(() => {});
+    if (page) {
+      fs.mkdirSync(path.dirname(errorScreenshotPath), { recursive: true });
+      await page.screenshot({ path: errorScreenshotPath }).catch(() => {});
+    }
     markFailed(post.id, (err as Error).message);
     throw err;
   } finally {
-    await context.close();
-    await browser.close();
+    await context?.close();
+    await browser?.close();
   }
 }
