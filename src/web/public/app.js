@@ -1,8 +1,38 @@
+function getDashboardToken() {
+  try {
+    return localStorage.getItem("maim-dashboard-token") || "";
+  } catch {
+    return "";
+  }
+}
+
+function setDashboardToken(token) {
+  try {
+    localStorage.setItem("maim-dashboard-token", token);
+  } catch {
+    // 브라우저 저장소를 못 쓰는 환경이면 이번 세션 동안은 토큰 없이 요청이 계속 실패한다.
+  }
+}
+
 async function api(path, options) {
+  const token = getDashboardToken();
   const res = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { "x-dashboard-token": token } : {}),
+    },
     ...options,
   });
+
+  if (res.status === 401) {
+    const entered = window.prompt("대시보드 토큰이 필요합니다 (DASHBOARD_TOKEN):");
+    if (entered) {
+      setDashboardToken(entered);
+      return api(path, options);
+    }
+    throw new Error("대시보드 토큰이 필요합니다.");
+  }
+
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `요청 실패 (${res.status})`);
   return data;

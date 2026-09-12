@@ -34,6 +34,9 @@ export const config = {
   // 강제해야 할 때만 이 값을 채운다.
   playwrightExecutablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH || undefined,
   claudeBin: process.env.CLAUDE_BIN ?? "claude",
+  // 설정하면 모든 API 요청에 x-dashboard-token 헤더(또는 ?token= 쿼리)가 일치해야 한다.
+  // SSH 터널을 못 쓰고 VPS 대시보드를 부득이 직접 노출해야 할 때의 최소 방어선이다.
+  dashboardToken: process.env.DASHBOARD_TOKEN || "",
   paths: {
     projectRoot,
     dataDir,
