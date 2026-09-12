@@ -17,6 +17,23 @@
       <h2>네이버 로그인</h2>
       <p id="auth-detail" class="muted"></p>
       <button id="btn-login">로그인</button>
+
+      <details id="export-session-box">
+        <summary>세션 내보내기 (VPS로 이전)</summary>
+        <form id="export-session-form">
+          <input name="passphrase" type="password" placeholder="암호" required />
+          <button type="submit">암호화 파일 다운로드</button>
+        </form>
+      </details>
+
+      <details id="import-session-box" hidden>
+        <summary>세션 업로드 (로컬에서 내보낸 파일)</summary>
+        <form id="import-session-form">
+          <input name="file" type="file" required />
+          <input name="passphrase" type="password" placeholder="암호" required />
+          <button type="submit">업로드</button>
+        </form>
+      </details>
     </section>
 
     <section>

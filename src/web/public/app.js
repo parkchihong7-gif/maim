@@ -19,8 +19,13 @@ async function refreshAuth() {
   } / 마지막 로그인: ${status.naverLoginAt ?? "-"}`;
 
   const loginBtn = document.getElementById("btn-login");
-  loginBtn.disabled = status.loginInProgress || status.deploymentMode === "vps";
+  const isVps = status.deploymentMode === "vps";
+  loginBtn.disabled = status.loginInProgress || isVps;
   loginBtn.textContent = status.loginInProgress ? "로그인 대기 중..." : "로그인";
+  loginBtn.hidden = isVps;
+
+  document.getElementById("export-session-box").hidden = isVps;
+  document.getElementById("import-session-box").hidden = !isVps;
 }
 
 async function refreshCategories() {
@@ -98,6 +103,30 @@ async function refreshAll() {
 
 document.getElementById("btn-login").addEventListener("click", async () => {
   await api("/api/auth/login", { method: "POST" });
+  await refreshAuth();
+});
+
+document.getElementById("export-session-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const passphrase = e.target.passphrase.value;
+  window.location.href = `/api/auth/export-session?passphrase=${encodeURIComponent(passphrase)}`;
+});
+
+document.getElementById("import-session-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const file = form.file.files[0];
+  const passphrase = form.passphrase.value;
+  if (!file) return;
+
+  const buffer = await file.arrayBuffer();
+  const fileBase64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+
+  await api("/api/auth/import-session", {
+    method: "POST",
+    body: JSON.stringify({ fileBase64, passphrase }),
+  });
+  form.reset();
   await refreshAuth();
 });
 
