@@ -73,16 +73,25 @@ export function listHistory(limit = 50): Post[] {
     .all(limit) as Post[];
 }
 
-/** 오늘(설정 타임존 기준) queued+published 상태인 포스팅 수 — 5개/일 캡 강제에 사용 */
+/**
+ * 오늘(설정 타임존 기준) queued+published 상태인 포스팅 수 — 5개/일 캡 강제에 사용.
+ *
+ * 주의: sqlite의 `created_at` 컬럼은 `datetime('now')` 기본값이라
+ * "YYYY-MM-DD HH:MM:SS"(공백 구분, UTC, 밀리초 없음) 형식으로 저장된다.
+ * Luxon의 `.toISO()`(예: "2026-09-12T15:00:00.000Z")와 형식이 달라
+ * SQL의 문자열 BETWEEN 비교로는 항상 매치에 실패한다 — 반드시 JS 쪽에서
+ * DateTime.fromSQL로 파싱해 비교해야 한다.
+ */
 export function countTodayCommitted(): number {
-  const startOfDayUtc = DateTime.now().setZone(config.timezone).startOf("day").toUTC().toISO();
-  const endOfDayUtc = DateTime.now().setZone(config.timezone).endOf("day").toUTC().toISO();
-  const row = getDb()
-    .prepare(
-      `SELECT COUNT(*) as cnt FROM posts
-       WHERE status IN ('queued', 'published')
-       AND created_at BETWEEN ? AND ?`,
-    )
-    .get(startOfDayUtc, endOfDayUtc) as { cnt: number };
-  return row.cnt;
+  const startOfDayUtc = DateTime.now().setZone(config.timezone).startOf("day").toUTC();
+  const endOfDayUtc = DateTime.now().setZone(config.timezone).endOf("day").toUTC();
+
+  const rows = getDb()
+    .prepare(`SELECT created_at FROM posts WHERE status IN ('queued', 'published')`)
+    .all() as { created_at: string }[];
+
+  return rows.filter((row) => {
+    const createdUtc = DateTime.fromSQL(row.created_at, { zone: "utc" });
+    return createdUtc >= startOfDayUtc && createdUtc <= endOfDayUtc;
+  }).length;
 }
