@@ -1,15 +1,8 @@
-import Fastify from "fastify";
+import { buildServer } from "./web/server.js";
 import { config } from "./config.js";
 
 async function main() {
-  const app = Fastify({ logger: true });
-
-  app.get("/api/health", async () => ({
-    ok: true,
-    deploymentMode: config.deploymentMode,
-    timezone: config.timezone,
-  }));
-
+  const app = await buildServer();
   await app.listen({ host: config.host, port: config.port });
 }
 

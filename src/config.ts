@@ -29,6 +29,10 @@ export const config = {
   pexelsApiKey: process.env.PEXELS_API_KEY ?? "",
   sessionExportPassphrase: process.env.SESSION_EXPORT_PASSPHRASE ?? "",
   playwrightHeadless: (process.env.PLAYWRIGHT_HEADLESS ?? "true") !== "false",
+  // 로컬/VPS 정식 배포에서는 `npx playwright install chromium`이 설치한 기본 브라우저를
+  // 그대로 쓰도록 비워둔다(undefined). 특수한 환경에서 미리 설치된 브라우저 경로를
+  // 강제해야 할 때만 이 값을 채운다.
+  playwrightExecutablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH || undefined,
   claudeBin: process.env.CLAUDE_BIN ?? "claude",
   paths: {
     projectRoot,

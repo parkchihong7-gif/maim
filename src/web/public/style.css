@@ -1,0 +1,66 @@
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  font-family: -apple-system, "Malgun Gothic", sans-serif;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 16px;
+  line-height: 1.5;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 0;
+}
+
+section {
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #8883;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th, td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid #8882;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #8882;
+  font-size: 0.85rem;
+}
+
+.muted {
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
+
+button {
+  cursor: pointer;
+}
+
+form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>maim — 네이버 블로그 자동 발행</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header>
+    <h1>maim 대시보드</h1>
+    <div id="auth-status" class="badge">확인 중...</div>
+  </header>
+
+  <main>
+    <section>
+      <h2>네이버 로그인</h2>
+      <p id="auth-detail" class="muted"></p>
+      <button id="btn-login">로그인</button>
+    </section>
+
+    <section>
+      <h2>카테고리</h2>
+      <table id="category-table">
+        <thead>
+          <tr><th>이름</th><th>검색필요</th><th>활성</th><th>동작</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <details>
+        <summary>새 카테고리 추가</summary>
+        <form id="category-form">
+          <input name="name" placeholder="카테고리 이름" required />
+          <label><input type="checkbox" name="requiresSearch" /> 실시간 검색 필요</label>
+          <input name="promptHint" placeholder="카테고리 설명(프롬프트 힌트)" required />
+          <button type="submit">추가</button>
+        </form>
+      </details>
+    </section>
+
+    <section>
+      <h2>발행 큐 <span id="cap-indicator" class="badge"></span></h2>
+      <table id="queue-table">
+        <thead>
+          <tr><th>ID</th><th>카테고리</th><th>제목</th><th>상태</th><th>동작</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>히스토리</h2>
+      <table id="history-table">
+        <thead>
+          <tr><th>ID</th><th>카테고리</th><th>제목</th><th>상태</th><th>발행시각</th><th>에러</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>설정</h2>
+      <form id="settings-form">
+        <label>하루 발행 개수 (최대 5) <input name="postsPerDay" type="number" min="1" max="5" /></label>
+        <label>발행 시작 시각 <input name="publishWindowStart" type="time" /></label>
+        <label>발행 종료 시각 <input name="publishWindowEnd" type="time" /></label>
+        <button type="submit">저장</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

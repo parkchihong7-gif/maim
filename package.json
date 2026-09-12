@@ -8,10 +8,11 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && mkdir -p dist/web && cp -r src/web/public dist/web/public",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "setup": "tsx scripts/setup.ts",
+    "login": "tsx scripts/login.ts",
     "export-session": "tsx scripts/export-session.ts",
     "import-session": "tsx scripts/import-session.ts",
     "test:claude-cli": "tsx tests/test-claude-cli.ts",
@@ -20,6 +21,7 @@
     "test:single-publish": "tsx tests/test-single-publish.ts"
   },
   "dependencies": {
+    "@fastify/static": "^7.0.4",
     "better-sqlite3": "^11.10.0",
     "dotenv": "^16.4.5",
     "fastify": "^4.28.1",
