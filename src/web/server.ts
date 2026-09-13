@@ -20,11 +20,14 @@ export async function buildServer() {
   }));
 
   // DASHBOARD_TOKEN이 설정된 경우에만 활성화되는 최소 방어선. 기본(로컬, 127.0.0.1
-  // 바인딩 + 미설정)에서는 아무 영향이 없다. VPS에서 SSH 터널을 쓸 수 없어 대시보드를
-  // 부득이 직접 노출해야 할 때만 설정할 것.
+  // 바인딩 + 미설정)에서는 아무 영향이 없다. VPS/Cloud Run에서 대시보드를 직접
+  // 노출해야 할 때 설정한다. 정적 파일(index.html/app.js/style.css)에는 민감한
+  // 정보가 없으므로 걸지 않는다 — 걸면 app.js가 실행되기도 전에 막혀서, 클라이언트
+  // 쪽 토큰 입력 프롬프트(app.js)가 아예 뜰 기회가 없어진다. 실제 데이터를 다루는
+  // /api/* 요청만 토큰으로 보호한다.
   if (config.dashboardToken) {
     app.addHook("onRequest", async (req, reply) => {
-      if (req.url === "/api/health") return;
+      if (!req.url.startsWith("/api/") || req.url === "/api/health") return;
       const header = req.headers["x-dashboard-token"];
       const query = (req.query as { token?: string } | undefined)?.token;
       const provided = (Array.isArray(header) ? header[0] : header) ?? query;
