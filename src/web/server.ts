@@ -10,7 +10,10 @@ import { manualRunRoutes } from "./routes/manualRun.js";
 import { postsRoutes } from "./routes/posts.js";
 
 export async function buildServer() {
-  const app = Fastify({ logger: true });
+  // 대시보드가 15초마다 자동 새로고침하면서 여러 API를 호출하는데, 매 요청마다
+  // "incoming request"/"request completed" 로그가 찍히면 터미널이 너무 시끄러워진다.
+  // 에러/경고는 그대로 로그에 남기고, 정상 요청 단위 로그만 끈다.
+  const app = Fastify({ logger: true, disableRequestLogging: true });
 
   app.get("/api/health", async () => ({
     ok: true,
