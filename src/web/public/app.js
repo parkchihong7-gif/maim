@@ -14,6 +14,11 @@ function setDashboardToken(token) {
   }
 }
 
+// refreshAll()이 카테고리/큐/히스토리를 동시에 불러오다 보니 토큰이 없을 때
+// 401이 한꺼번에 여러 번 돌아온다. 이 값이 없으면 새로 prompt()를 띄우고,
+// 이미 떠 있으면 그 결과를 같이 기다려서 창이 여러 개 겹쳐 뜨지 않게 한다.
+let dashboardTokenPromptPromise = null;
+
 async function api(path, options = {}) {
   const token = getDashboardToken();
   const res = await fetch(path, {
@@ -27,7 +32,14 @@ async function api(path, options = {}) {
   });
 
   if (res.status === 401) {
-    const entered = window.prompt("대시보드 토큰이 필요합니다 (DASHBOARD_TOKEN):");
+    if (!dashboardTokenPromptPromise) {
+      dashboardTokenPromptPromise = Promise.resolve()
+        .then(() => window.prompt("대시보드 토큰이 필요합니다 (DASHBOARD_TOKEN):"))
+        .finally(() => {
+          dashboardTokenPromptPromise = null;
+        });
+    }
+    const entered = await dashboardTokenPromptPromise;
     if (entered) {
       setDashboardToken(entered);
       return api(path, options);
@@ -213,5 +225,9 @@ document.addEventListener("click", async (e) => {
   }
 });
 
-refreshAll();
-setInterval(refreshAll, 15000);
+function safeRefreshAll() {
+  refreshAll().catch((err) => console.error("[maim] refreshAll 실패:", err));
+}
+
+safeRefreshAll();
+setInterval(safeRefreshAll, 15000);
