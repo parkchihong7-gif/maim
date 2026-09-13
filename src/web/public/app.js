@@ -161,16 +161,20 @@ async function refreshAll() {
 document.getElementById("category-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = e.target;
-  await api("/api/categories", {
-    method: "POST",
-    body: JSON.stringify({
-      name: form.name.value,
-      requiresSearch: true,
-      promptHint: form.promptHint.value,
-    }),
-  });
-  form.reset();
-  await refreshCategories();
+  try {
+    await api("/api/categories", {
+      method: "POST",
+      body: JSON.stringify({
+        name: form.name.value,
+        requiresSearch: true,
+        promptHint: form.promptHint.value,
+      }),
+    });
+    form.reset();
+    await refreshCategories();
+  } catch (err) {
+    alert(err.message);
+  }
 });
 
 document.addEventListener("click", async (e) => {
