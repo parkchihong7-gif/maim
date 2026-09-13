@@ -1,7 +1,5 @@
 import type { FastifyInstance } from "fastify";
 import { getDb } from "../../db/index.js";
-import { remainingDailyCapacity, effectiveDailyCap } from "../../scheduler/queueManager.js";
-import { config } from "../../config.js";
 
 export async function queueRoutes(app: FastifyInstance) {
   app.get("/api/queue", async () => {
@@ -13,10 +11,6 @@ export async function queueRoutes(app: FastifyInstance) {
          ORDER BY p.created_at DESC`,
       )
       .all();
-    return {
-      remainingToday: remainingDailyCapacity(),
-      dailyCap: effectiveDailyCap(config.postsPerDay),
-      items,
-    };
+    return { items };
   });
 }

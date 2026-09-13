@@ -5,7 +5,6 @@ import { config } from "../config.js";
 import { categoriesRoutes } from "./routes/categories.js";
 import { queueRoutes } from "./routes/queue.js";
 import { historyRoutes } from "./routes/history.js";
-import { settingsRoutes } from "./routes/settings.js";
 import { manualRunRoutes } from "./routes/manualRun.js";
 import { postsRoutes } from "./routes/posts.js";
 
@@ -38,7 +37,6 @@ export async function buildServer() {
   await app.register(categoriesRoutes);
   await app.register(queueRoutes);
   await app.register(historyRoutes);
-  await app.register(settingsRoutes);
   await app.register(manualRunRoutes);
   await app.register(postsRoutes);
 

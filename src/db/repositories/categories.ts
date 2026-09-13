@@ -66,15 +66,13 @@ export function markCategoryUsed(id: number): void {
     .run(id);
 }
 
-/** last_used_at 오래된 순으로 최대 n개를 뽑되, 동률 구간에서는 가볍게 섞는다. */
-export function pickCategoriesForToday(n: number): Category[] {
+/** 활성 카테고리 전체를 가볍게 섞어서 반환한다 (하루 생성 개수 제한이 없으므로 전부 처리). */
+export function pickCategoriesForToday(): Category[] {
   const active = listActiveCategories();
-  // 완전 결정론적 순서를 피하기 위해 앞쪽 절반 정도를 셔플 대상으로 삼는다.
-  const shuffleWindow = Math.min(active.length, Math.max(n * 2, 4));
-  const window = active.slice(0, shuffleWindow);
-  for (let i = window.length - 1; i > 0; i--) {
+  const shuffled = [...active];
+  for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [window[i], window[j]] = [window[j], window[i]];
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
-  return window.slice(0, n);
+  return shuffled;
 }

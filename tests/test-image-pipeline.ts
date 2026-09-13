@@ -12,7 +12,7 @@ import path from "node:path";
 import sharp from "sharp";
 import { config } from "../src/config.js";
 import { searchAndDownloadCandidates } from "../src/images/searchImages.js";
-import { selectBestImage } from "../src/images/selectImage.js";
+import { selectBestImages } from "../src/images/selectImage.js";
 import { processImage } from "../src/images/processImage.js";
 
 const TEST_DIR = path.join(config.paths.generatedDir, "phase3-test");
@@ -60,11 +60,11 @@ async function main() {
 
   const postSummary =
     "이번 가을 숲속 캠핑 여행에서 만난 단풍과 캠프파이어, 자연 속 힐링에 대한 블로그 글입니다.";
-  const selected = await selectBestImage(candidates, postSummary);
+  const selected = await selectBestImages(candidates, postSummary, 1);
   console.log("선택된 이미지:", selected);
 
   const finalPath = path.join(TEST_DIR, "final.jpg");
-  await processImage(selected, finalPath, {
+  await processImage(selected[0], finalPath, {
     targetWidth: 760,
     aspectRatio: 4 / 3,
     overlayText: "가을 숲속 캠핑 여행기",

@@ -17,23 +17,22 @@
       <h2>카테고리</h2>
       <table id="category-table">
         <thead>
-          <tr><th>이름</th><th>검색필요</th><th>활성</th><th>동작</th></tr>
+          <tr><th>이름</th><th>활성</th><th>동작</th></tr>
         </thead>
         <tbody></tbody>
       </table>
-      <details>
-        <summary>새 카테고리 추가</summary>
+      <div class="subsection">
+        <h3>새 카테고리 추가</h3>
         <form id="category-form">
           <input name="name" placeholder="카테고리 이름" required />
-          <label><input type="checkbox" name="requiresSearch" /> 실시간 검색 필요</label>
           <input name="promptHint" placeholder="카테고리 설명(프롬프트 힌트)" required />
-          <button type="submit">추가</button>
+          <button type="submit" class="btn-primary">추가</button>
         </form>
-      </details>
+      </div>
     </section>
 
     <section>
-      <h2>준비된 초안 <span id="cap-indicator" class="badge"></span></h2>
+      <h2>준비된 초안</h2>
       <div id="ready-list"></div>
     </section>
 
@@ -45,14 +44,6 @@
         </thead>
         <tbody></tbody>
       </table>
-    </section>
-
-    <section>
-      <h2>설정</h2>
-      <form id="settings-form">
-        <label>하루 최대 생성 개수 (최대 5) <input name="postsPerDay" type="number" min="1" max="5" /></label>
-        <button type="submit">저장</button>
-      </form>
     </section>
   </main>
 

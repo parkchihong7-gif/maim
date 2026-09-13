@@ -10,7 +10,7 @@ export const PostResponseSchema = z.object({
 export type PostResponse = z.infer<typeof PostResponseSchema>;
 
 export const ImageSelectSchema = z.object({
-  selected_index: z.number().int().min(0),
+  selected_indices: z.array(z.number().int().min(0)).min(1),
   reason: z.string(),
 });
 

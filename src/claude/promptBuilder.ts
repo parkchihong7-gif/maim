@@ -20,7 +20,11 @@ ${buildStyleRulesBlock(directive)}
 `.trim();
 }
 
-export function buildImageSelectPrompt(candidateFiles: string[], postSummary: string): string {
+export function buildImageSelectPrompt(
+  candidateFiles: string[],
+  postSummary: string,
+  count: number,
+): string {
   return `
 다음 이미지 후보 파일들을 각각 읽어서 확인하라:
 ${candidateFiles.map((f, i) => `${i}: ${f}`).join("\n")}
@@ -28,7 +32,7 @@ ${candidateFiles.map((f, i) => `${i}: ${f}`).join("\n")}
 이 이미지들은 아래 블로그 글에 들어갈 대표 이미지 후보다. 글 요약:
 """${postSummary}"""
 
-이 글과 가장 잘 어울리는 이미지 하나를 골라라. 반드시 순수 JSON으로만 답하라:
-{"selected_index": 0, "reason": "..."}
+이 글과 가장 잘 어울리는 순서대로 상위 ${count}개를 골라라. 반드시 순수 JSON으로만 답하라:
+{"selected_indices": [0, 2, 4], "reason": "..."}
 `.trim();
 }

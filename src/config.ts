@@ -20,8 +20,6 @@ export const config = {
   host: process.env.HOST ?? "127.0.0.1",
   port: requireEnvInt("PORT", 4173),
   timezone: process.env.TIMEZONE ?? "Asia/Seoul",
-  postsPerDay: Math.min(requireEnvInt("POSTS_PER_DAY", 5), 5),
-  dailyHardCap: 5,
   unsplashAccessKey: process.env.UNSPLASH_ACCESS_KEY ?? "",
   pexelsApiKey: process.env.PEXELS_API_KEY ?? "",
   claudeBin: process.env.CLAUDE_BIN ?? "claude",

@@ -1,6 +1,4 @@
 import { getDb } from "../index.js";
-import { DateTime } from "luxon";
-import { config } from "../../config.js";
 
 export type PostStatus = "draft" | "ready" | "published" | "failed";
 
@@ -11,6 +9,7 @@ export interface Post {
   title: string | null;
   content: string | null;
   image_path: string | null;
+  image_paths_json: string | null;
   image_query: string | null;
   tags_json: string | null;
   scheduled_at: string | null;
@@ -39,8 +38,27 @@ export function getPost(id: number): Post | undefined {
   return getDb().prepare("SELECT * FROM posts WHERE id = ?").get(id) as Post | undefined;
 }
 
-export function setPostImage(id: number, imagePath: string): void {
-  getDb().prepare("UPDATE posts SET image_path = ? WHERE id = ?").run(imagePath, id);
+export function getImagePaths(post: Post): string[] {
+  if (!post.image_paths_json) return [];
+  try {
+    const parsed = JSON.parse(post.image_paths_json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 이미지 목록을 갱신한다. append=true면 기존 이미지 오른쪽에 새 이미지를 덧붙이고,
+ * append=false면 전체를 새 목록으로 교체한다(최초 생성 시). image_path 컬럼은
+ * 과거 코드 호환을 위해 항상 목록의 첫 번째 이미지로 맞춰둔다.
+ */
+export function addPostImages(id: number, newPaths: string[], append: boolean): void {
+  const current = append ? getImagePaths(getPost(id)!) : [];
+  const merged = [...current, ...newPaths];
+  getDb()
+    .prepare("UPDATE posts SET image_paths_json = ?, image_path = ? WHERE id = ?")
+    .run(JSON.stringify(merged), merged[0] ?? null, id);
 }
 
 /** 콘텐츠(+가능하면 이미지)가 준비되어 사용자가 대시보드에서 복사해갈 수 있는 상태. */
@@ -65,27 +83,4 @@ export function listHistory(limit = 50): Post[] {
   return getDb()
     .prepare("SELECT * FROM posts ORDER BY created_at DESC LIMIT ?")
     .all(limit) as Post[];
-}
-
-/**
- * 오늘(설정 타임존 기준) ready+published 상태인 포스팅 수 — 하루 자동 생성 개수 제한에 사용.
- *
- * 주의: sqlite의 `created_at` 컬럼은 `datetime('now')` 기본값이라
- * "YYYY-MM-DD HH:MM:SS"(공백 구분, UTC, 밀리초 없음) 형식으로 저장된다.
- * Luxon의 `.toISO()`(예: "2026-09-12T15:00:00.000Z")와 형식이 달라
- * SQL의 문자열 BETWEEN 비교로는 항상 매치에 실패한다 — 반드시 JS 쪽에서
- * DateTime.fromSQL로 파싱해 비교해야 한다.
- */
-export function countTodayCommitted(): number {
-  const startOfDayUtc = DateTime.now().setZone(config.timezone).startOf("day").toUTC();
-  const endOfDayUtc = DateTime.now().setZone(config.timezone).endOf("day").toUTC();
-
-  const rows = getDb()
-    .prepare(`SELECT created_at FROM posts WHERE status IN ('ready', 'published')`)
-    .all() as { created_at: string }[];
-
-  return rows.filter((row) => {
-    const createdUtc = DateTime.fromSQL(row.created_at, { zone: "utc" });
-    return createdUtc >= startOfDayUtc && createdUtc <= endOfDayUtc;
-  }).length;
 }

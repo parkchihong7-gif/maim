@@ -61,11 +61,10 @@ async function refreshCategories() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${escapeHtml(c.name)}</td>
-      <td>${c.requires_search ? "예" : "아니오"}</td>
-      <td>${c.active ? "활성" : "비활성"}</td>
+      <td><span class="badge ${c.active ? "badge-active" : "badge-inactive"}">${c.active ? "활성" : "비활성"}</span></td>
       <td>
-        <button data-action="generate" data-id="${c.id}">지금 생성</button>
-        <button data-action="delete-category" data-id="${c.id}">삭제</button>
+        <button class="btn-primary" data-action="generate" data-id="${c.id}">지금 생성</button>
+        <button class="btn-danger" data-action="delete-category" data-id="${c.id}">삭제</button>
       </td>`;
     tbody.appendChild(tr);
   }
@@ -73,11 +72,18 @@ async function refreshCategories() {
 
 let readyPosts = [];
 
+function getImagePaths(post) {
+  if (!post.image_paths_json) return [];
+  try {
+    const parsed = JSON.parse(post.image_paths_json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 async function refreshQueue() {
-  const { remainingToday, dailyCap, items } = await api("/api/queue");
-  document.getElementById("cap-indicator").textContent = `오늘 ${
-    dailyCap - remainingToday
-  }/${dailyCap} 생성`;
+  const { items } = await api("/api/queue");
 
   readyPosts = items;
   const container = document.getElementById("ready-list");
@@ -92,18 +98,28 @@ async function refreshQueue() {
     const card = document.createElement("div");
     card.className = "post-card";
     const tags = p.tags_json ? JSON.parse(p.tags_json) : [];
+    const imagePaths = getImagePaths(p);
+    const imagesHtml =
+      imagePaths.length > 0
+        ? `<div class="post-images">${imagePaths
+            .map(
+              (_, idx) =>
+                `<img class="post-thumb" src="/api/posts/${p.id}/image/${idx}?t=${Date.now()}" alt="이미지 ${idx + 1}" />`,
+            )
+            .join("")}</div>`
+        : `<p class="muted">이미지 없음</p>`;
     card.innerHTML = `
       <div class="post-card-header">
         <strong>${escapeHtml(p.title ?? "(제목 없음)")}</strong>
         <span class="badge">${escapeHtml(p.category_name)}</span>
       </div>
-      ${p.image_path ? `<img class="post-thumb" id="post-image-${p.id}" src="/api/posts/${p.id}/image" alt="대표 이미지" />` : `<p class="muted">이미지 없음</p>`}
+      ${imagesHtml}
       <p class="post-preview">${escapeHtml((p.content ?? "").slice(0, 150))}...</p>
       <p class="muted">${tags.join(" ")}</p>
       <div class="post-card-actions">
-        <button data-action="copy" data-id="${p.id}">복사하기</button>
-        <button data-action="regenerate-image" data-id="${p.id}">이미지 재생성</button>
-        <button data-action="mark-published" data-id="${p.id}">발행 완료로 표시</button>
+        <button class="btn-secondary" data-action="copy" data-id="${p.id}">복사하기</button>
+        <button class="btn-secondary" data-action="regenerate-image" data-id="${p.id}">이미지 재생성</button>
+        <button class="btn-success" data-action="mark-published" data-id="${p.id}">발행 완료로 표시</button>
       </div>`;
     container.appendChild(card);
   }
@@ -119,21 +135,15 @@ async function refreshHistory() {
       <td>${p.id}</td>
       <td>${escapeHtml(p.category_name)}</td>
       <td>${escapeHtml(p.title ?? "")}</td>
-      <td>${p.status}</td>
+      <td><span class="badge badge-${p.status}">${p.status}</span></td>
       <td>${p.published_at ?? "-"}</td>
       <td>${escapeHtml(p.error_message ?? "")}</td>`;
     tbody.appendChild(tr);
   }
 }
 
-async function refreshSettings() {
-  const settings = await api("/api/settings");
-  const form = document.getElementById("settings-form");
-  form.postsPerDay.value = settings.postsPerDay ?? 5;
-}
-
 async function refreshAll() {
-  await Promise.all([refreshCategories(), refreshQueue(), refreshHistory(), refreshSettings()]);
+  await Promise.all([refreshCategories(), refreshQueue(), refreshHistory()]);
 }
 
 document.getElementById("category-form").addEventListener("submit", async (e) => {
@@ -143,22 +153,12 @@ document.getElementById("category-form").addEventListener("submit", async (e) =>
     method: "POST",
     body: JSON.stringify({
       name: form.name.value,
-      requiresSearch: form.requiresSearch.checked,
+      requiresSearch: true,
       promptHint: form.promptHint.value,
     }),
   });
   form.reset();
   await refreshCategories();
-});
-
-document.getElementById("settings-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const form = e.target;
-  await api("/api/settings", {
-    method: "PUT",
-    body: JSON.stringify({ postsPerDay: form.postsPerDay.value }),
-  });
-  await refreshSettings();
 });
 
 document.addEventListener("click", async (e) => {
@@ -190,10 +190,7 @@ document.addEventListener("click", async (e) => {
       btn.textContent = "재생성 중...";
       const updated = await api(`/api/posts/${id}/regenerate-image`, { method: "POST" });
       if (updated.error) throw new Error(updated.error);
-      const img = document.getElementById(`post-image-${id}`);
-      if (img) img.src = `/api/posts/${id}/image?t=${Date.now()}`;
-      const post = readyPosts.find((p) => p.id === Number(id));
-      if (post) post.image_path = updated.image_path;
+      await refreshQueue();
     } else if (action === "mark-published") {
       await api(`/api/posts/${id}/mark-published`, { method: "POST" });
       await refreshQueue();
