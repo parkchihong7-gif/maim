@@ -14,11 +14,13 @@ function setDashboardToken(token) {
   }
 }
 
-async function api(path, options) {
+async function api(path, options = {}) {
   const token = getDashboardToken();
   const res = await fetch(path, {
     headers: {
-      "Content-Type": "application/json",
+      // body가 없는데 Content-Type: application/json을 붙이면 Fastify가
+      // "본문이 비어있는데 JSON이라니" 하며 400 Bad Request로 거부한다.
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
       ...(token ? { "x-dashboard-token": token } : {}),
     },
     ...options,
