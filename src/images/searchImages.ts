@@ -32,6 +32,34 @@ async function searchPexels(query: string, count: number, page: number): Promise
   return (data.photos ?? []).map((p) => p.src.large);
 }
 
+async function fetchImageUrls(query: string, count: number, page: number): Promise<string[]> {
+  const perSource = Math.ceil(count / 2);
+  const [unsplashUrls, pexelsUrls] = await Promise.all([
+    searchUnsplash(query, perSource, page).catch((err) => {
+      console.warn("Unsplash 검색 실패:", (err as Error).message);
+      return [];
+    }),
+    searchPexels(query, perSource, page).catch((err) => {
+      console.warn("Pexels 검색 실패:", (err as Error).message);
+      return [];
+    }),
+  ]);
+  return [...unsplashUrls, ...pexelsUrls].slice(0, count);
+}
+
+async function downloadTo(url: string, filePath: string): Promise<boolean> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return false;
+    const buf = Buffer.from(await res.arrayBuffer());
+    fs.writeFileSync(filePath, buf);
+    return true;
+  } catch (err) {
+    console.warn(`이미지 다운로드 실패 (${url}):`, (err as Error).message);
+    return false;
+  }
+}
+
 /**
  * 무료 스톡 이미지 API(Unsplash/Pexels)에서 후보를 검색해 로컬에 다운로드한다.
  * image_query는 영어 키워드로 요청되므로 매칭률이 좋다.
@@ -46,19 +74,7 @@ export async function searchAndDownloadCandidates(
   fs.rmSync(destDir, { recursive: true, force: true });
   fs.mkdirSync(destDir, { recursive: true });
 
-  const perSource = Math.ceil(count / 2);
-  const [unsplashUrls, pexelsUrls] = await Promise.all([
-    searchUnsplash(query, perSource, page).catch((err) => {
-      console.warn("Unsplash 검색 실패:", (err as Error).message);
-      return [];
-    }),
-    searchPexels(query, perSource, page).catch((err) => {
-      console.warn("Pexels 검색 실패:", (err as Error).message);
-      return [];
-    }),
-  ]);
-
-  const urls = [...unsplashUrls, ...pexelsUrls].slice(0, count);
+  const urls = await fetchImageUrls(query, count, page);
   if (urls.length === 0) {
     throw new Error(
       `이미지 후보를 찾지 못했습니다 (query="${query}"). UNSPLASH_ACCESS_KEY / PEXELS_API_KEY 설정을 확인하세요.`,
@@ -67,21 +83,68 @@ export async function searchAndDownloadCandidates(
 
   const filePaths: string[] = [];
   for (let i = 0; i < urls.length; i++) {
-    try {
-      const res = await fetch(urls[i]);
-      if (!res.ok) continue;
-      const buf = Buffer.from(await res.arrayBuffer());
-      const filePath = path.join(destDir, `candidate_${i}.jpg`);
-      fs.writeFileSync(filePath, buf);
-      filePaths.push(filePath);
-    } catch (err) {
-      console.warn(`이미지 다운로드 실패 (${urls[i]}):`, (err as Error).message);
-    }
+    const filePath = path.join(destDir, `candidate_${i}.jpg`);
+    if (await downloadTo(urls[i], filePath)) filePaths.push(filePath);
   }
 
   if (filePaths.length === 0) {
     throw new Error(`이미지 후보 다운로드에 모두 실패했습니다 (query="${query}").`);
   }
 
+  return filePaths;
+}
+
+/** query 전체 -> 뒤에서부터 단어를 하나씩 줄인 짧은 쿼리 -> 마지막엔 범용 키워드까지. */
+function buildQueryVariants(query: string): string[] {
+  const words = query.trim().split(/\s+/).filter(Boolean);
+  const variants = [query];
+  for (let n = words.length - 1; n >= 1; n--) {
+    variants.push(words.slice(0, n).join(" "));
+  }
+  variants.push("lifestyle", "abstract background", "nature landscape");
+  return [...new Set(variants)];
+}
+
+/**
+ * 원래 쿼리로 후보가 부족하면 점점 넓은(짧은/범용) 키워드로 계속 검색해
+ * 최소 minCount장을 모을 때까지 시도한다. 완전히 특이한 쿼리라도 마지막엔
+ * 범용 키워드로 넘어가므로 사실상 항상 몇 장은 확보된다.
+ */
+export async function searchWithFallback(
+  primaryQuery: string,
+  destDir: string,
+  minCount: number,
+  startPage = 1,
+): Promise<string[]> {
+  fs.rmSync(destDir, { recursive: true, force: true });
+  fs.mkdirSync(destDir, { recursive: true });
+
+  const variants = buildQueryVariants(primaryQuery);
+  const filePaths: string[] = [];
+  let fileIndex = 0;
+  let attempts = 0;
+  const maxAttempts = 8;
+
+  outer: for (const variant of variants) {
+    for (let page = startPage; page < startPage + 2; page++) {
+      if (filePaths.length >= minCount || attempts >= maxAttempts) break outer;
+      attempts++;
+      const urls = await fetchImageUrls(variant, Math.max(minCount * 2, 6), page).catch(() => []);
+      for (const url of urls) {
+        if (filePaths.length >= minCount * 2) break;
+        const filePath = path.join(destDir, `candidate_${fileIndex++}.jpg`);
+        if (await downloadTo(url, filePath)) filePaths.push(filePath);
+      }
+    }
+  }
+
+  if (filePaths.length === 0) {
+    throw new Error(
+      `여러 키워드로 시도했지만 이미지 후보를 찾지 못했습니다 (query="${primaryQuery}"). UNSPLASH_ACCESS_KEY / PEXELS_API_KEY 설정을 확인하세요.`,
+    );
+  }
+  console.log(
+    `[searchWithFallback] "${primaryQuery}" -> ${filePaths.length}장 확보 (시도 ${attempts}회)`,
+  );
   return filePaths;
 }

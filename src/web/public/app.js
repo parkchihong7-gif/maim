@@ -111,12 +111,17 @@ async function refreshQueue() {
     card.className = "post-card";
     const tags = p.tags_json ? JSON.parse(p.tags_json) : [];
     const imagePaths = getImagePaths(p);
+    // <img src>는 브라우저가 커스텀 헤더 없이 직접 요청하므로, api()가 붙이는
+    // x-dashboard-token 헤더가 안 실린다. 토큰이 설정된 배포(Cloud Run 등)에서
+    // 이미지가 항상 401로 막혀 안 보이지 않도록 쿼리 파라미터로도 붙여준다.
+    const imgToken = getDashboardToken();
+    const tokenQuery = imgToken ? `&token=${encodeURIComponent(imgToken)}` : "";
     const imagesHtml =
       imagePaths.length > 0
         ? `<div class="post-images">${imagePaths
             .map(
               (_, idx) =>
-                `<img class="post-thumb" src="/api/posts/${p.id}/image/${idx}?t=${Date.now()}" alt="이미지 ${idx + 1}" />`,
+                `<img class="post-thumb" src="/api/posts/${p.id}/image/${idx}?t=${Date.now()}${tokenQuery}" alt="이미지 ${idx + 1}" />`,
             )
             .join("")}</div>`
         : `<p class="muted">이미지 없음</p>`;

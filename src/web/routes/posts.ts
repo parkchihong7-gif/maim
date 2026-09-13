@@ -44,7 +44,7 @@ export async function postsRoutes(app: FastifyInstance) {
     return getPost(id);
   });
 
-  // 마음에 안 드는 이미지가 있을 때, 기존 이미지는 그대로 두고 새 이미지 1장을
+  // 마음에 안 드는 이미지가 있을 때, 기존 이미지는 그대로 두고 새 이미지 3장을
   // 오른쪽에 추가한다. 검색 결과의 랜덤한 페이지에서 가져오므로 같은 이미지가
   // 또 나올 확률이 낮다.
   app.post("/api/posts/:id/regenerate-image", async (req, reply) => {
@@ -57,7 +57,7 @@ export async function postsRoutes(app: FastifyInstance) {
 
     const randomPage = 1 + Math.floor(Math.random() * 3);
     try {
-      await attachImage(post, { count: 1, page: randomPage, append: true });
+      await attachImage(post, { count: 3, page: randomPage, append: true });
     } catch (err) {
       reply.code(500);
       return { error: (err as Error).message };
