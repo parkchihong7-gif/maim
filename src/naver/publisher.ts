@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import { DateTime } from "luxon";
-import type { Locator } from "playwright";
+import type { FrameLocator, Locator, Page } from "playwright";
 import { launchBrowser, createContext, hasSavedSession } from "./browserContext.js";
 import * as sel from "./selectors.js";
 import type { Post } from "../db/repositories/posts.js";
@@ -26,6 +26,27 @@ async function typeHumanLike(locator: Locator, text: string): Promise<void> {
     await page.keyboard.press("Enter");
     await randomDelay(80, 250);
   }
+}
+
+/**
+ * 스마트에디터 iframe을 FrameLocator로 얻는다. 엘리먼트 핸들을 미리 잡아뒀다가
+ * 나중에 contentFrame()을 호출하는 방식은, 그 사이 네이버가 로딩 placeholder
+ * iframe을 실제 에디터 iframe으로 교체하면 핸들이 detach되어 깨진다.
+ * FrameLocator는 쓰일 때마다 새로 resolve하므로 이 문제가 없다.
+ */
+async function locateEditorFrame(page: Page, timeoutMs = 30_000): Promise<FrameLocator> {
+  for (const selector of sel.EDITOR_IFRAME_SELECTORS) {
+    const appeared = await page
+      .waitForSelector(selector, { timeout: timeoutMs })
+      .then(() => true)
+      .catch(() => false);
+    if (appeared) {
+      return page.frameLocator(selector);
+    }
+  }
+  throw new Error(
+    `에디터 iframe을 찾지 못했습니다 (셀렉터 변경 추정): [${sel.EDITOR_IFRAME_SELECTORS.join(", ")}]`,
+  );
 }
 
 /**
@@ -56,13 +77,7 @@ export async function publishPost(post: Post): Promise<void> {
       throw new SessionExpiredError("발행 중 로그인 페이지로 리다이렉트됨 — 세션이 만료된 것으로 보입니다.");
     }
 
-    const frameHandle = await page
-      .waitForSelector(sel.EDITOR_IFRAME_SELECTORS[0], { timeout: 30_000 })
-      .catch(() => null);
-    const frame = frameHandle ? await frameHandle.contentFrame() : null;
-    if (!frame) {
-      throw new Error("에디터 iframe을 찾지 못했습니다 (셀렉터 변경 추정, selectors.ts 확인 필요).");
-    }
+    const frame = await locateEditorFrame(page);
 
     for (const cancelSel of sel.CONTINUE_DRAFT_POPUP_CANCEL_SELECTORS) {
       const btn = page.locator(cancelSel).first();

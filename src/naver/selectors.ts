@@ -1,4 +1,4 @@
-import type { Frame, Locator, Page } from "playwright";
+import type { Frame, FrameLocator, Locator, Page } from "playwright";
 
 /**
  * 네이버 스마트에디터 ONE의 DOM/iframe 구조는 예고 없이 바뀔 수 있다.
@@ -53,7 +53,10 @@ export const CONFIRM_PUBLISH_BUTTON_SELECTORS = [
 ];
 
 /** 후보 셀렉터를 순서대로 시도해 처음 발견되는 요소를 반환한다. 모두 실패하면 명확한 에러를 던진다. */
-export async function locateFirst(scope: Frame | Page, candidateSelectors: string[]): Promise<Locator> {
+export async function locateFirst(
+  scope: Frame | Page | FrameLocator,
+  candidateSelectors: string[],
+): Promise<Locator> {
   for (const selector of candidateSelectors) {
     const locator = scope.locator(selector).first();
     if ((await locator.count().catch(() => 0)) > 0) {
