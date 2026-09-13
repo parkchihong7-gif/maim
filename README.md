@@ -99,12 +99,12 @@ gcloud run deploy maim \
   --source . \
   --region=us-central1 \
   --allow-unauthenticated \
-  --execution-environment=gen2 \
   --min-instances=0 --max-instances=1 --concurrency=1 \
-  --add-volume=name=data,type=cloud-storage,bucket=maim-data-YOUR_PROJECT_ID \
-  --add-volume-mount=volume=data,mount-path=/mnt/data \
-  --set-env-vars=HOST=0.0.0.0,DATA_DIR=/mnt/data,HOME=/mnt/data/home,TIMEZONE=Asia/Seoul,CLAUDE_BIN=claude,DASHBOARD_TOKEN=YOUR_DASHBOARD_TOKEN,UNSPLASH_ACCESS_KEY=YOUR_UNSPLASH_KEY,PEXELS_API_KEY=YOUR_PEXELS_KEY
+  --set-env-vars=HOST=0.0.0.0,DATA_DIR=/tmp/maim-state,HOME=/tmp/maim-state/home,GCS_STATE_BUCKET=maim-data-YOUR_PROJECT_ID,TIMEZONE=Asia/Seoul,CLAUDE_BIN=claude,DASHBOARD_TOKEN=YOUR_DASHBOARD_TOKEN,UNSPLASH_ACCESS_KEY=YOUR_UNSPLASH_KEY,PEXELS_API_KEY=YOUR_PEXELS_KEY
 ```
+(GCS 버킷을 실시간 디스크처럼 마운트하지 않고, 컨테이너가 시작될 때 버킷
+내용을 로컬에 내려받아 쓰고 주기적으로/종료 시 다시 올리는 방식입니다 —
+SQLite가 일반 로컬 디스크에서만 안전하게 동작하기 때문입니다.)
 빌드/배포가 끝나면 터미널에 `Service URL: https://maim-xxxxx-uc.a.run.app` 같은 줄이
 뜹니다 — 이게 바로 "퍼블리싱된 웹주소"입니다. 집이든 회사든 이 주소로 접속하면
 대시보드가 열립니다(처음 접속 시 대시보드 토큰을 물어보면 위에서 정한

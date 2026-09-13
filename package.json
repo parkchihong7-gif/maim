@@ -8,7 +8,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && mkdir -p dist/web && cp -r src/web/public dist/web/public",
+    "build": "tsc -p tsconfig.build.json && mkdir -p dist/web dist/db && cp -r src/web/public dist/web/public && cp -r src/db/migrations dist/db/migrations",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "test:claude-cli": "tsx tests/test-claude-cli.ts",
@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@fastify/static": "^7.0.4",
+    "@google-cloud/storage": "^8.1.0",
     "better-sqlite3": "^11.10.0",
     "dotenv": "^16.4.5",
     "fastify": "^4.28.1",

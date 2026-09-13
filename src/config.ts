@@ -5,8 +5,10 @@ import fs from "node:fs";
 loadEnv();
 
 const projectRoot = path.resolve(import.meta.dirname, "..");
-// Cloud Run처럼 컨테이너 자체 디스크가 요청 사이에 유지되지 않는 환경에서는
-// DATA_DIR을 마운트된 영구 볼륨 경로(예: /mnt/data)로 지정해 DB/이미지가 보존되게 한다.
+// Cloud Run처럼 컨테이너 자체 디스크가 요청 사이/재시작 사이에 유지되지 않는
+// 환경에서는 DATA_DIR을 로컬 임시 경로(예: /tmp/maim-state)로 지정하고,
+// GCS_STATE_BUCKET을 함께 설정하면 이 디렉터리 전체가 시작 시 버킷에서
+// 복원되고 주기적으로/종료 시 버킷에 다시 저장된다(src/persistence/gcsState.ts).
 const dataDir = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(projectRoot, "data");
 
 fs.mkdirSync(dataDir, { recursive: true });
@@ -28,6 +30,8 @@ export const config = {
   // 설정하면 모든 API 요청에 x-dashboard-token 헤더(또는 ?token= 쿼리)가 일치해야 한다.
   // SSH 터널을 못 쓰고 VPS 대시보드를 부득이 직접 노출해야 할 때의 최소 방어선이다.
   dashboardToken: process.env.DASHBOARD_TOKEN || "",
+  // 설정하면 DATA_DIR 전체를 이 GCS 버킷과 주기적으로 동기화한다(Cloud Run 전용, 위 설명 참고).
+  gcsStateBucket: process.env.GCS_STATE_BUCKET || "",
   paths: {
     projectRoot,
     dataDir,
