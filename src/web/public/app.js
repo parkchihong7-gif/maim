@@ -95,11 +95,12 @@ async function refreshQueue() {
         <strong>${escapeHtml(p.title ?? "(제목 없음)")}</strong>
         <span class="badge">${escapeHtml(p.category_name)}</span>
       </div>
-      ${p.image_path ? `<img class="post-thumb" src="/api/posts/${p.id}/image" alt="대표 이미지" />` : `<p class="muted">이미지 없음</p>`}
+      ${p.image_path ? `<img class="post-thumb" id="post-image-${p.id}" src="/api/posts/${p.id}/image" alt="대표 이미지" />` : `<p class="muted">이미지 없음</p>`}
       <p class="post-preview">${escapeHtml((p.content ?? "").slice(0, 150))}...</p>
       <p class="muted">${tags.join(" ")}</p>
       <div class="post-card-actions">
         <button data-action="copy" data-id="${p.id}">복사하기</button>
+        <button data-action="regenerate-image" data-id="${p.id}">이미지 재생성</button>
         <button data-action="mark-published" data-id="${p.id}">발행 완료로 표시</button>
       </div>`;
     container.appendChild(card);
@@ -182,6 +183,15 @@ document.addEventListener("click", async (e) => {
           btn.textContent = original;
         }, 1500);
       }
+    } else if (action === "regenerate-image") {
+      btn.disabled = true;
+      btn.textContent = "재생성 중...";
+      const updated = await api(`/api/posts/${id}/regenerate-image`, { method: "POST" });
+      if (updated.error) throw new Error(updated.error);
+      const img = document.getElementById(`post-image-${id}`);
+      if (img) img.src = `/api/posts/${id}/image?t=${Date.now()}`;
+      const post = readyPosts.find((p) => p.id === Number(id));
+      if (post) post.image_path = updated.image_path;
     } else if (action === "mark-published") {
       await api(`/api/posts/${id}/mark-published`, { method: "POST" });
       await refreshQueue();
@@ -196,6 +206,10 @@ document.addEventListener("click", async (e) => {
     if (action === "generate") {
       btn.disabled = false;
       btn.textContent = "지금 생성";
+    }
+    if (action === "regenerate-image") {
+      btn.disabled = false;
+      btn.textContent = "이미지 재생성";
     }
   }
 });

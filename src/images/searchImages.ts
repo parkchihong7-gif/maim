@@ -10,9 +10,9 @@ interface PexelsSearchResponse {
   photos: { src: { large: string } }[];
 }
 
-async function searchUnsplash(query: string, count: number): Promise<string[]> {
+async function searchUnsplash(query: string, count: number, page: number): Promise<string[]> {
   if (!config.unsplashAccessKey) return [];
-  const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=${count}`;
+  const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=${count}&page=${page}`;
   const res = await fetch(url, {
     headers: { Authorization: `Client-ID ${config.unsplashAccessKey}` },
   });
@@ -21,9 +21,9 @@ async function searchUnsplash(query: string, count: number): Promise<string[]> {
   return (data.results ?? []).map((r) => r.urls.regular);
 }
 
-async function searchPexels(query: string, count: number): Promise<string[]> {
+async function searchPexels(query: string, count: number, page: number): Promise<string[]> {
   if (!config.pexelsApiKey) return [];
-  const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${count}`;
+  const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${count}&page=${page}`;
   const res = await fetch(url, {
     headers: { Authorization: config.pexelsApiKey },
   });
@@ -40,16 +40,19 @@ export async function searchAndDownloadCandidates(
   query: string,
   destDir: string,
   count = 6,
+  page = 1,
 ): Promise<string[]> {
+  // 재생성 시 이전 후보가 섞여서 다시 선택되는 일이 없도록 매번 깨끗하게 비운다.
+  fs.rmSync(destDir, { recursive: true, force: true });
   fs.mkdirSync(destDir, { recursive: true });
 
   const perSource = Math.ceil(count / 2);
   const [unsplashUrls, pexelsUrls] = await Promise.all([
-    searchUnsplash(query, perSource).catch((err) => {
+    searchUnsplash(query, perSource, page).catch((err) => {
       console.warn("Unsplash 검색 실패:", (err as Error).message);
       return [];
     }),
-    searchPexels(query, perSource).catch((err) => {
+    searchPexels(query, perSource, page).catch((err) => {
       console.warn("Pexels 검색 실패:", (err as Error).message);
       return [];
     }),
