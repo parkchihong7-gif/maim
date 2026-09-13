@@ -1,8 +1,0 @@
-[Unit]
-Description=maim 자동 업데이트 (git pull + 재빌드 + 재시작)
-After=network-online.target
-
-[Service]
-Type=oneshot
-WorkingDirectory=/opt/maim
-ExecStart=/bin/bash /opt/maim/deploy/gcp/auto-update.sh

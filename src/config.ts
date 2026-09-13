@@ -5,7 +5,9 @@ import fs from "node:fs";
 loadEnv();
 
 const projectRoot = path.resolve(import.meta.dirname, "..");
-const dataDir = path.join(projectRoot, "data");
+// Cloud Run처럼 컨테이너 자체 디스크가 요청 사이에 유지되지 않는 환경에서는
+// DATA_DIR을 마운트된 영구 볼륨 경로(예: /mnt/data)로 지정해 DB/이미지가 보존되게 한다.
+const dataDir = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(projectRoot, "data");
 
 fs.mkdirSync(dataDir, { recursive: true });
 

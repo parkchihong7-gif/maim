@@ -40,7 +40,11 @@ function runMigrations(database: Database.Database) {
 export function getDb(): Database.Database {
   if (db) return db;
   db = new Database(config.paths.dbFile);
-  db.pragma("journal_mode = WAL");
+  // WAL 모드는 별도의 -wal/-shm 파일과 공유 메모리/파일 잠금에 의존하는데, Cloud Run의
+  // GCS 볼륨 마운트(FUSE) 같은 네트워크 파일시스템에서는 이 잠금이 제대로 지원되지
+  // 않아 DB가 깨질 위험이 있다. 이 앱은 쓰기 빈도가 매우 낮은 개인용 도구이므로
+  // 성능 손해 없이 기본 롤백 저널 모드로 안전하게 간다.
+  db.pragma("journal_mode = DELETE");
   db.pragma("foreign_keys = ON");
   runMigrations(db);
   return db;

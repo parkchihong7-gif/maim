@@ -65,58 +65,93 @@ ssh -L 4173:127.0.0.1:4173 user@vps-host
 부득이 직접 노출해야 한다면 `.env`의 `DASHBOARD_TOKEN`을 강한 임의 문자열로
 설정하세요 — 설정하면 모든 API 요청에 해당 토큰이 필요해집니다.
 
-## Google Cloud에 배포하기 (터미널 없이, 어디서든 웹주소로 접속)
+## Google Cloud(Cloud Run)에 배포하기 — 평소엔 꺼져있다가 접속할 때만 켜짐
 
-집 컴퓨터가 꺼져 있거나 회사 등 다른 곳에서 대시보드를 쓰고 싶다면, 항상 켜져 있는
-작은 VM 한 대에 배포해두면 됩니다. 아래 절차는 **최초 1번만** 진행하면 되고,
-그 뒤로는 코드가 바뀔 때마다(제가 GitHub에 새 커밋을 올릴 때마다) VM이 5분 안에
-자동으로 최신 버전을 반영합니다(재빌드+재시작까지 자동) — 이후로는 터미널을 켤 일이
-없고, 그냥 브라우저로 주소만 열면 됩니다.
+VM을 24시간 켜두는 대신 **Cloud Run**을 씁니다. 아무도 접속하지 않으면 서버가
+자동으로 완전히 잠들어서 요금이 거의 발생하지 않고(개인 사용량 정도는 매달
+무료 제공량 안에 들어올 가능성이 높습니다), 브라우저에서 주소를 열면 몇 초 안에
+깨어나 응답합니다. 대신 "항상 켜진 컴퓨터"가 아니라서 아래 두 가지를 다르게
+처리합니다:
+- 카테고리/초안/이미지(DB)는 컨테이너 자체가 아니라 **Cloud Storage 버킷**에
+  저장해서, 서버가 잠들었다 깨어나도 데이터가 남아있게 합니다.
+- 매일 06:00 자동 초안 준비는 서버가 잠들어 있으면 내부 타이머가 못 깨우므로,
+  **Cloud Scheduler**(구글 클라우드의 무료 알람 서비스)가 매일 정해진 시각에
+  대시보드 주소를 대신 "깨워서" 트리거합니다.
+
+아래 절차는 **최초 1번만** 진행하면 됩니다. 이후 제가 GitHub에 새 커밋을 올리면
+Cloud Run이 자동으로 새 버전을 다시 배포합니다(3번에서 "저장소에서 계속 배포" 연결
+시 자동 설정됨) — 그 뒤로는 터미널을 켤 일이 없습니다.
 
 **1) Cloud Shell 열기**: https://console.cloud.google.com 접속 → 우측 상단 `>_` 아이콘
-(Cloud Shell 활성화) 클릭 → 화면 하단에 터미널이 뜨면 아래 명령어를 순서대로 붙여넣기.
+(Cloud Shell 활성화) 클릭 → 하단 터미널에 아래를 순서대로 붙여넣기.
 
-**2) VM 생성 + 방화벽 오픈** (아래 `YOUR_DASHBOARD_TOKEN` 등은 실제 값으로 바꿔서 붙여넣기):
+**2) 데이터 보관용 버킷 만들기** (`YOUR_PROJECT_ID`는 콘솔 상단에 보이는 본인 프로젝트 ID로 교체):
 ```bash
-gcloud compute instances create maim-server \
-  --zone=us-central1-a \
-  --machine-type=e2-small \
-  --image-family=debian-12 \
-  --image-project=debian-cloud \
-  --boot-disk-size=20GB \
-  --tags=maim-dashboard \
-  --metadata-from-file=startup-script=deploy/gcp/startup-script.sh \
-  --metadata=dashboard-token=YOUR_DASHBOARD_TOKEN,unsplash-access-key=YOUR_UNSPLASH_KEY,pexels-api-key=YOUR_PEXELS_KEY
-
-gcloud compute firewall-rules create maim-dashboard \
-  --allow=tcp:4173 --target-tags=maim-dashboard --source-ranges=0.0.0.0/0
+gcloud storage buckets create gs://maim-data-YOUR_PROJECT_ID --location=us-central1
 ```
-(`deploy/gcp/startup-script.sh`를 참조하려면 Cloud Shell에서 먼저
-`git clone https://github.com/parkchihong7-gif/maim.git && cd maim` 을 한 번 실행해두세요.)
 
-**3) claude 로그인 (VM에서 딱 한 번만)**: VM이 뜨면(1~2분 소요) 콘솔의
-Compute Engine → VM 인스턴스 목록에서 `maim-server`의 **SSH** 버튼을 클릭(브라우저 안에서
-바로 터미널이 열립니다, 별도 프로그램 설치 필요 없음). 뜬 창에 아래 입력:
+**3) Cloud Run 서비스 배포** (저장소를 먼저 받아온 뒤 그 폴더에서 배포합니다.
+`YOUR_DASHBOARD_TOKEN`/`YOUR_UNSPLASH_KEY`/`YOUR_PEXELS_KEY`는 실제 값으로 교체):
 ```bash
-sudo -i
-claude login
+git clone https://github.com/parkchihong7-gif/maim.git && cd maim
+
+gcloud run deploy maim \
+  --source . \
+  --region=us-central1 \
+  --allow-unauthenticated \
+  --execution-environment=gen2 \
+  --min-instances=0 --max-instances=1 --concurrency=1 \
+  --add-volume=name=data,type=cloud-storage,bucket=maim-data-YOUR_PROJECT_ID \
+  --add-volume-mount=volume=data,mount-path=/mnt/data \
+  --set-env-vars=DATA_DIR=/mnt/data,HOME=/mnt/data/home,TIMEZONE=Asia/Seoul,CLAUDE_BIN=claude,DASHBOARD_TOKEN=YOUR_DASHBOARD_TOKEN,UNSPLASH_ACCESS_KEY=YOUR_UNSPLASH_KEY,PEXELS_API_KEY=YOUR_PEXELS_KEY
 ```
-화면에 나오는 링크를 아무 브라우저에서나 열어 본인 Claude 계정으로 로그인하면 끝입니다.
+빌드/배포가 끝나면 터미널에 `Service URL: https://maim-xxxxx-uc.a.run.app` 같은 줄이
+뜹니다 — 이게 바로 "퍼블리싱된 웹주소"입니다. 집이든 회사든 이 주소로 접속하면
+대시보드가 열립니다(처음 접속 시 대시보드 토큰을 물어보면 위에서 정한
+`YOUR_DASHBOARD_TOKEN` 값을 입력).
 
-**4) 접속 주소 확인**: Compute Engine → VM 인스턴스 목록에서 `maim-server`의
-**외부 IP**를 확인하고, 브라우저에서 `http://외부IP:4173` 으로 접속하세요. 이 주소가
-바로 "퍼블리싱된 웹주소"입니다 — 집이든 회사든 인터넷만 되면 어디서나 이 주소로
-대시보드에 접속할 수 있습니다. 처음 접속 시 대시보드 토큰을 물어보면 위에서 정한
-`YOUR_DASHBOARD_TOKEN` 값을 입력하세요.
+**4) claude 로그인 (딱 한 번만)**: 위 주소로 접속해서 카테고리 옆 "지금 생성"을
+눌러보면, 아직 로그인이 안 되어 있어서 에러가 날 것입니다. Cloud Shell에서 아래로
+실행 중인 리비전에 접속해 로그인합니다:
+```bash
+gcloud run services proxy maim --region=us-central1 --port=4173 &
+```
+위 명령은 Cloud Run 컨테이너 안으로 직접 들어가는 것은 아니라서 `claude login`을
+실행할 수 없습니다 — 대신 아래처럼 **Cloud Shell 안에서 같은 조건으로 한 번
+로그인해서 인증 파일을 버킷에 직접 만들어두는 방법**을 씁니다:
+```bash
+npm install -g @anthropic-ai/claude-code
+gcloud storage buckets add-iam-policy-binding gs://maim-data-YOUR_PROJECT_ID \
+  --member="user:$(gcloud config get-value account)" --role="roles/storage.objectAdmin"
+mkdir -p /tmp/maim-home && export HOME=/tmp/maim-home
+claude login   # 뜨는 링크를 열어 본인 Claude 계정으로 로그인
+gcloud storage cp -r /tmp/maim-home/.claude gs://maim-data-YOUR_PROJECT_ID/home/.claude
+```
+그 다음 대시보드에서 다시 "지금 생성"을 눌러 정상 동작하는지 확인하세요.
 
-이후 제가 기능을 추가하거나 고치면, 여러분은 아무 것도 안 해도 5분 안에 VM에
-자동 반영됩니다(`deploy/gcp/maim-autoupdate.timer`). 카테고리/초안/이미지는 `data/`
-폴더에 저장되고 이 자동 업데이트가 절대 건드리지 않으니 안심하세요.
+**5) 매일 자동 초안 준비 예약 (Cloud Scheduler)**:
+```bash
+gcloud scheduler jobs create http maim-daily \
+  --location=us-central1 \
+  --schedule="0 6 * * *" \
+  --time-zone="Asia/Seoul" \
+  --uri="https://맨위에서-확인한-서비스-URL/api/run/daily" \
+  --http-method=POST \
+  --headers="x-dashboard-token=YOUR_DASHBOARD_TOKEN"
+```
 
-**비용 참고**: `e2-small` 인스턴스는 프리티어 대상이 아니라 월 1만원 안팎의 비용이
-발생합니다(사용한 만큼만 청구, 리전에 따라 다름). 비용을 더 아끼고 싶다면
-`--machine-type=e2-micro`로 바꿔보세요(`us-central1`/`us-west1`/`us-east1` 리전에서
-매달 일정량 무료 제공 — 다만 사양이 낮아 속도가 느릴 수 있습니다).
+**6) 코드가 바뀔 때마다 자동 재배포되게 하기**: Google Cloud 콘솔(브라우저)에서
+Cloud Run → `maim` 서비스 → **"저장소에서 계속 배포"(Continuously deploy from a
+repository)** 설정을 켜고 이 GitHub 저장소(`parkchihong7-gif/maim`)와
+`claude/great-brown-j376u0` 브랜치를 연결하세요(GitHub 로그인해서 권한 승인하는
+클릭 몇 번이면 끝). 이후로는 제가 새 커밋을 올릴 때마다 자동으로 새 버전이
+배포됩니다 — 터미널을 켤 일이 없습니다.
+
+**비용 참고**: Cloud Run은 실제 요청을 처리한 시간만큼만 과금되고, 개인이 하루
+몇 번 클릭하는 정도의 사용량은 매달 제공되는 무료 사용량 안에 들어올 가능성이
+높습니다(정확한 금액은 Google Cloud 결제 페이지에서 확인하세요). Cloud Storage
+버킷도 데이터 용량이 작아 비용이 거의 들지 않습니다. Cloud Scheduler도 계정당
+일정 개수까지 무료입니다.
 
 ## 주요 개념
 
