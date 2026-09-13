@@ -14,7 +14,7 @@ import { listActiveCategories } from "../src/db/repositories/categories.js";
 import { assignDirectives } from "../src/pipeline/directives.js";
 import { generatePost } from "../src/pipeline/generatePost.js";
 import { attachImage } from "../src/pipeline/attachImage.js";
-import { queuePost } from "../src/db/repositories/posts.js";
+import { queuePost, getPost } from "../src/db/repositories/posts.js";
 import { publishPost } from "../src/naver/publisher.js";
 import { hasSavedSession } from "../src/naver/browserContext.js";
 import { config } from "../src/config.js";
@@ -39,7 +39,9 @@ async function main() {
   queuePost(post.id, scheduledAt);
   console.log(`예약 발행 시각: ${scheduledAt}`);
 
-  const refreshed = { ...post, scheduled_at: scheduledAt };
+  // attachImage()는 DB의 posts.image_path만 갱신하고 메모리의 post 객체는
+  // 그대로이므로, 반드시 DB에서 다시 읽어와야 image_path가 채워진 최신 값을 쓴다.
+  const refreshed = { ...getPost(post.id)!, scheduled_at: scheduledAt };
   await publishPost(refreshed);
   console.log("발행 성공! 네이버 블로그 관리 페이지에서 예약글 목록을 확인하세요.");
 }
