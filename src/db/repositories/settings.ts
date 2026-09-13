@@ -3,8 +3,6 @@ import { config } from "../../config.js";
 
 const DEFAULTS: Record<string, string> = {
   postsPerDay: String(config.postsPerDay),
-  publishWindowStart: config.publishWindowStart,
-  publishWindowEnd: config.publishWindowEnd,
 };
 
 export function getSetting(key: string): string {

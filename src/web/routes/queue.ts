@@ -9,7 +9,7 @@ export async function queueRoutes(app: FastifyInstance) {
       .prepare(
         `SELECT p.*, c.name as category_name FROM posts p
          JOIN categories c ON c.id = p.category_id
-         WHERE p.status IN ('draft', 'queued')
+         WHERE p.status IN ('draft', 'ready')
          ORDER BY p.created_at DESC`,
       )
       .all();

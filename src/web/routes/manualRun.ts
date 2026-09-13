@@ -1,13 +1,10 @@
 import type { FastifyInstance } from "fastify";
-import { DateTime } from "luxon";
 import { getCategory } from "../../db/repositories/categories.js";
-import { getPost, queuePost } from "../../db/repositories/posts.js";
+import { getPost, markReady } from "../../db/repositories/posts.js";
 import { assignDirectives } from "../../pipeline/directives.js";
 import { generatePost } from "../../pipeline/generatePost.js";
 import { attachImage } from "../../pipeline/attachImage.js";
-import { publishPost } from "../../naver/publisher.js";
 import { assertUnderDailyCap } from "../../scheduler/queueManager.js";
-import { config } from "../../config.js";
 
 export async function manualRunRoutes(app: FastifyInstance) {
   app.post("/api/run/generate", async (req, reply) => {
@@ -18,26 +15,6 @@ export async function manualRunRoutes(app: FastifyInstance) {
       return { error: "카테고리를 찾을 수 없습니다." };
     }
 
-    const [directive] = assignDirectives(1);
-    const post = await generatePost(category, directive);
-
-    try {
-      await attachImage(post);
-    } catch (err) {
-      return { ...getPost(post.id), imageError: (err as Error).message };
-    }
-
-    return getPost(post.id);
-  });
-
-  app.post("/api/run/publish", async (req, reply) => {
-    const { postId } = req.body as { postId: number };
-    const post = getPost(postId);
-    if (!post) {
-      reply.code(404);
-      return { error: "포스팅을 찾을 수 없습니다." };
-    }
-
     try {
       assertUnderDailyCap();
     } catch (err) {
@@ -45,16 +22,17 @@ export async function manualRunRoutes(app: FastifyInstance) {
       return { error: (err as Error).message };
     }
 
-    const scheduledAt = DateTime.now().setZone(config.timezone).toUTC().toISO()!;
-    queuePost(post.id, scheduledAt);
+    const [directive] = assignDirectives(1);
+    const post = await generatePost(category, directive);
 
     try {
-      await publishPost({ ...post, scheduled_at: scheduledAt });
+      await attachImage(post);
     } catch (err) {
-      reply.code(500);
-      return { error: (err as Error).message };
+      markReady(post.id);
+      return { ...getPost(post.id), imageError: (err as Error).message };
     }
 
+    markReady(post.id);
     return getPost(post.id);
   });
 }

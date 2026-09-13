@@ -38,24 +38,17 @@ async function api(path, options) {
   return data;
 }
 
-async function refreshAuth() {
-  const status = await api("/api/auth/status");
-  const badge = document.getElementById("auth-status");
-  const detail = document.getElementById("auth-detail");
-  badge.textContent =
-    status.naverLoginStatus === "connected" ? "네이버 연결됨" : "네이버 미연결";
-  detail.textContent = `배포 모드: ${status.deploymentMode} / 세션 파일: ${
-    status.hasSavedSession ? "있음" : "없음"
-  } / 마지막 로그인: ${status.naverLoginAt ?? "-"}`;
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text ?? "";
+  return div.innerHTML;
+}
 
-  const loginBtn = document.getElementById("btn-login");
-  const isVps = status.deploymentMode === "vps";
-  loginBtn.disabled = status.loginInProgress || isVps;
-  loginBtn.textContent = status.loginInProgress ? "로그인 대기 중..." : "로그인";
-  loginBtn.hidden = isVps;
-
-  document.getElementById("export-session-box").hidden = isVps;
-  document.getElementById("import-session-box").hidden = !isVps;
+function buildCopyText(post) {
+  const tags = post.tags_json ? JSON.parse(post.tags_json) : [];
+  const parts = [post.title ?? "", "", post.content ?? ""];
+  if (tags.length > 0) parts.push("", tags.join(" "));
+  return parts.join("\n");
 }
 
 async function refreshCategories() {
@@ -65,7 +58,7 @@ async function refreshCategories() {
   for (const c of categories) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${c.name}</td>
+      <td>${escapeHtml(c.name)}</td>
       <td>${c.requires_search ? "예" : "아니오"}</td>
       <td>${c.active ? "활성" : "비활성"}</td>
       <td>
@@ -76,23 +69,40 @@ async function refreshCategories() {
   }
 }
 
+let readyPosts = [];
+
 async function refreshQueue() {
   const { remainingToday, dailyCap, items } = await api("/api/queue");
   document.getElementById("cap-indicator").textContent = `오늘 ${
     dailyCap - remainingToday
-  }/${dailyCap} 사용`;
+  }/${dailyCap} 생성`;
 
-  const tbody = document.querySelector("#queue-table tbody");
-  tbody.innerHTML = "";
+  readyPosts = items;
+  const container = document.getElementById("ready-list");
+  container.innerHTML = "";
+
+  if (items.length === 0) {
+    container.innerHTML = `<p class="muted">준비된 초안이 없습니다. 카테고리 목록에서 "지금 생성"을 눌러보세요.</p>`;
+    return;
+  }
+
   for (const p of items) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${p.id}</td>
-      <td>${p.category_name}</td>
-      <td>${p.title ?? ""}</td>
-      <td>${p.status}</td>
-      <td><button data-action="publish" data-id="${p.id}">지금 발행</button></td>`;
-    tbody.appendChild(tr);
+    const card = document.createElement("div");
+    card.className = "post-card";
+    const tags = p.tags_json ? JSON.parse(p.tags_json) : [];
+    card.innerHTML = `
+      <div class="post-card-header">
+        <strong>${escapeHtml(p.title ?? "(제목 없음)")}</strong>
+        <span class="badge">${escapeHtml(p.category_name)}</span>
+      </div>
+      ${p.image_path ? `<img class="post-thumb" src="/api/posts/${p.id}/image" alt="대표 이미지" />` : `<p class="muted">이미지 없음</p>`}
+      <p class="post-preview">${escapeHtml((p.content ?? "").slice(0, 150))}...</p>
+      <p class="muted">${tags.join(" ")}</p>
+      <div class="post-card-actions">
+        <button data-action="copy" data-id="${p.id}">복사하기</button>
+        <button data-action="mark-published" data-id="${p.id}">발행 완료로 표시</button>
+      </div>`;
+    container.appendChild(card);
   }
 }
 
@@ -104,11 +114,11 @@ async function refreshHistory() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${p.id}</td>
-      <td>${p.category_name}</td>
-      <td>${p.title ?? ""}</td>
+      <td>${escapeHtml(p.category_name)}</td>
+      <td>${escapeHtml(p.title ?? "")}</td>
       <td>${p.status}</td>
       <td>${p.published_at ?? "-"}</td>
-      <td>${p.error_message ?? ""}</td>`;
+      <td>${escapeHtml(p.error_message ?? "")}</td>`;
     tbody.appendChild(tr);
   }
 }
@@ -117,48 +127,11 @@ async function refreshSettings() {
   const settings = await api("/api/settings");
   const form = document.getElementById("settings-form");
   form.postsPerDay.value = settings.postsPerDay ?? 5;
-  form.publishWindowStart.value = settings.publishWindowStart ?? "09:00";
-  form.publishWindowEnd.value = settings.publishWindowEnd ?? "22:00";
 }
 
 async function refreshAll() {
-  await Promise.all([
-    refreshAuth(),
-    refreshCategories(),
-    refreshQueue(),
-    refreshHistory(),
-    refreshSettings(),
-  ]);
+  await Promise.all([refreshCategories(), refreshQueue(), refreshHistory(), refreshSettings()]);
 }
-
-document.getElementById("btn-login").addEventListener("click", async () => {
-  await api("/api/auth/login", { method: "POST" });
-  await refreshAuth();
-});
-
-document.getElementById("export-session-form").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const passphrase = e.target.passphrase.value;
-  window.location.href = `/api/auth/export-session?passphrase=${encodeURIComponent(passphrase)}`;
-});
-
-document.getElementById("import-session-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const form = e.target;
-  const file = form.file.files[0];
-  const passphrase = form.passphrase.value;
-  if (!file) return;
-
-  const buffer = await file.arrayBuffer();
-  const fileBase64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-
-  await api("/api/auth/import-session", {
-    method: "POST",
-    body: JSON.stringify({ fileBase64, passphrase }),
-  });
-  form.reset();
-  await refreshAuth();
-});
 
 document.getElementById("category-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -180,11 +153,7 @@ document.getElementById("settings-form").addEventListener("submit", async (e) =>
   const form = e.target;
   await api("/api/settings", {
     method: "PUT",
-    body: JSON.stringify({
-      postsPerDay: form.postsPerDay.value,
-      publishWindowStart: form.publishWindowStart.value,
-      publishWindowEnd: form.publishWindowEnd.value,
-    }),
+    body: JSON.stringify({ postsPerDay: form.postsPerDay.value }),
   });
   await refreshSettings();
 });
@@ -203,13 +172,18 @@ document.addEventListener("click", async (e) => {
         body: JSON.stringify({ categoryId: Number(id) }),
       });
       await refreshQueue();
-    } else if (action === "publish") {
-      btn.disabled = true;
-      btn.textContent = "발행 중...";
-      await api("/api/run/publish", {
-        method: "POST",
-        body: JSON.stringify({ postId: Number(id) }),
-      });
+    } else if (action === "copy") {
+      const post = readyPosts.find((p) => p.id === Number(id));
+      if (post) {
+        await navigator.clipboard.writeText(buildCopyText(post));
+        const original = btn.textContent;
+        btn.textContent = "복사됨!";
+        setTimeout(() => {
+          btn.textContent = original;
+        }, 1500);
+      }
+    } else if (action === "mark-published") {
+      await api(`/api/posts/${id}/mark-published`, { method: "POST" });
       await refreshQueue();
       await refreshHistory();
     } else if (action === "delete-category") {
@@ -219,9 +193,10 @@ document.addEventListener("click", async (e) => {
   } catch (err) {
     alert(err.message);
   } finally {
-    btn.disabled = false;
-    if (action === "generate") btn.textContent = "지금 생성";
-    if (action === "publish") btn.textContent = "지금 발행";
+    if (action === "generate") {
+      btn.disabled = false;
+      btn.textContent = "지금 생성";
+    }
   }
 });
 

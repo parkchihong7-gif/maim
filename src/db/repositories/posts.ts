@@ -2,7 +2,7 @@ import { getDb } from "../index.js";
 import { DateTime } from "luxon";
 import { config } from "../../config.js";
 
-export type PostStatus = "draft" | "queued" | "published" | "failed";
+export type PostStatus = "draft" | "ready" | "published" | "failed";
 
 export interface Post {
   id: number;
@@ -43,12 +43,12 @@ export function setPostImage(id: number, imagePath: string): void {
   getDb().prepare("UPDATE posts SET image_path = ? WHERE id = ?").run(imagePath, id);
 }
 
-export function queuePost(id: number, scheduledAtIso: string): void {
-  getDb()
-    .prepare("UPDATE posts SET status = 'queued', scheduled_at = ? WHERE id = ?")
-    .run(scheduledAtIso, id);
+/** 콘텐츠(+가능하면 이미지)가 준비되어 사용자가 대시보드에서 복사해갈 수 있는 상태. */
+export function markReady(id: number): void {
+  getDb().prepare("UPDATE posts SET status = 'ready' WHERE id = ?").run(id);
 }
 
+/** 실제 네이버 발행은 사람이 수동으로 하므로, 이건 사용자가 "발행 완료로 표시"를 누른 기록일 뿐이다. */
 export function markPublished(id: number): void {
   getDb()
     .prepare("UPDATE posts SET status = 'published', published_at = datetime('now') WHERE id = ?")
@@ -61,12 +61,6 @@ export function markFailed(id: number, errorMessage: string): void {
     .run(errorMessage, id);
 }
 
-export function listDuePosts(nowIso: string): Post[] {
-  return getDb()
-    .prepare("SELECT * FROM posts WHERE status = 'queued' AND scheduled_at <= ? ORDER BY scheduled_at ASC")
-    .all(nowIso) as Post[];
-}
-
 export function listHistory(limit = 50): Post[] {
   return getDb()
     .prepare("SELECT * FROM posts ORDER BY created_at DESC LIMIT ?")
@@ -74,7 +68,7 @@ export function listHistory(limit = 50): Post[] {
 }
 
 /**
- * 오늘(설정 타임존 기준) queued+published 상태인 포스팅 수 — 5개/일 캡 강제에 사용.
+ * 오늘(설정 타임존 기준) ready+published 상태인 포스팅 수 — 하루 자동 생성 개수 제한에 사용.
  *
  * 주의: sqlite의 `created_at` 컬럼은 `datetime('now')` 기본값이라
  * "YYYY-MM-DD HH:MM:SS"(공백 구분, UTC, 밀리초 없음) 형식으로 저장된다.
@@ -87,7 +81,7 @@ export function countTodayCommitted(): number {
   const endOfDayUtc = DateTime.now().setZone(config.timezone).endOf("day").toUTC();
 
   const rows = getDb()
-    .prepare(`SELECT created_at FROM posts WHERE status IN ('queued', 'published')`)
+    .prepare(`SELECT created_at FROM posts WHERE status IN ('ready', 'published')`)
     .all() as { created_at: string }[];
 
   return rows.filter((row) => {

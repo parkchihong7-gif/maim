@@ -6,15 +6,14 @@ import { categoriesRoutes } from "./routes/categories.js";
 import { queueRoutes } from "./routes/queue.js";
 import { historyRoutes } from "./routes/history.js";
 import { settingsRoutes } from "./routes/settings.js";
-import { authRoutes } from "./routes/auth.js";
 import { manualRunRoutes } from "./routes/manualRun.js";
+import { postsRoutes } from "./routes/posts.js";
 
 export async function buildServer() {
   const app = Fastify({ logger: true });
 
   app.get("/api/health", async () => ({
     ok: true,
-    deploymentMode: config.deploymentMode,
     timezone: config.timezone,
   }));
 
@@ -37,8 +36,8 @@ export async function buildServer() {
   await app.register(queueRoutes);
   await app.register(historyRoutes);
   await app.register(settingsRoutes);
-  await app.register(authRoutes);
   await app.register(manualRunRoutes);
+  await app.register(postsRoutes);
 
   await app.register(fastifyStatic, {
     root: path.join(import.meta.dirname, "public"),

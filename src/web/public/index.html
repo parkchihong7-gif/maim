@@ -3,39 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>maim — 네이버 블로그 자동 발행</title>
+  <title>maim — 네이버 블로그 콘텐츠 생성</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
   <header>
     <h1>maim 대시보드</h1>
-    <div id="auth-status" class="badge">확인 중...</div>
+    <p class="muted">AI가 글과 이미지를 준비해두면, 여기서 복사해서 네이버 블로그에 직접 붙여넣으세요.</p>
   </header>
 
   <main>
-    <section>
-      <h2>네이버 로그인</h2>
-      <p id="auth-detail" class="muted"></p>
-      <button id="btn-login">로그인</button>
-
-      <details id="export-session-box">
-        <summary>세션 내보내기 (VPS로 이전)</summary>
-        <form id="export-session-form">
-          <input name="passphrase" type="password" placeholder="암호" required />
-          <button type="submit">암호화 파일 다운로드</button>
-        </form>
-      </details>
-
-      <details id="import-session-box" hidden>
-        <summary>세션 업로드 (로컬에서 내보낸 파일)</summary>
-        <form id="import-session-form">
-          <input name="file" type="file" required />
-          <input name="passphrase" type="password" placeholder="암호" required />
-          <button type="submit">업로드</button>
-        </form>
-      </details>
-    </section>
-
     <section>
       <h2>카테고리</h2>
       <table id="category-table">
@@ -56,20 +33,15 @@
     </section>
 
     <section>
-      <h2>발행 큐 <span id="cap-indicator" class="badge"></span></h2>
-      <table id="queue-table">
-        <thead>
-          <tr><th>ID</th><th>카테고리</th><th>제목</th><th>상태</th><th>동작</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+      <h2>준비된 초안 <span id="cap-indicator" class="badge"></span></h2>
+      <div id="ready-list"></div>
     </section>
 
     <section>
       <h2>히스토리</h2>
       <table id="history-table">
         <thead>
-          <tr><th>ID</th><th>카테고리</th><th>제목</th><th>상태</th><th>발행시각</th><th>에러</th></tr>
+          <tr><th>ID</th><th>카테고리</th><th>제목</th><th>상태</th><th>발행완료 표시 시각</th><th>에러</th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -78,9 +50,7 @@
     <section>
       <h2>설정</h2>
       <form id="settings-form">
-        <label>하루 발행 개수 (최대 5) <input name="postsPerDay" type="number" min="1" max="5" /></label>
-        <label>발행 시작 시각 <input name="publishWindowStart" type="time" /></label>
-        <label>발행 종료 시각 <input name="publishWindowEnd" type="time" /></label>
+        <label>하루 최대 생성 개수 (최대 5) <input name="postsPerDay" type="number" min="1" max="5" /></label>
         <button type="submit">저장</button>
       </form>
     </section>

@@ -1,5 +1,5 @@
 [Unit]
-Description=maim - Claude 기반 네이버 블로그 자동 발행 프로그램
+Description=maim - Claude 기반 네이버 블로그 콘텐츠 자동 생성 프로그램
 After=network-online.target
 Wants=network-online.target
 

@@ -2,7 +2,7 @@
   "name": "maim",
   "version": "0.1.0",
   "private": true,
-  "description": "Claude 기반 네이버 블로그 자동 발행 프로그램",
+  "description": "Claude 기반 네이버 블로그 콘텐츠 자동 생성 프로그램 (발행은 수동 복사)",
   "type": "module",
   "engines": {
     "node": ">=20"
@@ -11,14 +11,8 @@
     "build": "tsc -p tsconfig.json && mkdir -p dist/web && cp -r src/web/public dist/web/public",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "setup": "tsx scripts/setup.ts",
-    "login": "tsx scripts/login.ts",
-    "export-session": "tsx scripts/export-session.ts",
-    "import-session": "tsx scripts/import-session.ts",
     "test:claude-cli": "tsx tests/test-claude-cli.ts",
-    "test:playwright-login": "tsx tests/test-playwright-login.ts",
-    "test:image-pipeline": "tsx tests/test-image-pipeline.ts",
-    "test:single-publish": "tsx tests/test-single-publish.ts"
+    "test:image-pipeline": "tsx tests/test-image-pipeline.ts"
   },
   "dependencies": {
     "@fastify/static": "^7.0.4",
@@ -27,7 +21,6 @@
     "fastify": "^4.28.1",
     "luxon": "^3.5.0",
     "node-cron": "^3.0.3",
-    "playwright": "^1.48.0",
     "sharp": "^0.33.5",
     "zod": "^3.23.8"
   },

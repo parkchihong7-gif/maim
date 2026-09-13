@@ -11,10 +11,11 @@ body {
 }
 
 header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   margin-bottom: 24px;
+}
+
+header h1 {
+  margin-bottom: 4px;
 }
 
 h1 {
@@ -62,5 +63,40 @@ form {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  margin-top: 8px;
+}
+
+.post-card {
+  border: 1px solid #8883;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.post-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.post-thumb {
+  max-width: 100%;
+  max-height: 220px;
+  border-radius: 6px;
+  display: block;
+  margin-bottom: 8px;
+  object-fit: cover;
+}
+
+.post-preview {
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+}
+
+.post-card-actions {
+  display: flex;
+  gap: 8px;
   margin-top: 8px;
 }
