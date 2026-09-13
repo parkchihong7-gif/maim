@@ -65,6 +65,59 @@ ssh -L 4173:127.0.0.1:4173 user@vps-host
 부득이 직접 노출해야 한다면 `.env`의 `DASHBOARD_TOKEN`을 강한 임의 문자열로
 설정하세요 — 설정하면 모든 API 요청에 해당 토큰이 필요해집니다.
 
+## Google Cloud에 배포하기 (터미널 없이, 어디서든 웹주소로 접속)
+
+집 컴퓨터가 꺼져 있거나 회사 등 다른 곳에서 대시보드를 쓰고 싶다면, 항상 켜져 있는
+작은 VM 한 대에 배포해두면 됩니다. 아래 절차는 **최초 1번만** 진행하면 되고,
+그 뒤로는 코드가 바뀔 때마다(제가 GitHub에 새 커밋을 올릴 때마다) VM이 5분 안에
+자동으로 최신 버전을 반영합니다(재빌드+재시작까지 자동) — 이후로는 터미널을 켤 일이
+없고, 그냥 브라우저로 주소만 열면 됩니다.
+
+**1) Cloud Shell 열기**: https://console.cloud.google.com 접속 → 우측 상단 `>_` 아이콘
+(Cloud Shell 활성화) 클릭 → 화면 하단에 터미널이 뜨면 아래 명령어를 순서대로 붙여넣기.
+
+**2) VM 생성 + 방화벽 오픈** (아래 `YOUR_DASHBOARD_TOKEN` 등은 실제 값으로 바꿔서 붙여넣기):
+```bash
+gcloud compute instances create maim-server \
+  --zone=us-central1-a \
+  --machine-type=e2-small \
+  --image-family=debian-12 \
+  --image-project=debian-cloud \
+  --boot-disk-size=20GB \
+  --tags=maim-dashboard \
+  --metadata-from-file=startup-script=deploy/gcp/startup-script.sh \
+  --metadata=dashboard-token=YOUR_DASHBOARD_TOKEN,unsplash-access-key=YOUR_UNSPLASH_KEY,pexels-api-key=YOUR_PEXELS_KEY
+
+gcloud compute firewall-rules create maim-dashboard \
+  --allow=tcp:4173 --target-tags=maim-dashboard --source-ranges=0.0.0.0/0
+```
+(`deploy/gcp/startup-script.sh`를 참조하려면 Cloud Shell에서 먼저
+`git clone https://github.com/parkchihong7-gif/maim.git && cd maim` 을 한 번 실행해두세요.)
+
+**3) claude 로그인 (VM에서 딱 한 번만)**: VM이 뜨면(1~2분 소요) 콘솔의
+Compute Engine → VM 인스턴스 목록에서 `maim-server`의 **SSH** 버튼을 클릭(브라우저 안에서
+바로 터미널이 열립니다, 별도 프로그램 설치 필요 없음). 뜬 창에 아래 입력:
+```bash
+sudo -i
+claude login
+```
+화면에 나오는 링크를 아무 브라우저에서나 열어 본인 Claude 계정으로 로그인하면 끝입니다.
+
+**4) 접속 주소 확인**: Compute Engine → VM 인스턴스 목록에서 `maim-server`의
+**외부 IP**를 확인하고, 브라우저에서 `http://외부IP:4173` 으로 접속하세요. 이 주소가
+바로 "퍼블리싱된 웹주소"입니다 — 집이든 회사든 인터넷만 되면 어디서나 이 주소로
+대시보드에 접속할 수 있습니다. 처음 접속 시 대시보드 토큰을 물어보면 위에서 정한
+`YOUR_DASHBOARD_TOKEN` 값을 입력하세요.
+
+이후 제가 기능을 추가하거나 고치면, 여러분은 아무 것도 안 해도 5분 안에 VM에
+자동 반영됩니다(`deploy/gcp/maim-autoupdate.timer`). 카테고리/초안/이미지는 `data/`
+폴더에 저장되고 이 자동 업데이트가 절대 건드리지 않으니 안심하세요.
+
+**비용 참고**: `e2-small` 인스턴스는 프리티어 대상이 아니라 월 1만원 안팎의 비용이
+발생합니다(사용한 만큼만 청구, 리전에 따라 다름). 비용을 더 아끼고 싶다면
+`--machine-type=e2-micro`로 바꿔보세요(`us-central1`/`us-west1`/`us-east1` 리전에서
+매달 일정량 무료 제공 — 다만 사양이 낮아 속도가 느릴 수 있습니다).
+
 ## 주요 개념
 
 - **AI 엔진**: 별도 API 과금 없이 `claude -p`를 서브프로세스로 호출해 기존 Claude 구독
