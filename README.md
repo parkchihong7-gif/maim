@@ -103,7 +103,7 @@ gcloud run deploy maim \
   --min-instances=0 --max-instances=1 --concurrency=1 \
   --add-volume=name=data,type=cloud-storage,bucket=maim-data-YOUR_PROJECT_ID \
   --add-volume-mount=volume=data,mount-path=/mnt/data \
-  --set-env-vars=DATA_DIR=/mnt/data,HOME=/mnt/data/home,TIMEZONE=Asia/Seoul,CLAUDE_BIN=claude,DASHBOARD_TOKEN=YOUR_DASHBOARD_TOKEN,UNSPLASH_ACCESS_KEY=YOUR_UNSPLASH_KEY,PEXELS_API_KEY=YOUR_PEXELS_KEY
+  --set-env-vars=HOST=0.0.0.0,DATA_DIR=/mnt/data,HOME=/mnt/data/home,TIMEZONE=Asia/Seoul,CLAUDE_BIN=claude,DASHBOARD_TOKEN=YOUR_DASHBOARD_TOKEN,UNSPLASH_ACCESS_KEY=YOUR_UNSPLASH_KEY,PEXELS_API_KEY=YOUR_PEXELS_KEY
 ```
 빌드/배포가 끝나면 터미널에 `Service URL: https://maim-xxxxx-uc.a.run.app` 같은 줄이
 뜹니다 — 이게 바로 "퍼블리싱된 웹주소"입니다. 집이든 회사든 이 주소로 접속하면
