@@ -32,6 +32,15 @@ async function api(path, options = {}) {
   });
 
   if (res.status === 401) {
+    // window.prompt()는 동기/블로킹이라, 이 요청이 401을 받은 시점과 그 처리를
+    // 실제로 실행하는 시점 사이에 "먼저 온" 다른 요청의 prompt가 이미 뜨고
+    // 닫혔을 수 있다. 그러면 dashboardTokenPromptPromise는 이미 null로
+    // 리셋된 뒤라 아래 없이는 이 요청도 새 창을 또 띄운다. 그러니 새 창을
+    // 띄우기 전에 "혹시 그새 다른 요청이 이미 토큰을 받아왔는지"부터 확인한다.
+    const latestToken = getDashboardToken();
+    if (latestToken && latestToken !== token) {
+      return api(path, options);
+    }
     if (!dashboardTokenPromptPromise) {
       dashboardTokenPromptPromise = Promise.resolve()
         .then(() => window.prompt("대시보드 토큰이 필요합니다 (DASHBOARD_TOKEN):"))
@@ -65,8 +74,11 @@ function buildCopyText(post) {
   return parts.join("\n");
 }
 
+let categoriesCache = [];
+
 async function refreshCategories() {
   const categories = await api("/api/categories");
+  categoriesCache = categories;
   const tbody = document.querySelector("#category-table tbody");
   tbody.innerHTML = "";
   for (const c of categories) {
@@ -76,6 +88,7 @@ async function refreshCategories() {
       <td><span class="badge ${c.active ? "badge-active" : "badge-inactive"}">${c.active ? "활성" : "비활성"}</span></td>
       <td>
         <button class="btn-primary" data-action="generate" data-id="${c.id}">지금 생성</button>
+        <button class="btn-secondary" data-action="edit-category" data-id="${c.id}">수정</button>
         <button class="btn-danger" data-action="delete-category" data-id="${c.id}">삭제</button>
       </td>`;
     tbody.appendChild(tr);
@@ -115,14 +128,23 @@ async function refreshQueue() {
     // x-dashboard-token 헤더가 안 실린다. 토큰이 설정된 배포(Cloud Run 등)에서
     // 이미지가 항상 401로 막혀 안 보이지 않도록 쿼리 파라미터로도 붙여준다.
     const imgToken = getDashboardToken();
-    const tokenQuery = imgToken ? `&token=${encodeURIComponent(imgToken)}` : "";
+    const tokenQuery = imgToken ? `?token=${encodeURIComponent(imgToken)}` : "";
+    // 재생성은 기존 이미지를 덮어쓰지 않고 항상 새 인덱스로 추가하므로, 같은
+    // 인덱스의 파일은 한 번 만들어지면 절대 안 바뀐다 — 캐시 버스터가 필요
+    // 없고(서버도 오래 캐시하도록 응답), 매 15초 자동 새로고침마다 이미 받은
+    // 이미지를 또 통째로 재다운로드하며 화면이 깜빡이는 문제도 사라진다.
     const imagesHtml =
       imagePaths.length > 0
         ? `<div class="post-images">${imagePaths
-            .map(
-              (_, idx) =>
-                `<img class="post-thumb" src="/api/posts/${p.id}/image/${idx}?t=${Date.now()}${tokenQuery}" alt="이미지 ${idx + 1}" />`,
-            )
+            .map((_, idx) => {
+              const src = `/api/posts/${p.id}/image/${idx}${tokenQuery}`;
+              const safeSrc = escapeHtml(src);
+              return `
+                <div class="post-image-item">
+                  <img class="post-thumb" src="${safeSrc}" alt="이미지 ${idx + 1}" />
+                  <button class="btn-secondary btn-copy-image" data-action="copy-image" data-src="${safeSrc}">복사</button>
+                </div>`;
+            })
             .join("")}</div>`
         : `<p class="muted">이미지 없음</p>`;
     card.innerHTML = `
@@ -219,6 +241,35 @@ document.addEventListener("click", async (e) => {
     } else if (action === "delete-category") {
       await api(`/api/categories/${id}`, { method: "DELETE" });
       await refreshCategories();
+    } else if (action === "edit-category") {
+      const category = categoriesCache.find((c) => c.id === Number(id));
+      if (!category) return;
+      const newName = window.prompt("카테고리 이름", category.name);
+      if (newName === null) return;
+      const newHint = window.prompt("카테고리 설명(프롬프트 힌트)", category.prompt_hint);
+      if (newHint === null) return;
+      await api(`/api/categories/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ name: newName, promptHint: newHint }),
+      });
+      await refreshCategories();
+    } else if (action === "copy-image") {
+      const src = btn.dataset.src;
+      const res = await fetch(src);
+      if (!res.ok) throw new Error(`이미지를 불러오지 못했습니다 (${res.status})`);
+      const blob = await res.blob();
+      const bitmap = await createImageBitmap(blob);
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      canvas.getContext("2d").drawImage(bitmap, 0, 0);
+      const pngBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
+      const original = btn.textContent;
+      btn.textContent = "복사됨!";
+      setTimeout(() => {
+        btn.textContent = original;
+      }, 1500);
     }
   } catch (err) {
     alert(err.message);

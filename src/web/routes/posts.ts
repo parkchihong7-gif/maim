@@ -26,8 +26,15 @@ export async function postsRoutes(app: FastifyInstance) {
     }
     const ext = path.extname(imagePath).toLowerCase();
     reply.type(MIME_BY_EXT[ext] ?? "application/octet-stream");
-    // 재생성 후에도 브라우저가 예전 이미지를 캐시에서 그대로 보여주지 않도록 한다.
-    reply.header("Cache-Control", "no-store");
+    // 재생성은 기존 인덱스를 덮어쓰지 않고 항상 새 인덱스를 추가하므로, 같은
+    // (id, index) 조합의 파일 내용은 한 번 만들어지면 절대 안 바뀐다 — 오래
+    // 캐시해도 안전하고, 대시보드가 매 15초 자동 새로고침할 때마다 이미 받은
+    // 이미지를 또 통째로 재다운로드하는 것도 막아준다.
+    reply.header("Cache-Control", "public, max-age=31536000, immutable");
+    // URL 자체에는 확장자가 없어서, 브라우저가 "다른 이름으로 이미지 저장" 시
+    // 형식을 잘못 추측해(예: macOS에서 .jfif) 저장하는 경우가 있다. 파일명을
+    // 명시해 항상 올바른 확장자로 저장되게 한다(가공 파이프라인은 항상 .jpg).
+    reply.header("Content-Disposition", `inline; filename="post-${id}-image-${Number(index) + 1}${ext}"`);
     return fs.createReadStream(imagePath);
   });
 
