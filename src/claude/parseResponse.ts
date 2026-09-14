@@ -11,6 +11,9 @@ export type PostResponse = z.infer<typeof PostResponseSchema>;
 
 export const ImageSelectSchema = z.object({
   selected_indices: z.array(z.number().int().min(0)).min(1),
+  // selected_indices와 같은 순서/개수여야 하지만, 모델이 빠뜨릴 수도 있으니
+  // optional로 받고 selectImage.ts에서 부족한 만큼 대체 문구로 채운다.
+  alt_texts: z.array(z.string()).optional().default([]),
   reason: z.string(),
 });
 

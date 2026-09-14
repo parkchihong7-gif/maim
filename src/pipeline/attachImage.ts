@@ -44,12 +44,14 @@ export async function attachImage(post: Post, options: AttachImageOptions = {}):
   fs.mkdirSync(postDir, { recursive: true });
   const existingCount = append ? getImagePaths(post).length : 0;
   const newPaths: string[] = [];
+  const newAlts: string[] = [];
   for (let i = 0; i < selected.length; i++) {
     const finalPath = path.join(postDir, `final-${existingCount + i + 1}.jpg`);
-    await processImage(selected[i], finalPath);
+    await processImage(selected[i].filePath, finalPath);
     newPaths.push(finalPath);
+    newAlts.push(selected[i].alt);
   }
 
-  addPostImages(post.id, newPaths, append);
+  addPostImages(post.id, newPaths, newAlts, append);
   return newPaths;
 }

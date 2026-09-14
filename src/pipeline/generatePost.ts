@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 import type { Category } from "../db/repositories/categories.js";
-import { insertDraftPost, type Post } from "../db/repositories/posts.js";
+import { insertDraftPost, listRecentTitles, type Post } from "../db/repositories/posts.js";
 import { markCategoryUsed } from "../db/repositories/categories.js";
 import { buildPostPrompt } from "../claude/promptBuilder.js";
 import { runClaude } from "../claude/runClaude.js";
@@ -14,7 +14,8 @@ const MIN_ACCEPTABLE_LENGTH = 2000;
 /** 카테고리 1개에 대해 claude -p를 호출해 draft 포스팅 1건을 생성한다. */
 export async function generatePost(category: Category, directive: PostDirective): Promise<Post> {
   const today = DateTime.now().setZone(config.timezone).toFormat("yyyy-MM-dd");
-  const prompt = buildPostPrompt(category, directive, today);
+  const recentTitles = listRecentTitles(20);
+  const prompt = buildPostPrompt(category, directive, today, recentTitles);
 
   const requiresSearch = category.requires_search === 1;
   const allowedTools = requiresSearch ? ["WebSearch"] : undefined;

@@ -64,7 +64,7 @@ async function main() {
   console.log("선택된 이미지:", selected);
 
   const finalPath = path.join(TEST_DIR, "final.jpg");
-  await processImage(selected[0], finalPath, {
+  await processImage(selected[0].filePath, finalPath, {
     targetWidth: 760,
     aspectRatio: 4 / 3,
     overlayText: "가을 숲속 캠핑 여행기",

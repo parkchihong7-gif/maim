@@ -10,6 +10,7 @@ export interface Post {
   content: string | null;
   image_path: string | null;
   image_paths_json: string | null;
+  image_alts_json: string | null;
   image_query: string | null;
   tags_json: string | null;
   scheduled_at: string | null;
@@ -48,17 +49,30 @@ export function getImagePaths(post: Post): string[] {
   }
 }
 
+export function getImageAlts(post: Post): string[] {
+  if (!post.image_alts_json) return [];
+  try {
+    const parsed = JSON.parse(post.image_alts_json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 /**
- * 이미지 목록을 갱신한다. append=true면 기존 이미지 오른쪽에 새 이미지를 덧붙이고,
- * append=false면 전체를 새 목록으로 교체한다(최초 생성 시). image_path 컬럼은
- * 과거 코드 호환을 위해 항상 목록의 첫 번째 이미지로 맞춰둔다.
+ * 이미지 목록(+대체텍스트)을 갱신한다. append=true면 기존 이미지 오른쪽에 새
+ * 이미지를 덧붙이고, append=false면 전체를 새 목록으로 교체한다(최초 생성 시).
+ * image_path 컬럼은 과거 코드 호환을 위해 항상 목록의 첫 번째 이미지로 맞춰둔다.
  */
-export function addPostImages(id: number, newPaths: string[], append: boolean): void {
-  const current = append ? getImagePaths(getPost(id)!) : [];
-  const merged = [...current, ...newPaths];
+export function addPostImages(id: number, newPaths: string[], newAlts: string[], append: boolean): void {
+  const post = getPost(id)!;
+  const currentPaths = append ? getImagePaths(post) : [];
+  const currentAlts = append ? getImageAlts(post) : [];
+  const mergedPaths = [...currentPaths, ...newPaths];
+  const mergedAlts = [...currentAlts, ...newAlts];
   getDb()
-    .prepare("UPDATE posts SET image_paths_json = ?, image_path = ? WHERE id = ?")
-    .run(JSON.stringify(merged), merged[0] ?? null, id);
+    .prepare("UPDATE posts SET image_paths_json = ?, image_alts_json = ?, image_path = ? WHERE id = ?")
+    .run(JSON.stringify(mergedPaths), JSON.stringify(mergedAlts), mergedPaths[0] ?? null, id);
 }
 
 /** 콘텐츠(+가능하면 이미지)가 준비되어 사용자가 대시보드에서 복사해갈 수 있는 상태. */
@@ -83,4 +97,17 @@ export function listHistory(limit = 50): Post[] {
   return getDb()
     .prepare("SELECT * FROM posts ORDER BY created_at DESC LIMIT ?")
     .all(limit) as Post[];
+}
+
+/** 새 글이 최근 작성 완료(ready/published)된 글과 주제가 겹치지 않도록, 프롬프트에
+ * 같이 넣어줄 최근 제목 목록. draft/failed는 아직 완성된 글이 아니므로 제외한다. */
+export function listRecentTitles(limit = 20): string[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT title FROM posts
+       WHERE status IN ('ready', 'published') AND title IS NOT NULL
+       ORDER BY created_at DESC LIMIT ?`,
+    )
+    .all(limit) as { title: string }[];
+  return rows.map((r) => r.title);
 }

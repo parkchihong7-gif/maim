@@ -96,6 +96,7 @@ async function refreshCategories() {
 }
 
 let readyPosts = [];
+let historyCache = [];
 
 function getImagePaths(post) {
   if (!post.image_paths_json) return [];
@@ -105,6 +106,76 @@ function getImagePaths(post) {
   } catch {
     return [];
   }
+}
+
+function getImageAlts(post) {
+  if (!post.image_alts_json) return [];
+  try {
+    const parsed = JSON.parse(post.image_alts_json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+// --- 초안 품질 체크리스트 (전부 클라이언트에서 계산, 서버 호출 없음) ---
+
+function normalizeWords(text) {
+  return (text || "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 1);
+}
+
+function jaccardSimilarity(wordsA, wordsB) {
+  const setA = new Set(wordsA);
+  const setB = new Set(wordsB);
+  if (setA.size === 0 || setB.size === 0) return 0;
+  let intersection = 0;
+  for (const w of setA) if (setB.has(w)) intersection++;
+  const union = new Set([...setA, ...setB]).size;
+  return union === 0 ? 0 : intersection / union;
+}
+
+/** 이미 작성 완료(ready/published)된 다른 글들과 제목 주제가 겹치는지 대략 확인한다. */
+function findSimilarHistoryTitle(post) {
+  const words = normalizeWords(post.title);
+  let best = { title: null, score: 0 };
+  for (const h of historyCache) {
+    if (h.id === post.id) continue;
+    if (h.status !== "ready" && h.status !== "published") continue;
+    if (!h.title) continue;
+    const score = jaccardSimilarity(words, normalizeWords(h.title));
+    if (score > best.score) best = { title: h.title, score };
+  }
+  return best;
+}
+
+const BANNED_FORMATTING_REGEX = /(^#{1,6}\s)|(^\*\s)|■|▶/m;
+
+function buildQualityChecklist(post) {
+  const content = post.content ?? "";
+  const len = content.length;
+  const tags = post.tags_json ? JSON.parse(post.tags_json) : [];
+  const keyword = tags[0] ? tags[0].replace(/^#/, "") : null;
+  const keywordCount = keyword ? content.split(keyword).length - 1 : 0;
+  const hasBanned = BANNED_FORMATTING_REGEX.test(content);
+  const similar = findSimilarHistoryTitle(post);
+  const isDuplicate = similar.score >= 0.5;
+
+  return [
+    { ok: len >= 1500, label: len >= 1500 ? `글자수 ${len}자` : `글자수 부족 (${len}자)` },
+    { ok: !hasBanned, label: hasBanned ? "서식 기호 잔존" : "서식 기호 없음" },
+    {
+      ok: keyword ? keywordCount >= 2 : false,
+      label: keyword ? `키워드 "${keyword}" 본문 ${keywordCount}회` : "태그 없음",
+    },
+    {
+      ok: !isDuplicate,
+      label: isDuplicate ? `최근 글과 주제 유사: "${similar.title}"` : "최근 글과 주제 중복 없음",
+    },
+  ];
 }
 
 async function refreshQueue() {
@@ -124,6 +195,7 @@ async function refreshQueue() {
     card.className = "post-card";
     const tags = p.tags_json ? JSON.parse(p.tags_json) : [];
     const imagePaths = getImagePaths(p);
+    const imageAlts = getImageAlts(p);
     // <img src>는 브라우저가 커스텀 헤더 없이 직접 요청하므로, api()가 붙이는
     // x-dashboard-token 헤더가 안 실린다. 토큰이 설정된 배포(Cloud Run 등)에서
     // 이미지가 항상 401로 막혀 안 보이지 않도록 쿼리 파라미터로도 붙여준다.
@@ -139,33 +211,47 @@ async function refreshQueue() {
             .map((_, idx) => {
               const src = `/api/posts/${p.id}/image/${idx}${tokenQuery}`;
               const safeSrc = escapeHtml(src);
+              const alt = imageAlts[idx] || "";
+              const safeAlt = escapeHtml(alt || `이미지 ${idx + 1}`);
               return `
                 <div class="post-image-item">
-                  <img class="post-thumb" src="${safeSrc}" alt="이미지 ${idx + 1}" />
-                  <button class="btn-secondary btn-copy-image" data-action="copy-image" data-src="${safeSrc}">복사</button>
+                  <img class="post-thumb" src="${safeSrc}" alt="${safeAlt}" />
+                  <div class="post-image-actions">
+                    <button class="btn-secondary btn-copy-image" data-action="copy-image" data-src="${safeSrc}">이미지 복사</button>
+                    ${alt ? `<button class="btn-secondary btn-copy-image" data-action="copy-alt" data-alt="${escapeHtml(alt)}">대체텍스트 복사</button>` : ""}
+                  </div>
+                  ${alt ? `<p class="post-image-alt">${escapeHtml(alt)}</p>` : ""}
                 </div>`;
             })
-            .join("")}</div>`
+            .join("")}</div>
+          <p class="muted post-image-hint">💡 네이버 에디터에 이미지를 붙여넣은 뒤 "대체텍스트" 입력란에 위 문구를 붙여넣으면 검색엔진이 이미지 내용을 인식하는 데 도움이 됩니다.</p>`
         : `<p class="muted">이미지 없음</p>`;
+
+    const checklistHtml = `<div class="post-quality-checklist">${buildQualityChecklist(p)
+      .map((item) => `<span class="badge ${item.ok ? "badge-active" : "badge-failed"}">${item.ok ? "✅" : "⚠"} ${escapeHtml(item.label)}</span>`)
+      .join("")}</div>`;
+
     card.innerHTML = `
       <div class="post-card-header">
-        <strong>${escapeHtml(p.title ?? "(제목 없음)")}</strong>
+        <strong class="post-title-toggle" data-action="toggle-content" data-id="${p.id}">${escapeHtml(p.title ?? "(제목 없음)")}</strong>
         <span class="badge">${escapeHtml(p.category_name)}</span>
       </div>
-      ${imagesHtml}
-      <p class="post-preview">${escapeHtml((p.content ?? "").slice(0, 150))}...</p>
-      <p class="muted">${tags.join(" ")}</p>
       <div class="post-card-actions">
         <button class="btn-secondary" data-action="copy" data-id="${p.id}">복사하기</button>
         <button class="btn-secondary" data-action="regenerate-image" data-id="${p.id}">이미지 재생성</button>
         <button class="btn-success" data-action="mark-published" data-id="${p.id}">발행 완료로 표시</button>
-      </div>`;
+      </div>
+      ${checklistHtml}
+      <p class="post-preview collapsed">${escapeHtml(p.content ?? "")}</p>
+      <p class="muted">${tags.join(" ")}</p>
+      ${imagesHtml}`;
     container.appendChild(card);
   }
 }
 
 async function refreshHistory() {
   const items = await api("/api/history?limit=30");
+  historyCache = items;
   const tbody = document.querySelector("#history-table tbody");
   tbody.innerHTML = "";
   for (const p of items) {
@@ -182,7 +268,10 @@ async function refreshHistory() {
 }
 
 async function refreshAll() {
-  await Promise.all([refreshCategories(), refreshQueue(), refreshHistory()]);
+  // 초안 품질 체크리스트가 히스토리 데이터(historyCache)로 "최근 글과 주제
+  // 중복" 여부를 계산하므로, 큐보다 히스토리를 먼저 받아온다.
+  await refreshHistory();
+  await Promise.all([refreshCategories(), refreshQueue()]);
 }
 
 document.getElementById("category-form").addEventListener("submit", async (e) => {
@@ -205,7 +294,7 @@ document.getElementById("category-form").addEventListener("submit", async (e) =>
 });
 
 document.addEventListener("click", async (e) => {
-  const btn = e.target.closest("button[data-action]");
+  const btn = e.target.closest("[data-action]");
   if (!btn) return;
   const { action, id } = btn.dataset;
 
@@ -253,6 +342,9 @@ document.addEventListener("click", async (e) => {
         body: JSON.stringify({ name: newName, promptHint: newHint }),
       });
       await refreshCategories();
+    } else if (action === "toggle-content") {
+      const preview = btn.closest(".post-card").querySelector(".post-preview");
+      preview.classList.toggle("collapsed");
     } else if (action === "copy-image") {
       const src = btn.dataset.src;
       const res = await fetch(src);
@@ -265,6 +357,13 @@ document.addEventListener("click", async (e) => {
       canvas.getContext("2d").drawImage(bitmap, 0, 0);
       const pngBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
       await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
+      const original = btn.textContent;
+      btn.textContent = "복사됨!";
+      setTimeout(() => {
+        btn.textContent = original;
+      }, 1500);
+    } else if (action === "copy-alt") {
+      await navigator.clipboard.writeText(btn.dataset.alt);
       const original = btn.textContent;
       btn.textContent = "복사됨!";
       setTimeout(() => {

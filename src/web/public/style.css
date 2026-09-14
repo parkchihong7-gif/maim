@@ -249,12 +249,57 @@ input:focus {
   font-size: 1.02rem;
 }
 
+.post-title-toggle {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.post-title-toggle:hover {
+  color: var(--gold);
+}
+
+.post-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.post-quality-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.post-quality-checklist .badge-failed {
+  background: rgba(217, 115, 107, 0.12);
+  color: var(--danger);
+}
+
+.post-preview {
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  max-height: none;
+  overflow: hidden;
+}
+
+.post-preview.collapsed {
+  max-height: 4.8em;
+  -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+}
+
 .post-images {
   display: flex;
   gap: 8px;
   overflow-x: auto;
   padding-bottom: 4px;
-  margin-bottom: 10px;
+  margin-top: 10px;
+  margin-bottom: 6px;
 }
 
 .post-image-item {
@@ -263,6 +308,7 @@ input:focus {
   align-items: stretch;
   gap: 6px;
   flex-shrink: 0;
+  width: 200px;
 }
 
 .post-thumb {
@@ -274,20 +320,24 @@ input:focus {
   border: 1px solid var(--border);
 }
 
+.post-image-actions {
+  display: flex;
+  gap: 6px;
+}
+
 .btn-copy-image {
   padding: 4px 10px;
   font-size: 0.78rem;
 }
 
-.post-preview {
-  white-space: pre-wrap;
-  font-size: 0.9rem;
+.post-image-alt {
+  font-size: 0.76rem;
   color: var(--text-muted);
+  margin: 0;
+  white-space: normal;
+  word-break: keep-all;
 }
 
-.post-card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
+.post-image-hint {
+  margin-top: 4px;
 }
