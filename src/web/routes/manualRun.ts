@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { getCategory } from "../../db/repositories/categories.js";
+import { getCategory, updateCategory } from "../../db/repositories/categories.js";
 import { getPost, markReady } from "../../db/repositories/posts.js";
 import { assignDirectives } from "../../pipeline/directives.js";
 import { generatePost } from "../../pipeline/generatePost.js";
@@ -27,6 +27,13 @@ export async function manualRunRoutes(app: FastifyInstance) {
 
     const [directive] = assignDirectives(1);
     const post = await generatePost(category, directive);
+
+    // 주제 키워드는 "이번 한 번만" 우선 반영되는 1회성 입력이다. 생성에
+    // 실제로 쓰였으니 다음 "지금 생성"이 같은 키워드로 또 반복되지 않도록
+    // 여기서 자동으로 비운다.
+    if (category.topic_keyword) {
+      updateCategory(category.id, { topicKeyword: null });
+    }
 
     try {
       await attachImage(post);

@@ -1,4 +1,4 @@
-import { pickCategoriesForToday } from "../db/repositories/categories.js";
+import { pickCategoriesForToday, updateCategory } from "../db/repositories/categories.js";
 import { markReady } from "../db/repositories/posts.js";
 import { assignDirectives } from "../pipeline/directives.js";
 import { generatePost } from "../pipeline/generatePost.js";
@@ -23,6 +23,11 @@ export async function runDailyJob(): Promise<void> {
     const category = categories[i];
     try {
       const post = await generatePost(category, directives[i]);
+
+      // 주제 키워드는 1회성 입력이므로 자동 생성에 쓰였어도 소진 처리한다.
+      if (category.topic_keyword) {
+        updateCategory(category.id, { topicKeyword: null });
+      }
 
       try {
         await attachImage(post);
