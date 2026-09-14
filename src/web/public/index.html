@@ -17,7 +17,7 @@
       <h2>카테고리</h2>
       <table id="category-table">
         <thead>
-          <tr><th>이름</th><th>활성</th><th>동작</th></tr>
+          <tr><th>이름</th><th>활성</th><th>주제 키워드</th><th>동작</th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -26,6 +26,7 @@
         <form id="category-form">
           <input name="name" placeholder="카테고리 이름" required />
           <input name="promptHint" placeholder="카테고리 설명(프롬프트 힌트)" required />
+          <input name="topicKeyword" placeholder="주제 키워드(선택, 예: 2026 최저임금)" />
           <button type="submit" class="btn-primary">추가</button>
         </form>
       </div>

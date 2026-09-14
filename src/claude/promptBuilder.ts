@@ -22,11 +22,21 @@ ${recentTitles.map((t) => `- ${t}`).join("\n")}
 `
       : "";
 
+  const topicKeywordBlock = category.topic_keyword
+    ? `
+[최우선 지시] 이번 글은 다음 키워드/주제를 최우선으로 다뤄야 한다: "${category.topic_keyword}"
+반드시 웹 검색으로 이 키워드와 관련된 가장 최신 뉴스·정보·이슈를 먼저 확인하고,
+그 내용을 글의 핵심 소재로 반영해서 작성하라. 이 키워드와 무관한 다른 소재로
+빠지지 마라.
+`
+    : "";
+
   return `
 오늘 날짜: ${todayIso}.
 네이버 블로그에 올릴 포스팅을 1개 작성하라. 카테고리: ${category.name}.
 카테고리 설명: ${category.prompt_hint}
 ${searchInstruction}
+${topicKeywordBlock}
 ${recentTitlesBlock}
 ${buildStyleRulesBlock(directive)}
 

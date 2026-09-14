@@ -8,6 +8,7 @@ export interface Category {
   active: 0 | 1;
   last_used_at: string | null;
   created_at: string;
+  topic_keyword: string | null;
 }
 
 export function listActiveCategories(): Category[] {
@@ -28,30 +29,38 @@ export function createCategory(input: {
   name: string;
   requiresSearch: boolean;
   promptHint: string;
+  topicKeyword?: string | null;
 }): Category {
   const result = getDb()
     .prepare(
-      "INSERT INTO categories (name, requires_search, prompt_hint, active) VALUES (?, ?, ?, 1)",
+      "INSERT INTO categories (name, requires_search, prompt_hint, active, topic_keyword) VALUES (?, ?, ?, 1, ?)",
     )
-    .run(input.name, input.requiresSearch ? 1 : 0, input.promptHint);
+    .run(input.name, input.requiresSearch ? 1 : 0, input.promptHint, input.topicKeyword || null);
   return getCategory(Number(result.lastInsertRowid))!;
 }
 
 export function updateCategory(
   id: number,
-  input: Partial<{ name: string; requiresSearch: boolean; promptHint: string; active: boolean }>,
+  input: Partial<{
+    name: string;
+    requiresSearch: boolean;
+    promptHint: string;
+    active: boolean;
+    topicKeyword: string | null;
+  }>,
 ): void {
   const current = getCategory(id);
   if (!current) throw new Error(`Category ${id} not found`);
   getDb()
     .prepare(
-      "UPDATE categories SET name = ?, requires_search = ?, prompt_hint = ?, active = ? WHERE id = ?",
+      "UPDATE categories SET name = ?, requires_search = ?, prompt_hint = ?, active = ?, topic_keyword = ? WHERE id = ?",
     )
     .run(
       input.name ?? current.name,
       input.requiresSearch !== undefined ? (input.requiresSearch ? 1 : 0) : current.requires_search,
       input.promptHint ?? current.prompt_hint,
       input.active !== undefined ? (input.active ? 1 : 0) : current.active,
+      input.topicKeyword !== undefined ? input.topicKeyword || null : current.topic_keyword,
       id,
     );
 }

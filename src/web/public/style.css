@@ -249,6 +249,45 @@ input:focus {
   font-size: 1.02rem;
 }
 
+.category-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 4px;
+}
+
+.category-edit-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.category-edit-form input,
+.category-edit-form textarea {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+  width: 100%;
+  resize: vertical;
+}
+
+.category-edit-form input:focus,
+.category-edit-form textarea:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.category-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .post-title-toggle {
   cursor: pointer;
   transition: color 0.15s ease;
@@ -293,13 +332,37 @@ input:focus {
   mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
 }
 
+.post-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0;
+}
+
+.post-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(212, 175, 106, 0.12);
+  color: var(--gold);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.post-images-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+  border-radius: 8px;
+  padding: 14px;
+}
+
 .post-images {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   overflow-x: auto;
   padding-bottom: 4px;
-  margin-top: 10px;
-  margin-bottom: 6px;
 }
 
 .post-image-item {
@@ -330,14 +393,36 @@ input:focus {
   font-size: 0.78rem;
 }
 
-.post-image-alt {
-  font-size: 0.76rem;
-  color: var(--text-muted);
+.post-image-alt-box {
+  background: var(--info-bg);
+  border: 1px solid rgba(106, 155, 212, 0.4);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.post-image-alt-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--info);
+  margin-bottom: 3px;
+}
+
+.post-image-alt-text {
+  font-size: 0.8rem;
+  color: var(--text);
   margin: 0;
   white-space: normal;
   word-break: keep-all;
 }
 
+.post-image-alt-missing {
+  font-size: 0.76rem;
+  margin: 0;
+}
+
 .post-image-hint {
-  margin-top: 4px;
+  margin: 10px 0 0;
 }

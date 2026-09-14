@@ -10,7 +10,12 @@ export async function categoriesRoutes(app: FastifyInstance) {
   app.get("/api/categories", async () => listAllCategories());
 
   app.post("/api/categories", async (req, reply) => {
-    const body = req.body as { name: string; requiresSearch: boolean; promptHint: string };
+    const body = req.body as {
+      name: string;
+      requiresSearch: boolean;
+      promptHint: string;
+      topicKeyword?: string | null;
+    };
     const category = createCategory(body);
     reply.code(201);
     return category;
@@ -25,6 +30,7 @@ export async function categoriesRoutes(app: FastifyInstance) {
         requiresSearch: boolean;
         promptHint: string;
         active: boolean;
+        topicKeyword: string | null;
       }>,
     );
     return { ok: true };

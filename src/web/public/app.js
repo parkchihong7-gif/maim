@@ -75,28 +75,61 @@ function buildCopyText(post) {
 }
 
 let categoriesCache = [];
+// 수정 중인 카테고리 id. null이면 전부 보기 모드, 값이 있으면 그 행만
+// 이름/설명/주제 키워드를 함께 고칠 수 있는 입력 폼으로 바뀐다.
+let editingCategoryId = null;
 
-async function refreshCategories() {
-  const categories = await api("/api/categories");
-  categoriesCache = categories;
+function renderCategories(categories) {
   const tbody = document.querySelector("#category-table tbody");
   tbody.innerHTML = "";
   for (const c of categories) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${escapeHtml(c.name)}</td>
-      <td><span class="badge ${c.active ? "badge-active" : "badge-inactive"}">${c.active ? "활성" : "비활성"}</span></td>
-      <td>
-        <button class="btn-primary" data-action="generate" data-id="${c.id}">지금 생성</button>
-        <button class="btn-secondary" data-action="edit-category" data-id="${c.id}">수정</button>
-        <button class="btn-danger" data-action="delete-category" data-id="${c.id}">삭제</button>
-      </td>`;
+    if (c.id === editingCategoryId) {
+      tr.innerHTML = `
+        <td colspan="4">
+          <div class="category-edit-form">
+            <label>이름
+              <input class="edit-name" value="${escapeHtml(c.name)}" />
+            </label>
+            <label>카테고리 설명(프롬프트 힌트)
+              <textarea class="edit-hint" rows="3">${escapeHtml(c.prompt_hint ?? "")}</textarea>
+            </label>
+            <label>주제 키워드(선택 — 있으면 생성 시 관련 최신 뉴스를 최우선 검색·반영)
+              <input class="edit-keyword" placeholder="예: 2026 최저임금 인상" value="${escapeHtml(c.topic_keyword ?? "")}" />
+            </label>
+            <div class="category-edit-actions">
+              <button class="btn-primary" data-action="save-category" data-id="${c.id}">저장</button>
+              <button class="btn-secondary" data-action="cancel-edit-category" data-id="${c.id}">취소</button>
+            </div>
+          </div>
+        </td>`;
+    } else {
+      tr.innerHTML = `
+        <td>${escapeHtml(c.name)}</td>
+        <td><span class="badge ${c.active ? "badge-active" : "badge-inactive"}">${c.active ? "활성" : "비활성"}</span></td>
+        <td>${c.topic_keyword ? escapeHtml(c.topic_keyword) : '<span class="muted">-</span>'}</td>
+        <td>
+          <button class="btn-primary" data-action="generate" data-id="${c.id}">지금 생성</button>
+          <button class="btn-secondary" data-action="edit-category" data-id="${c.id}">수정</button>
+          <button class="btn-danger" data-action="delete-category" data-id="${c.id}">삭제</button>
+        </td>`;
+    }
     tbody.appendChild(tr);
   }
 }
 
+async function refreshCategories() {
+  const categories = await api("/api/categories");
+  categoriesCache = categories;
+  renderCategories(categories);
+}
+
 let readyPosts = [];
 let historyCache = [];
+// 펼쳐서 보고 있는 초안 id들. refreshQueue()가 15초마다 카드 전체를 다시
+// 그리는데, 이 상태를 기억해두지 않으면 내용을 읽는 중에도 다음 자동
+// 새로고침 때 매번 다시 접혀버린다.
+const expandedPostIds = new Set();
 
 function getImagePaths(post) {
   if (!post.image_paths_json) return [];
@@ -205,31 +238,46 @@ async function refreshQueue() {
     // 인덱스의 파일은 한 번 만들어지면 절대 안 바뀐다 — 캐시 버스터가 필요
     // 없고(서버도 오래 캐시하도록 응답), 매 15초 자동 새로고침마다 이미 받은
     // 이미지를 또 통째로 재다운로드하며 화면이 깜빡이는 문제도 사라진다.
+    const anyAlt = imageAlts.some(Boolean);
     const imagesHtml =
       imagePaths.length > 0
-        ? `<div class="post-images">${imagePaths
-            .map((_, idx) => {
-              const src = `/api/posts/${p.id}/image/${idx}${tokenQuery}`;
-              const safeSrc = escapeHtml(src);
-              const alt = imageAlts[idx] || "";
-              const safeAlt = escapeHtml(alt || `이미지 ${idx + 1}`);
-              return `
-                <div class="post-image-item">
-                  <img class="post-thumb" src="${safeSrc}" alt="${safeAlt}" />
-                  <div class="post-image-actions">
-                    <button class="btn-secondary btn-copy-image" data-action="copy-image" data-src="${safeSrc}">이미지 복사</button>
-                    ${alt ? `<button class="btn-secondary btn-copy-image" data-action="copy-alt" data-alt="${escapeHtml(alt)}">대체텍스트 복사</button>` : ""}
-                  </div>
-                  ${alt ? `<p class="post-image-alt">${escapeHtml(alt)}</p>` : ""}
-                </div>`;
-            })
-            .join("")}</div>
-          <p class="muted post-image-hint">💡 네이버 에디터에 이미지를 붙여넣은 뒤 "대체텍스트" 입력란에 위 문구를 붙여넣으면 검색엔진이 이미지 내용을 인식하는 데 도움이 됩니다.</p>`
-        : `<p class="muted">이미지 없음</p>`;
+        ? `<div class="post-images-section">
+            <div class="post-images">${imagePaths
+              .map((_, idx) => {
+                const src = `/api/posts/${p.id}/image/${idx}${tokenQuery}`;
+                const safeSrc = escapeHtml(src);
+                const alt = imageAlts[idx] || "";
+                const safeAlt = escapeHtml(alt || `이미지 ${idx + 1}`);
+                const altBlock = alt
+                  ? `<div class="post-image-alt-box">
+                       <span class="post-image-alt-label">대체텍스트(alt) — 복사해서 네이버 에디터에 붙여넣으세요</span>
+                       <p class="post-image-alt-text">${escapeHtml(alt)}</p>
+                     </div>`
+                  : `<p class="post-image-alt-missing muted">대체텍스트 없음 (이미지 재생성 시 자동 생성됩니다)</p>`;
+                return `
+                  <div class="post-image-item">
+                    <img class="post-thumb" src="${safeSrc}" alt="${safeAlt}" />
+                    <div class="post-image-actions">
+                      <button class="btn-secondary btn-copy-image" data-action="copy-image" data-src="${safeSrc}">이미지 복사</button>
+                      ${alt ? `<button class="btn-secondary btn-copy-image" data-action="copy-alt" data-alt="${escapeHtml(alt)}">대체텍스트 복사</button>` : ""}
+                    </div>
+                    ${altBlock}
+                  </div>`;
+              })
+              .join("")}</div>
+            ${anyAlt ? `<p class="muted post-image-hint">💡 이미지를 네이버 에디터에 붙여넣은 뒤, 위 파란 박스 안의 문구를 복사해 에디터의 "대체텍스트" 입력란에 붙여넣으면 검색엔진이 이미지 내용을 인식하는 데 도움이 됩니다.</p>` : ""}
+          </div>`
+        : `<div class="post-images-section"><p class="muted">이미지 없음</p></div>`;
 
     const checklistHtml = `<div class="post-quality-checklist">${buildQualityChecklist(p)
       .map((item) => `<span class="badge ${item.ok ? "badge-active" : "badge-failed"}">${item.ok ? "✅" : "⚠"} ${escapeHtml(item.label)}</span>`)
       .join("")}</div>`;
+
+    const isExpanded = expandedPostIds.has(p.id);
+    const tagsHtml =
+      tags.length > 0
+        ? `<div class="post-tags">${tags.map((t) => `<span class="post-tag">${escapeHtml(t)}</span>`).join("")}</div>`
+        : "";
 
     card.innerHTML = `
       <div class="post-card-header">
@@ -242,8 +290,8 @@ async function refreshQueue() {
         <button class="btn-success" data-action="mark-published" data-id="${p.id}">발행 완료로 표시</button>
       </div>
       ${checklistHtml}
-      <p class="post-preview collapsed">${escapeHtml(p.content ?? "")}</p>
-      <p class="muted">${tags.join(" ")}</p>
+      <p class="post-preview${isExpanded ? "" : " collapsed"}">${escapeHtml(p.content ?? "")}</p>
+      ${tagsHtml}
       ${imagesHtml}`;
     container.appendChild(card);
   }
@@ -271,7 +319,11 @@ async function refreshAll() {
   // 초안 품질 체크리스트가 히스토리 데이터(historyCache)로 "최근 글과 주제
   // 중복" 여부를 계산하므로, 큐보다 히스토리를 먼저 받아온다.
   await refreshHistory();
-  await Promise.all([refreshCategories(), refreshQueue()]);
+  // 카테고리를 수정하는 중에는 15초 자동 새로고침이 입력 중인 값을 서버의
+  // 최신 값으로 덮어써버리지 않도록 그동안은 카테고리 목록만 건너뛴다.
+  const tasks = [refreshQueue()];
+  if (editingCategoryId === null) tasks.push(refreshCategories());
+  await Promise.all(tasks);
 }
 
 document.getElementById("category-form").addEventListener("submit", async (e) => {
@@ -284,6 +336,7 @@ document.getElementById("category-form").addEventListener("submit", async (e) =>
         name: form.name.value,
         requiresSearch: true,
         promptHint: form.promptHint.value,
+        topicKeyword: form.topicKeyword.value || null,
       }),
     });
     form.reset();
@@ -331,20 +384,36 @@ document.addEventListener("click", async (e) => {
       await api(`/api/categories/${id}`, { method: "DELETE" });
       await refreshCategories();
     } else if (action === "edit-category") {
-      const category = categoriesCache.find((c) => c.id === Number(id));
-      if (!category) return;
-      const newName = window.prompt("카테고리 이름", category.name);
-      if (newName === null) return;
-      const newHint = window.prompt("카테고리 설명(프롬프트 힌트)", category.prompt_hint);
-      if (newHint === null) return;
+      editingCategoryId = Number(id);
+      renderCategories(categoriesCache);
+    } else if (action === "cancel-edit-category") {
+      editingCategoryId = null;
+      renderCategories(categoriesCache);
+    } else if (action === "save-category") {
+      const row = btn.closest("tr");
+      const name = row.querySelector(".edit-name").value.trim();
+      const promptHint = row.querySelector(".edit-hint").value.trim();
+      const topicKeyword = row.querySelector(".edit-keyword").value.trim();
+      if (!name || !promptHint) {
+        alert("이름과 설명은 비워둘 수 없습니다.");
+        return;
+      }
       await api(`/api/categories/${id}`, {
         method: "PUT",
-        body: JSON.stringify({ name: newName, promptHint: newHint }),
+        body: JSON.stringify({ name, promptHint, topicKeyword: topicKeyword || null }),
       });
+      editingCategoryId = null;
       await refreshCategories();
     } else if (action === "toggle-content") {
+      const postId = Number(id);
       const preview = btn.closest(".post-card").querySelector(".post-preview");
-      preview.classList.toggle("collapsed");
+      if (expandedPostIds.has(postId)) {
+        expandedPostIds.delete(postId);
+        preview.classList.add("collapsed");
+      } else {
+        expandedPostIds.add(postId);
+        preview.classList.remove("collapsed");
+      }
     } else if (action === "copy-image") {
       const src = btn.dataset.src;
       const res = await fetch(src);
