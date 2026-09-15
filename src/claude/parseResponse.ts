@@ -9,6 +9,12 @@ export const PostResponseSchema = z.object({
 
 export type PostResponse = z.infer<typeof PostResponseSchema>;
 
+/** "예시 포스팅" 미리보기 전용 — 짧은 샘플이라 image_query/tags 없이 title/content만 받는다. */
+export const PreviewResponseSchema = z.object({
+  title: z.string().min(3).max(200),
+  content: z.string().min(100),
+});
+
 export const ImageSelectSchema = z.object({
   selected_indices: z.array(z.number().int().min(0)).min(1),
   // selected_indices와 같은 순서/개수여야 하지만, 모델이 빠뜨릴 수도 있으니
@@ -72,6 +78,13 @@ export function parsePostResponse(rawResult: string): { post: PostResponse; warn
   const post = PostResponseSchema.parse(parsedRaw);
   const { sanitized, warnings } = sanitizeContent(post.content);
   return { post: { ...post, content: sanitized }, warnings };
+}
+
+export function parsePreviewResponse(rawResult: string): { title: string; content: string } {
+  const parsedRaw = parseJsonLoose(rawResult);
+  const post = PreviewResponseSchema.parse(parsedRaw);
+  const { sanitized } = sanitizeContent(post.content);
+  return { title: post.title, content: sanitized };
 }
 
 export function parseImageSelectResponse(rawResult: string): z.infer<typeof ImageSelectSchema> {

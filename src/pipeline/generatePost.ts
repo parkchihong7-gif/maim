@@ -3,8 +3,10 @@ import type { Category } from "../db/repositories/categories.js";
 import { insertDraftPost, listRecentTitles, type Post } from "../db/repositories/posts.js";
 import { markCategoryUsed } from "../db/repositories/categories.js";
 import { buildPostPrompt } from "../claude/promptBuilder.js";
+import { buildBlogProfileBlock } from "../claude/blogProfile.js";
 import { runClaude } from "../claude/runClaude.js";
 import { parsePostResponse } from "../claude/parseResponse.js";
+import { getSettings } from "../db/repositories/settings.js";
 import type { PostDirective } from "./directives.js";
 import { config } from "../config.js";
 
@@ -15,7 +17,19 @@ const MIN_ACCEPTABLE_LENGTH = 2000;
 export async function generatePost(category: Category, directive: PostDirective): Promise<Post> {
   const today = DateTime.now().setZone(config.timezone).toFormat("yyyy-MM-dd");
   const recentTitles = listRecentTitles(20);
-  const prompt = buildPostPrompt(category, directive, today, recentTitles);
+  const blogSettings = getSettings([
+    "blog_type",
+    "blog_topic",
+    "posting_direction_preset",
+    "posting_direction_refinement",
+  ]);
+  const blogProfileBlock = buildBlogProfileBlock({
+    blogType: blogSettings.blog_type,
+    blogTopic: blogSettings.blog_topic,
+    postingDirectionPreset: blogSettings.posting_direction_preset,
+    postingDirectionRefinement: blogSettings.posting_direction_refinement,
+  });
+  const prompt = buildPostPrompt(category, directive, today, recentTitles, blogProfileBlock);
 
   const requiresSearch = category.requires_search === 1;
   const allowedTools = requiresSearch ? ["WebSearch"] : undefined;

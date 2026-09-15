@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { config } from "../config.js";
+import { getUnsplashKey, getPexelsKey } from "../db/repositories/settings.js";
 
 interface UnsplashSearchResponse {
   results: { urls: { regular: string } }[];
@@ -11,10 +11,11 @@ interface PexelsSearchResponse {
 }
 
 async function searchUnsplash(query: string, count: number, page: number): Promise<string[]> {
-  if (!config.unsplashAccessKey) return [];
+  const key = getUnsplashKey();
+  if (!key) return [];
   const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=${count}&page=${page}`;
   const res = await fetch(url, {
-    headers: { Authorization: `Client-ID ${config.unsplashAccessKey}` },
+    headers: { Authorization: `Client-ID ${key}` },
   });
   if (!res.ok) throw new Error(`Unsplash 검색 실패: HTTP ${res.status}`);
   const data = (await res.json()) as UnsplashSearchResponse;
@@ -22,10 +23,11 @@ async function searchUnsplash(query: string, count: number, page: number): Promi
 }
 
 async function searchPexels(query: string, count: number, page: number): Promise<string[]> {
-  if (!config.pexelsApiKey) return [];
+  const key = getPexelsKey();
+  if (!key) return [];
   const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${count}&page=${page}`;
   const res = await fetch(url, {
-    headers: { Authorization: config.pexelsApiKey },
+    headers: { Authorization: key },
   });
   if (!res.ok) throw new Error(`Pexels 검색 실패: HTTP ${res.status}`);
   const data = (await res.json()) as PexelsSearchResponse;

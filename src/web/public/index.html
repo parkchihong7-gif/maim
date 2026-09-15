@@ -10,9 +10,136 @@
   <header>
     <h1>maim 대시보드</h1>
     <p class="muted">AI가 글과 이미지를 준비해두면, 여기서 복사해서 네이버 블로그에 직접 붙여넣으세요.</p>
+    <button class="btn-secondary" id="admin-settings-toggle" data-action="admin-settings-toggle">⚙️ 관리자 설정</button>
   </header>
 
   <main>
+    <section id="admin-settings" hidden>
+      <h2>⚙️ 관리자 설정</h2>
+
+      <div class="subsection">
+        <h3>1) AI 커넥트 연결</h3>
+        <p class="setup-progress" id="setup-progress"></p>
+
+        <div class="setup-step" data-step="claude">
+          <div class="setup-step-header">
+            <span class="setup-step-badge" data-badge="claude">○</span>
+            <strong>1단계. Claude CLI 로그인</strong>
+          </div>
+          <p class="muted">이 프로그램은 Claude Code CLI(<code>claude</code> 명령어)로 글을 생성합니다.
+            서버 터미널(예: Google Cloud Shell)에서 아래 명령을 한 번만 실행해서 로그인하세요.</p>
+          <pre class="setup-code">claude login</pre>
+          <button class="btn-secondary" data-action="test-claude">연결 테스트</button>
+          <span class="setup-step-result" data-result="claude"></span>
+        </div>
+
+        <div class="setup-step" data-step="unsplash">
+          <div class="setup-step-header">
+            <span class="setup-step-badge" data-badge="unsplash">○</span>
+            <strong>2단계. Unsplash API 키</strong>
+          </div>
+          <p class="muted">무료 스톡 이미지 검색에 사용됩니다.
+            <a href="https://unsplash.com/developers" target="_blank" rel="noopener">unsplash.com/developers</a>에서
+            무료로 가입 → New Application → Access Key를 복사해서 붙여넣으세요.</p>
+          <div class="setup-input-row">
+            <input type="text" id="unsplash-key-input" placeholder="Access Key 붙여넣기" />
+            <button class="btn-primary" data-action="save-setting" data-key="unsplash_access_key" data-input="unsplash-key-input">저장</button>
+          </div>
+          <p class="muted setup-current-value" data-current="unsplash_access_key"></p>
+        </div>
+
+        <div class="setup-step" data-step="pexels">
+          <div class="setup-step-header">
+            <span class="setup-step-badge" data-badge="pexels">○</span>
+            <strong>3단계. Pexels API 키</strong>
+          </div>
+          <p class="muted">Unsplash 검색 결과가 부족할 때 함께 사용되는 보조 이미지 검색 API입니다.
+            <a href="https://www.pexels.com/api/" target="_blank" rel="noopener">pexels.com/api</a>에서
+            무료로 가입 → API 키를 복사해서 붙여넣으세요.</p>
+          <div class="setup-input-row">
+            <input type="text" id="pexels-key-input" placeholder="API Key 붙여넣기" />
+            <button class="btn-primary" data-action="save-setting" data-key="pexels_api_key" data-input="pexels-key-input">저장</button>
+          </div>
+          <p class="muted setup-current-value" data-current="pexels_api_key"></p>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3>2) 블로그 주제 설정</h3>
+        <p class="muted">1단계 — 블로그 유형</p>
+        <label><input type="radio" name="blog_type" value="personal" /> 개인 블로그</label>
+        <label><input type="radio" name="blog_type" value="business" /> 기업 블로그</label>
+
+        <p class="muted" style="margin-top:14px">2단계 — 주제 분야</p>
+        <select id="blog-topic-select">
+          <option value="all">전체 (주제 선택 없음)</option>
+          <optgroup label="엔터테인먼트·예술">
+            <option value="literature_books">문학·책</option>
+            <option value="movie">영화</option>
+            <option value="art_design">미술·디자인</option>
+            <option value="performance_exhibit">공연·전시</option>
+            <option value="music">음악</option>
+            <option value="drama">드라마</option>
+            <option value="celebrity">스타·연예인</option>
+            <option value="comics_anime">만화·애니</option>
+            <option value="broadcast">방송</option>
+          </optgroup>
+          <optgroup label="생활·노하우·쇼핑">
+            <option value="daily_thoughts">일상·생각</option>
+            <option value="parenting_marriage">육아·결혼</option>
+            <option value="pets">반려동물</option>
+            <option value="good_words_images">좋은글·이미지</option>
+            <option value="fashion_beauty">패션·미용</option>
+            <option value="interior_diy">인테리어·DIY</option>
+            <option value="cooking_recipe">요리·레시피</option>
+            <option value="product_review">상품리뷰</option>
+            <option value="gardening">원예·재배</option>
+          </optgroup>
+          <optgroup label="취미·여가·여행">
+            <option value="game">게임</option>
+            <option value="sports">스포츠</option>
+            <option value="photo">사진</option>
+            <option value="car">자동차</option>
+            <option value="hobby">취미</option>
+            <option value="domestic_travel">국내여행</option>
+            <option value="world_travel">세계여행</option>
+            <option value="restaurant">맛집</option>
+          </optgroup>
+          <optgroup label="지식·동향">
+            <option value="it_computer">IT·컴퓨터</option>
+            <option value="society_politics">사회·정치</option>
+            <option value="health_medicine">건강·의학</option>
+            <option value="business_economy">비즈니스·경제</option>
+            <option value="language">어학·외국어</option>
+            <option value="education">교육·학문</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <div class="subsection">
+        <h3>3) 포스팅 방향 설정</h3>
+        <p>
+          <a href="#" id="final-direction-toggle" data-action="toggle-final-direction">[최종 포스팅 기준] 보기</a>
+        </p>
+        <p class="muted" id="final-direction-summary" hidden></p>
+
+        <p class="muted">아래 톤 프리셋 중 하나를 선택하세요. 마음에 드는 게 없으면 아래 보강 입력란에
+          원하는 방향을 자유롭게 추가로 적을 수 있습니다.</p>
+        <div class="preset-grid" id="preset-grid"></div>
+
+        <textarea id="posting-direction-refinement" rows="3"
+          placeholder="이런 점은 다르게 써줬으면 좋겠다 싶은 부분을 자유롭게 적어주세요 (선택)"></textarea>
+        <button class="btn-primary" data-action="save-posting-direction">보강 내용 저장</button>
+
+        <div class="subsection">
+          <button class="btn-secondary" data-action="preview-post">예시 포스팅 보기</button>
+          <p class="muted">지금 설정 기준으로 짧은 샘플 글을 생성해서 미리 보여줍니다. 마음에 안 들면 위에서
+            프리셋을 바꾸거나 보강 문구를 추가해보세요.</p>
+          <div id="preview-post-result"></div>
+        </div>
+      </div>
+    </section>
+
     <section>
       <h2>카테고리</h2>
       <table id="category-table">

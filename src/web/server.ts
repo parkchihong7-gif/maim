@@ -7,6 +7,7 @@ import { queueRoutes } from "./routes/queue.js";
 import { historyRoutes } from "./routes/history.js";
 import { manualRunRoutes } from "./routes/manualRun.js";
 import { postsRoutes } from "./routes/posts.js";
+import { settingsRoutes } from "./routes/settings.js";
 
 export async function buildServer() {
   // 대시보드가 15초마다 자동 새로고침하면서 여러 API를 호출하는데, 매 요청마다
@@ -42,6 +43,7 @@ export async function buildServer() {
   await app.register(historyRoutes);
   await app.register(manualRunRoutes);
   await app.register(postsRoutes);
+  await app.register(settingsRoutes);
 
   await app.register(fastifyStatic, {
     root: path.join(import.meta.dirname, "public"),

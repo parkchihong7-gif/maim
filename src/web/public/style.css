@@ -426,3 +426,122 @@ input:focus {
 .post-image-hint {
   margin: 10px 0 0;
 }
+
+/* --- 관리자 설정 --- */
+
+input[type="radio"],
+input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+}
+
+header #admin-settings-toggle {
+  margin-top: 10px;
+}
+
+textarea {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+  width: 100%;
+  resize: vertical;
+  display: block;
+  margin-bottom: 10px;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.setup-progress {
+  font-weight: 600;
+  color: var(--gold);
+  margin: 0 0 14px;
+}
+
+.setup-step {
+  padding: 14px;
+  margin-bottom: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.setup-step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.setup-step-badge {
+  font-size: 1rem;
+}
+
+.setup-code {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.setup-input-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.setup-current-value {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+}
+
+.setup-step-result {
+  margin-left: 8px;
+  font-size: 0.85rem;
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.preset-card {
+  cursor: pointer;
+  padding: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.preset-card:hover {
+  border-color: rgba(212, 175, 106, 0.5);
+}
+
+.preset-card.selected {
+  border-color: var(--gold);
+  background: rgba(212, 175, 106, 0.08);
+}
+
+.preset-card strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+}
+
+.preset-card p {
+  margin: 0;
+  font-size: 0.78rem;
+}

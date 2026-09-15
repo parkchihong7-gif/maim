@@ -7,6 +7,7 @@ export function buildPostPrompt(
   directive: PostDirective,
   todayIso: string,
   recentTitles: string[] = [],
+  blogProfileBlock = "",
 ): string {
   const searchInstruction = category.requires_search
     ? `이 카테고리는 반드시 웹 검색으로 실제 최신 정보를 확인해서 정확하게 반영하라. 검색 없이 추측하지 마라.
@@ -39,6 +40,7 @@ ${recentTitles.map((t) => `- ${t}`).join("\n")}
 
   return `
 오늘 날짜: ${todayIso}.
+${blogProfileBlock}
 네이버 블로그에 올릴 포스팅을 1개 작성하라. 카테고리: ${category.name}.
 카테고리 설명: ${category.prompt_hint}
 ${searchInstruction}
@@ -48,6 +50,22 @@ ${buildStyleRulesBlock(directive)}
 
 최종 답변은 마크다운 코드블록이나 다른 설명 없이 오직 순수 JSON 데이터 형식으로만 출력하라:
 {"title": "...", "content": "...", "image_query": "...", "tags": ["#태그1", "#태그2"]}
+`.trim();
+}
+
+/**
+ * "예시 포스팅" 미리보기 전용. 실제 카테고리/검색 없이, 블로그 전역 설정만으로
+ * 짧은 샘플 글 1건을 빠르게 만들어서 톤/스타일을 미리 확인하게 한다.
+ */
+export function buildPreviewPrompt(directive: PostDirective, blogProfileBlock: string): string {
+  return `
+아래는 이 블로그의 톤/스타일을 미리 확인하기 위한 짧은 샘플 포스팅이다. 검색 없이,
+아래 설정에 맞는 아무 가벼운 일상 주제나 골라서 짧게 써라.
+${blogProfileBlock || "(특별히 지정된 블로그 전역 설정 없음 — 기본 스타일 규칙만 따른다.)"}
+${buildStyleRulesBlock(directive)}
+
+최종 답변은 마크다운 코드블록이나 다른 설명 없이 오직 순수 JSON 데이터 형식으로만 출력하라:
+{"title": "...", "content": "..."}
 `.trim();
 }
 

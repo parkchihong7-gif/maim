@@ -326,6 +326,86 @@ async function refreshAll() {
   await Promise.all(tasks);
 }
 
+// --- ⚙️ 관리자 설정: AI 커넥트 연결 / 블로그 주제 설정 / 포스팅 방향 설정 ---
+// 설정 섹션은 기본 접힘 상태라 15초 자동 새로고침 대상에 넣지 않고, 처음
+// 펼칠 때만 불러온다(자주 안 바뀌는 값이라 폴링할 이유가 없음).
+
+let postingDirectionPresets = [];
+let selectedPreset = "balanced";
+// Claude CLI 로그인 여부는 저장된 값이 아니라 "연결 테스트" 버튼을 눌렀을 때만
+// 확인 가능한 라이브 상태라서, 페이지를 새로고침하면 다시 초기화된다.
+let claudeTestedOk = false;
+
+function setStepBadge(step, done) {
+  const el = document.querySelector(`[data-badge="${step}"]`);
+  if (!el) return;
+  el.textContent = done ? "✅" : "○";
+}
+
+function updateSetupProgress() {
+  const unsplashDone = document.querySelector('[data-badge="unsplash"]')?.textContent === "✅";
+  const pexelsDone = document.querySelector('[data-badge="pexels"]')?.textContent === "✅";
+  const done = [claudeTestedOk, unsplashDone, pexelsDone].filter(Boolean).length;
+  const el = document.getElementById("setup-progress");
+  if (el) el.textContent = `3단계 중 ${done}단계 완료`;
+}
+
+async function loadPresetsIfNeeded() {
+  if (postingDirectionPresets.length > 0) return;
+  postingDirectionPresets = await api("/api/settings/posting-direction-presets");
+}
+
+function renderPresetGrid() {
+  const grid = document.getElementById("preset-grid");
+  if (!grid || postingDirectionPresets.length === 0) return;
+  grid.innerHTML = postingDirectionPresets
+    .map(
+      (p) => `
+      <div class="preset-card${p.id === selectedPreset ? " selected" : ""}" data-action="select-preset" data-preset="${p.id}">
+        <strong>${escapeHtml(p.label)}</strong>
+        <p class="muted">${escapeHtml(p.description)}</p>
+      </div>`,
+    )
+    .join("");
+}
+
+function renderFinalDirectionSummary() {
+  const el = document.getElementById("final-direction-summary");
+  if (!el) return;
+  const preset = postingDirectionPresets.find((p) => p.id === selectedPreset);
+  const refinement = document.getElementById("posting-direction-refinement").value.trim();
+  const parts = [`톤 프리셋: ${preset ? preset.label : selectedPreset}`];
+  if (refinement) parts.push(`보강 지시: ${refinement}`);
+  el.textContent = parts.join(" / ");
+}
+
+async function refreshSettings() {
+  const s = await api("/api/settings");
+
+  setStepBadge("unsplash", s.unsplash_access_key_set);
+  document.querySelector('[data-current="unsplash_access_key"]').textContent = s.unsplash_access_key_set
+    ? `현재 저장된 값: ${s.unsplash_access_key}`
+    : "아직 설정되지 않았습니다.";
+
+  setStepBadge("pexels", s.pexels_api_key_set);
+  document.querySelector('[data-current="pexels_api_key"]').textContent = s.pexels_api_key_set
+    ? `현재 저장된 값: ${s.pexels_api_key}`
+    : "아직 설정되지 않았습니다.";
+
+  setStepBadge("claude", claudeTestedOk);
+  updateSetupProgress();
+
+  const typeRadio = document.querySelector(`input[name="blog_type"][value="${s.blog_type}"]`);
+  if (typeRadio) typeRadio.checked = true;
+  document.getElementById("blog-topic-select").value = s.blog_topic || "all";
+
+  selectedPreset = s.posting_direction_preset || "balanced";
+  document.getElementById("posting-direction-refinement").value = s.posting_direction_refinement || "";
+  await loadPresetsIfNeeded();
+  renderPresetGrid();
+  renderFinalDirectionSummary();
+}
+
 document.getElementById("category-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = e.target;
@@ -438,6 +518,86 @@ document.addEventListener("click", async (e) => {
       setTimeout(() => {
         btn.textContent = original;
       }, 1500);
+    } else if (action === "admin-settings-toggle") {
+      const section = document.getElementById("admin-settings");
+      const willShow = section.hidden;
+      section.hidden = !willShow;
+      btn.textContent = willShow ? "⚙️ 관리자 설정 닫기" : "⚙️ 관리자 설정";
+      if (willShow) await refreshSettings();
+    } else if (action === "save-setting") {
+      const key = btn.dataset.key;
+      const input = document.getElementById(btn.dataset.input);
+      const value = input.value.trim();
+      if (!value) {
+        alert("값을 입력해주세요.");
+        return;
+      }
+      await api("/api/settings", { method: "PUT", body: JSON.stringify({ [key]: value }) });
+      input.value = "";
+      await refreshSettings();
+      const original = btn.textContent;
+      btn.textContent = "저장됨!";
+      setTimeout(() => {
+        btn.textContent = original;
+      }, 1500);
+    } else if (action === "test-claude") {
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = "테스트 중...";
+      const resultEl = document.querySelector('[data-result="claude"]');
+      try {
+        const res = await api("/api/settings/test-claude", { method: "POST" });
+        claudeTestedOk = !!res.ok;
+        setStepBadge("claude", claudeTestedOk);
+        updateSetupProgress();
+        if (resultEl) {
+          resultEl.textContent = res.ok ? "✅ 연결 성공" : `❌ 실패: ${res.error || "알 수 없는 오류"}`;
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    } else if (action === "select-preset") {
+      selectedPreset = btn.dataset.preset;
+      await api("/api/settings", {
+        method: "PUT",
+        body: JSON.stringify({ posting_direction_preset: selectedPreset }),
+      });
+      renderPresetGrid();
+      renderFinalDirectionSummary();
+    } else if (action === "save-posting-direction") {
+      const refinement = document.getElementById("posting-direction-refinement").value;
+      await api("/api/settings", {
+        method: "PUT",
+        body: JSON.stringify({ posting_direction_refinement: refinement }),
+      });
+      renderFinalDirectionSummary();
+      const original = btn.textContent;
+      btn.textContent = "저장됨!";
+      setTimeout(() => {
+        btn.textContent = original;
+      }, 1500);
+    } else if (action === "toggle-final-direction") {
+      renderFinalDirectionSummary();
+      const el = document.getElementById("final-direction-summary");
+      el.hidden = !el.hidden;
+    } else if (action === "preview-post") {
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = "생성 중...";
+      const resultEl = document.getElementById("preview-post-result");
+      resultEl.innerHTML = `<p class="muted">샘플을 생성하는 중입니다 (수십 초 정도 걸릴 수 있어요)...</p>`;
+      try {
+        const res = await api("/api/settings/preview-post", { method: "POST" });
+        if (res.error) throw new Error(res.error);
+        resultEl.innerHTML = `<div class="post-card"><strong>${escapeHtml(res.title)}</strong><p class="post-preview">${escapeHtml(res.content)}</p></div>`;
+      } catch (err) {
+        resultEl.innerHTML = "";
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
     }
   } catch (err) {
     alert(err.message);
@@ -450,6 +610,24 @@ document.addEventListener("click", async (e) => {
       btn.disabled = false;
       btn.textContent = "이미지 재생성";
     }
+  }
+});
+
+document.querySelectorAll('input[name="blog_type"]').forEach((radio) => {
+  radio.addEventListener("change", async () => {
+    try {
+      await api("/api/settings", { method: "PUT", body: JSON.stringify({ blog_type: radio.value }) });
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+});
+
+document.getElementById("blog-topic-select").addEventListener("change", async (e) => {
+  try {
+    await api("/api/settings", { method: "PUT", body: JSON.stringify({ blog_topic: e.target.value }) });
+  } catch (err) {
+    alert(err.message);
   }
 });
 
