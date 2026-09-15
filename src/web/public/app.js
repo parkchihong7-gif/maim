@@ -659,6 +659,12 @@ document.getElementById("category-form").addEventListener("submit", async (e) =>
 document.addEventListener("click", async (e) => {
   const btn = e.target.closest("[data-action]");
   if (!btn) return;
+  // data-action이 붙은 요소는 전부 JS가 직접 처리하는 가짜 링크/버튼이라,
+  // <a href="#">의 기본 동작(페이지 맨 위로 이동)이 실행되면 안 된다.
+  // 이걸 안 막아주면 [매뉴얼 보기]/[최종 포스팅 기준] 보기] 같은 펼침 링크를
+  // 눌렀을 때 실제로는 펼쳐졌는데 화면이 페이지 맨 위로 튀어서 마치
+  // "눌러도 그대로 있다가 바로 닫히는 것"처럼 보이는 문제가 있었다.
+  e.preventDefault();
   const { action, id } = btn.dataset;
 
   try {
