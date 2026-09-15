@@ -5,6 +5,9 @@ export const PostResponseSchema = z.object({
   content: z.string().min(500),
   image_query: z.string().min(2).max(80),
   tags: z.array(z.string().regex(/^#/)).min(5).max(15),
+  // 후킹 패턴이 다른 제목 후보 3개(질문형/숫자·사실 강조형/공감형). 모델이
+  // 빠뜨려도 전체 파싱이 깨지지 않도록 선택 필드로 방어적으로 받는다.
+  title_variants: z.array(z.string().min(3).max(200)).optional().default([]),
 });
 
 export type PostResponse = z.infer<typeof PostResponseSchema>;

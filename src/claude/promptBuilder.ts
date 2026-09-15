@@ -38,6 +38,15 @@ ${recentTitles.map((t) => `- ${t}`).join("\n")}
 `
     : "";
 
+  const titleVariantsInstruction = `
+title과 별도로, 후킹(hook) 패턴이 서로 다른 제목 후보 3개를 title_variants에 담아라.
+같은 글 내용을 각각 다른 방식으로 낚아채듯 표현하되, 절대 서로 비슷한 문장 구조로
+겹치지 않게 하라:
+1. 질문형 — 독자의 호기심을 직접 자극하는 질문 문장
+2. 숫자/구체적 사실 강조형 — 숫자나 놀라운 사실을 앞세운 문장 (예: "OO하는 3가지 이유")
+3. 공감형 — 독자의 감정·경험에 바로 와닿는 공감형 문장
+`;
+
   return `
 오늘 날짜: ${todayIso}.
 ${blogProfileBlock}
@@ -47,9 +56,10 @@ ${searchInstruction}
 ${topicKeywordBlock}
 ${recentTitlesBlock}
 ${buildStyleRulesBlock(directive)}
+${titleVariantsInstruction}
 
 최종 답변은 마크다운 코드블록이나 다른 설명 없이 오직 순수 JSON 데이터 형식으로만 출력하라:
-{"title": "...", "content": "...", "image_query": "...", "tags": ["#태그1", "#태그2"]}
+{"title": "...", "content": "...", "image_query": "...", "tags": ["#태그1", "#태그2"], "title_variants": ["질문형 제목", "숫자/사실형 제목", "공감형 제목"]}
 `.trim();
 }
 

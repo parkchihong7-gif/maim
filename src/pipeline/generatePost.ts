@@ -88,6 +88,7 @@ export async function generatePost(category: Category, directive: PostDirective)
     content: parsed.post.content,
     imageQuery: parsed.post.image_query,
     tags: parsed.post.tags,
+    titleVariants: parsed.post.title_variants,
   });
 
   markCategoryUsed(category.id);

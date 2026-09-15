@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { getUnsplashKey, getPexelsKey } from "../db/repositories/settings.js";
+import { getUnsplashKey, getPexelsKey, getPixabayKey } from "../db/repositories/settings.js";
 
 interface UnsplashSearchResponse {
   results: { urls: { regular: string } }[];
@@ -8,6 +8,10 @@ interface UnsplashSearchResponse {
 
 interface PexelsSearchResponse {
   photos: { src: { large: string } }[];
+}
+
+interface PixabaySearchResponse {
+  hits: { largeImageURL: string }[];
 }
 
 async function searchUnsplash(query: string, count: number, page: number): Promise<string[]> {
@@ -34,9 +38,25 @@ async function searchPexels(query: string, count: number, page: number): Promise
   return (data.photos ?? []).map((p) => p.src.large);
 }
 
+async function searchPixabay(query: string, count: number, page: number): Promise<string[]> {
+  const key = getPixabayKey();
+  if (!key) return [];
+  // Pixabay는 per_page가 최소 3 이상이어야 에러 없이 응답한다.
+  const perPage = Math.max(count, 3);
+  const url = `https://pixabay.com/api/?key=${encodeURIComponent(key)}&q=${encodeURIComponent(query)}&image_type=photo&per_page=${perPage}&page=${page}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Pixabay 검색 실패: HTTP ${res.status}`);
+  const data = (await res.json()) as PixabaySearchResponse;
+  return (data.hits ?? []).map((h) => h.largeImageURL);
+}
+
+/** 세 무료 소스(Unsplash/Pexels/Pixabay)를 동시에 검색해서 결과를 합친다.
+ * 키가 없는 소스는 조용히 건너뛰고(그 소스만 0건), 한 소스가 에러(잘못된 키,
+ * 요청 한도 초과 등)여도 다른 소스 결과는 그대로 살아남는다 — 소스가 하나
+ * 늘어난 만큼 "셋 다 동시에 실패"할 확률이 낮아져 이미지 확보 성공률이 올라간다. */
 async function fetchImageUrls(query: string, count: number, page: number): Promise<string[]> {
-  const perSource = Math.ceil(count / 2);
-  const [unsplashUrls, pexelsUrls] = await Promise.all([
+  const perSource = Math.ceil(count / 3);
+  const [unsplashUrls, pexelsUrls, pixabayUrls] = await Promise.all([
     searchUnsplash(query, perSource, page).catch((err) => {
       console.warn("Unsplash 검색 실패:", (err as Error).message);
       return [];
@@ -45,8 +65,12 @@ async function fetchImageUrls(query: string, count: number, page: number): Promi
       console.warn("Pexels 검색 실패:", (err as Error).message);
       return [];
     }),
+    searchPixabay(query, perSource, page).catch((err) => {
+      console.warn("Pixabay 검색 실패:", (err as Error).message);
+      return [];
+    }),
   ]);
-  return [...unsplashUrls, ...pexelsUrls].slice(0, count);
+  return [...unsplashUrls, ...pexelsUrls, ...pixabayUrls].slice(0, count);
 }
 
 async function downloadTo(url: string, filePath: string): Promise<boolean> {
@@ -79,7 +103,7 @@ export async function searchAndDownloadCandidates(
   const urls = await fetchImageUrls(query, count, page);
   if (urls.length === 0) {
     throw new Error(
-      `이미지 후보를 찾지 못했습니다 (query="${query}"). UNSPLASH_ACCESS_KEY / PEXELS_API_KEY 설정을 확인하세요.`,
+      `이미지 후보를 찾지 못했습니다 (query="${query}"). UNSPLASH_ACCESS_KEY / PEXELS_API_KEY / PIXABAY_API_KEY 설정을 확인하세요.`,
     );
   }
 
@@ -169,7 +193,7 @@ export async function searchWithFallback(
 
   if (filePaths.length === 0) {
     throw new Error(
-      `여러 키워드로 시도했지만 이미지 후보를 찾지 못했습니다 (query="${primaryQuery}"). UNSPLASH_ACCESS_KEY / PEXELS_API_KEY 설정을 확인하세요.`,
+      `여러 키워드로 시도했지만 이미지 후보를 찾지 못했습니다 (query="${primaryQuery}"). UNSPLASH_ACCESS_KEY / PEXELS_API_KEY / PIXABAY_API_KEY 설정을 확인하세요.`,
     );
   }
   if (filePaths.length < minCount) {

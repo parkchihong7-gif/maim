@@ -99,3 +99,7 @@ export function getUnsplashKey(): string | null {
 export function getPexelsKey(): string | null {
   return getSetting("pexels_api_key") || config.pexelsApiKey || null;
 }
+
+export function getPixabayKey(): string | null {
+  return getSetting("pixabay_api_key") || config.pixabayApiKey || null;
+}

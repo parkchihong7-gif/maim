@@ -11,6 +11,7 @@ export interface Post {
   image_path: string | null;
   image_paths_json: string | null;
   image_alts_json: string | null;
+  title_variants_json: string | null;
   image_query: string | null;
   tags_json: string | null;
   scheduled_at: string | null;
@@ -25,14 +26,32 @@ export function insertDraftPost(input: {
   content: string;
   imageQuery: string;
   tags: string[];
+  titleVariants?: string[];
 }): Post {
   const result = getDb()
     .prepare(
-      `INSERT INTO posts (category_id, status, title, content, image_query, tags_json)
-       VALUES (?, 'draft', ?, ?, ?, ?)`,
+      `INSERT INTO posts (category_id, status, title, content, image_query, tags_json, title_variants_json)
+       VALUES (?, 'draft', ?, ?, ?, ?, ?)`,
     )
-    .run(input.categoryId, input.title, input.content, input.imageQuery, JSON.stringify(input.tags));
+    .run(
+      input.categoryId,
+      input.title,
+      input.content,
+      input.imageQuery,
+      JSON.stringify(input.tags),
+      input.titleVariants && input.titleVariants.length > 0 ? JSON.stringify(input.titleVariants) : null,
+    );
   return getPost(Number(result.lastInsertRowid))!;
+}
+
+export function getTitleVariants(post: Post): string[] {
+  if (!post.title_variants_json) return [];
+  try {
+    const parsed = JSON.parse(post.title_variants_json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 export function getPost(id: number): Post | undefined {

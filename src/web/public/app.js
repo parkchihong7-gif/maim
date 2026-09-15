@@ -194,6 +194,16 @@ function getImageAlts(post) {
   }
 }
 
+function getTitleVariants(post) {
+  if (!post.title_variants_json) return [];
+  try {
+    const parsed = JSON.parse(post.title_variants_json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 // --- 초안 품질 체크리스트 (전부 클라이언트에서 계산, 서버 호출 없음) ---
 
 function normalizeWords(text) {
@@ -322,11 +332,31 @@ async function refreshQueue() {
         ? `<div class="post-tags">${tags.map((t) => `<span class="post-tag">${escapeHtml(t)}</span>`).join("")}</div>`
         : "";
 
+    const TITLE_VARIANT_LABELS = ["질문형", "숫자/사실형", "공감형"];
+    const titleVariants = getTitleVariants(p);
+    const titleVariantsHtml =
+      titleVariants.length > 0
+        ? `<div class="title-variants">
+            <p class="muted title-variants-label">💡 후킹 제목 후보 (마음에 드는 걸 복사해서 실제 제목으로 써보세요)</p>
+            ${titleVariants
+              .map(
+                (t, idx) => `
+              <div class="title-variant-row">
+                <span class="badge">${escapeHtml(TITLE_VARIANT_LABELS[idx] || `후보 ${idx + 1}`)}</span>
+                <span class="title-variant-text">${escapeHtml(t)}</span>
+                <button class="btn-secondary btn-copy-image" data-action="copy-title-variant" data-title="${escapeHtml(t)}">복사하기</button>
+              </div>`,
+              )
+              .join("")}
+          </div>`
+        : "";
+
     card.innerHTML = `
       <div class="post-card-header">
         <strong class="post-title-toggle" data-action="toggle-content" data-id="${p.id}">${escapeHtml(p.title ?? "(제목 없음)")}</strong>
         <span class="badge">${escapeHtml(p.category_name)}</span>
       </div>
+      ${titleVariantsHtml}
       <div class="post-card-actions">
         <button class="btn-secondary" data-action="copy" data-id="${p.id}">복사하기</button>
         <button class="btn-secondary" data-action="regenerate-image" data-id="${p.id}">이미지 재생성</button>
@@ -391,18 +421,25 @@ function renderHomeStats() {
 
   const unsplashOk = lastSettingsSnapshot?.unsplash_access_key_set;
   const pexelsOk = lastSettingsSnapshot?.pexels_api_key_set;
-  const okCount = [claudeTestedOk, unsplashOk, pexelsOk].filter(Boolean).length;
+  const pixabayOk = lastSettingsSnapshot?.pixabay_api_key_set;
+  const imageSourceCount = [unsplashOk, pexelsOk, pixabayOk].filter(Boolean).length;
   const aiEl = document.getElementById("stat-ai-status");
   const aiHint = document.getElementById("stat-ai-hint");
-  if (okCount === 3) {
+  // "정상"의 기준은 이미지 소스 3개를 전부 연결하는 게 아니라(하나만 있어도
+  // 이미지 검색 자체는 동작함), Claude 연결 + 이미지 소스 최소 1개다 —
+  // 실제로 이 둘이 이 앱이 정상 동작하기 위한 최소 조건이기 때문이다.
+  if (claudeTestedOk && imageSourceCount > 0) {
     aiEl.textContent = "정상";
-    aiHint.textContent = "Claude·이미지 API 모두 연결됨";
+    aiHint.textContent = `Claude 연결됨 · 이미지 소스 ${imageSourceCount}/3개 연결됨`;
   } else if (lastSettingsSnapshot === null) {
     aiEl.textContent = "확인 필요";
     aiHint.textContent = "관리자 설정에서 확인하세요";
   } else {
     aiEl.textContent = "설정 필요";
-    aiHint.textContent = `${okCount}/3 연결됨 — 관리자 설정에서 확인`;
+    const missing = [];
+    if (!claudeTestedOk) missing.push("Claude 연결 테스트 필요");
+    if (imageSourceCount === 0) missing.push("이미지 API 키 없음");
+    aiHint.textContent = missing.join(" · ") || "관리자 설정에서 확인하세요";
   }
 }
 
@@ -498,9 +535,10 @@ function setStepBadge(step, done) {
 function updateSetupProgress() {
   const unsplashDone = document.querySelector('[data-badge="unsplash"]')?.textContent === "✅";
   const pexelsDone = document.querySelector('[data-badge="pexels"]')?.textContent === "✅";
-  const done = [claudeTestedOk, unsplashDone, pexelsDone].filter(Boolean).length;
+  const pixabayDone = document.querySelector('[data-badge="pixabay"]')?.textContent === "✅";
+  const done = [claudeTestedOk, unsplashDone, pexelsDone, pixabayDone].filter(Boolean).length;
   const el = document.getElementById("setup-progress");
-  if (el) el.textContent = `3단계 중 ${done}단계 완료`;
+  if (el) el.textContent = `4단계 중 ${done}단계 완료`;
 }
 
 async function loadPresetsIfNeeded() {
@@ -604,6 +642,11 @@ async function refreshSettings() {
     ? `현재 저장된 값: ${s.pexels_api_key}`
     : "아직 설정되지 않았습니다.";
 
+  setStepBadge("pixabay", s.pixabay_api_key_set);
+  document.querySelector('[data-current="pixabay_api_key"]').textContent = s.pixabay_api_key_set
+    ? `현재 저장된 값: ${s.pixabay_api_key}`
+    : "아직 설정되지 않았습니다.";
+
   setStepBadge("claude", claudeTestedOk);
   updateSetupProgress();
 
@@ -671,11 +714,17 @@ document.addEventListener("click", async (e) => {
     if (action === "generate") {
       btn.disabled = true;
       btn.textContent = "생성 중...";
-      await api("/api/run/generate", {
+      const result = await api("/api/run/generate", {
         method: "POST",
         body: JSON.stringify({ categoryId: Number(id) }),
       });
       await refreshQueue();
+      // 글은 정상적으로 만들어졌지만 이미지 첨부만 실패한 경우, 서버가
+      // 200 OK로 imageError 필드만 실어서 돌려준다 — 이걸 그냥 무시하면
+      // 이미지 없는 초안이 조용히 생겨서 "이미지 생성이 안 된다"처럼 보인다.
+      if (result.imageError) {
+        alert(`글은 생성됐지만 이미지 첨부에 실패했습니다: ${result.imageError}\n\n포스팅 카드의 "이미지 재생성" 버튼으로 다시 시도해보세요.`);
+      }
     } else if (action === "copy") {
       const post = readyPosts.find((p) => p.id === Number(id));
       if (post) {
@@ -749,6 +798,13 @@ document.addEventListener("click", async (e) => {
       }, 1500);
     } else if (action === "copy-alt") {
       await navigator.clipboard.writeText(btn.dataset.alt);
+      const original = btn.textContent;
+      btn.textContent = "복사됨!";
+      setTimeout(() => {
+        btn.textContent = original;
+      }, 1500);
+    } else if (action === "copy-title-variant") {
+      await navigator.clipboard.writeText(btn.dataset.title);
       const original = btn.textContent;
       btn.textContent = "복사됨!";
       setTimeout(() => {
