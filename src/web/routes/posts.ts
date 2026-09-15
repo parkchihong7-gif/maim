@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { getPost, getImagePaths, markPublished } from "../../db/repositories/posts.js";
 import { attachImage } from "../../pipeline/attachImage.js";
+import { downloadFileIfMissing } from "../../persistence/gcsState.js";
+import { config } from "../../config.js";
 
 const MIME_BY_EXT: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -20,9 +22,20 @@ export async function postsRoutes(app: FastifyInstance) {
       return { error: "포스팅을 찾을 수 없습니다." };
     }
     const imagePath = getImagePaths(post)[Number(index)];
-    if (!imagePath || !fs.existsSync(imagePath)) {
+    if (!imagePath) {
       reply.code(404);
       return { error: "이미지를 찾을 수 없습니다." };
+    }
+    if (!fs.existsSync(imagePath)) {
+      // Cloud Run 등에서는 서버 시작 시 생성 이미지를 미리 전부 내려받지
+      // 않으므로(gcsState.ts 참고), 로컬에 없으면 버킷에서 이 파일 하나만
+      // 그때그때 받아온다.
+      const relPath = path.relative(config.paths.dataDir, imagePath);
+      const ok = await downloadFileIfMissing(relPath);
+      if (!ok || !fs.existsSync(imagePath)) {
+        reply.code(404);
+        return { error: "이미지를 찾을 수 없습니다." };
+      }
     }
     const ext = path.extname(imagePath).toLowerCase();
     reply.type(MIME_BY_EXT[ext] ?? "application/octet-stream");
