@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { config } from "../../config.js";
 import {
   redeemAccessCode,
-  listAccessCodes,
+  listAccessCodeTree,
   resetAccessCodes,
 } from "../../db/repositories/accessCodes.js";
 
@@ -50,12 +50,17 @@ export async function authRoutes(app: FastifyInstance) {
       return { token: config.dashboardToken, master: true };
     }
 
-    const sessionToken = redeemAccessCode(input);
-    if (!sessionToken) {
+    const result = redeemAccessCode(input);
+    if (!result) {
       reply.code(401);
       return { error: "이미 사용됐거나 존재하지 않는 접속 코드입니다." };
     }
-    return { token: sessionToken, master: false };
+    if (result.kind === "tier1") {
+      // 1차(초대) 코드는 그 자리에서 로그인시키지 않고, 기기별 2차 코드 3개를
+      // 발급해서 보여준다 — 실제 로그인은 그중 하나를 다시 입력해야 이뤄진다.
+      return { tier: 1, deviceCodes: result.deviceCodes };
+    }
+    return { token: result.sessionToken, master: false, tier: 2 };
   });
 
   app.get("/api/auth/whoami", async (req) => {
@@ -67,11 +72,7 @@ export async function authRoutes(app: FastifyInstance) {
       reply.code(403);
       return { error: "마스터만 접속 코드를 조회할 수 있습니다." };
     }
-    return listAccessCodes().map((c) => ({
-      code: c.code,
-      redeemed: !!c.redeemed_at,
-      redeemed_at: c.redeemed_at,
-    }));
+    return listAccessCodeTree();
   });
 
   app.post("/api/auth/codes/reset", async (req, reply) => {
@@ -79,7 +80,6 @@ export async function authRoutes(app: FastifyInstance) {
       reply.code(403);
       return { error: "마스터만 접속 코드를 재발급할 수 있습니다." };
     }
-    const codes = resetAccessCodes();
-    return codes.map((c) => ({ code: c.code, redeemed: !!c.redeemed_at, redeemed_at: c.redeemed_at }));
+    return resetAccessCodes();
   });
 }

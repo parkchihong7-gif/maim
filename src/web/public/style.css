@@ -899,6 +899,49 @@ textarea:focus {
   line-height: 1.5;
 }
 
+/* --- 접속 코드 관리 (1차 → 2차 기기 코드 트리) --- */
+
+.access-code-group {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.access-code-group:last-child {
+  border-bottom: none;
+}
+
+.access-code-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.access-code-row code {
+  font-size: 0.85rem;
+  background: var(--bg);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.access-code-children {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 0 20px;
+  padding-left: 14px;
+  border-left: 2px solid var(--border);
+}
+
+.access-code-child {
+  font-size: 0.85rem;
+}
+
+.access-code-child .muted {
+  min-width: 44px;
+  font-size: 0.78rem;
+}
+
 /* 체크리스트형 매뉴얼 — 단계 구간마다 색을 달리해서(준비/설치/권한/로그인/마무리/확인)
    지금 어느 구간을 하고 있는지 한눈에 구분되게 한다. */
 .checklist-stage {

@@ -19,8 +19,11 @@ function setDashboardToken(token) {
 // 이미 떠 있으면 그 결과를 같이 기다려서 창이 여러 개 겹쳐 뜨지 않게 한다.
 let dashboardTokenPromptPromise = null;
 
-/** 입력값(마스터 토큰 또는 1회용 접속 코드)을 실제 세션 토큰으로 교환한다.
- * 이 호출 자체는 로그인 전이라 토큰이 없는 게 당연하므로 인증 훅의 예외 대상이다. */
+const DEVICE_LABEL_KO = { pc: "PC", laptop: "노트북", mobile: "휴대폰" };
+
+/** 입력값(마스터 토큰 / 1차 초대 코드 / 2차 기기 코드)을 교환한다. 마스터·2차 코드는
+ * 곧바로 세션 토큰({token})을, 1차 코드는 기기별 2차 코드 3개({tier:1, deviceCodes})를
+ * 돌려준다. 이 호출 자체는 로그인 전이라 토큰이 없는 게 당연하므로 인증 훅의 예외 대상이다. */
 async function redeemToken(value) {
   const res = await fetch("/api/auth/redeem", {
     method: "POST",
@@ -29,7 +32,7 @@ async function redeemToken(value) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "인증에 실패했습니다.");
-  return data.token;
+  return data;
 }
 
 async function api(path, options = {}) {
@@ -60,11 +63,25 @@ async function api(path, options = {}) {
           let lastError = "";
           for (;;) {
             const entered = window.prompt(
-              (lastError ? `${lastError}\n\n` : "") + "대시보드 토큰 또는 1회용 접속 코드를 입력하세요:",
+              (lastError ? `${lastError}\n\n` : "") + "대시보드 토큰 또는 접속 코드를 입력하세요:",
             );
             if (!entered) return null;
             try {
-              return await redeemToken(entered);
+              const result = await redeemToken(entered);
+              if (result.token) return result.token;
+              if (result.tier === 1 && result.deviceCodes) {
+                // 1차(초대) 코드는 그 자체로 로그인되지 않는다 — 기기별 2차 코드
+                // 3개를 발급받았다고 보여주고, 그중 하나를 다시 입력받는다.
+                const lines = result.deviceCodes
+                  .map((d) => `${DEVICE_LABEL_KO[d.device_label] || d.device_label}: ${d.code}`)
+                  .join("\n");
+                alert(
+                  `1차 초대 코드가 확인됐습니다. 기기별 코드 3개가 발급됐어요 — 꼭 기록해두세요(다시 보여주지 않습니다):\n\n${lines}\n\n지금 이 기기에서 로그인하려면, 위 코드 중 이 기기에 맞는 코드 하나를 아래 입력창에 입력하세요.`,
+                );
+                lastError = "";
+                continue;
+              }
+              lastError = "예상치 못한 응답입니다. 다시 시도해주세요.";
             } catch (err) {
               lastError = err.message;
             }
@@ -543,16 +560,32 @@ async function refreshAccessCodes() {
     return;
   }
   section.hidden = false;
-  const codes = await api("/api/auth/codes");
-  const tbody = document.querySelector("#access-codes-table tbody");
-  tbody.innerHTML = codes
-    .map(
-      (c) => `
-      <tr>
-        <td><code>${escapeHtml(c.code)}</code></td>
-        <td><span class="badge ${c.redeemed ? "badge-inactive" : "badge-active"}">${c.redeemed ? "사용됨" : "미사용"}</span></td>
-      </tr>`,
-    )
+  const tree = await api("/api/auth/codes");
+  const container = document.getElementById("access-codes-list");
+  container.innerHTML = tree
+    .map((t1) => {
+      const childrenHtml =
+        t1.deviceCodes.length > 0
+          ? `<div class="access-code-children">${t1.deviceCodes
+              .map(
+                (d) => `
+              <div class="access-code-row access-code-child">
+                <span class="muted">${escapeHtml(DEVICE_LABEL_KO[d.device_label] || d.device_label)}</span>
+                <code>${escapeHtml(d.code)}</code>
+                <span class="badge ${d.redeemed ? "badge-inactive" : "badge-active"}">${d.redeemed ? "사용됨" : "미사용"}</span>
+              </div>`,
+              )
+              .join("")}</div>`
+          : "";
+      return `
+        <div class="access-code-group">
+          <div class="access-code-row">
+            <code>${escapeHtml(t1.code)}</code>
+            <span class="badge ${t1.redeemed ? "badge-inactive" : "badge-active"}">${t1.redeemed ? "등록됨" : "미등록"}</span>
+          </div>
+          ${childrenHtml}
+        </div>`;
+    })
     .join("");
 }
 
@@ -587,7 +620,7 @@ async function refreshSettings() {
   renderHomeStats();
 }
 
-// --- 사이드바 뷰 전환 (홈/블로그 관리/글감/발행 이력/관리자 설정/사용법) ---
+// --- 사이드바 뷰 전환 (홈/블로그 관리/포스팅/발행 이력/관리자 설정/사용법) ---
 
 let currentView = "home";
 
