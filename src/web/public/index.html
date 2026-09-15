@@ -7,265 +7,490 @@
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <header>
-    <h1>maim 대시보드</h1>
-    <p class="muted">AI가 글과 이미지를 준비해두면, 여기서 복사해서 네이버 블로그에 직접 붙여넣으세요.</p>
-    <button class="btn-secondary" id="admin-settings-toggle" data-action="admin-settings-toggle">⚙️ 관리자 설정</button>
-  </header>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <span class="sidebar-brand-mark">m</span>
+        <span class="sidebar-brand-name">maim</span>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="sidebar-nav-item active" data-action="switch-view" data-view="home">🏠 <span>홈</span></button>
+        <button class="sidebar-nav-item" data-action="switch-view" data-view="categories">📁 <span>블로그 관리</span></button>
+        <button class="sidebar-nav-item" data-action="switch-view" data-view="drafts">📝 <span>글감</span></button>
+        <button class="sidebar-nav-item" data-action="switch-view" data-view="history">📜 <span>발행 이력</span></button>
+        <button class="sidebar-nav-item" data-action="switch-view" data-view="settings">⚙️ <span>관리자 설정</span></button>
+        <button class="sidebar-nav-item" data-action="switch-view" data-view="guide">📖 <span>사용법</span></button>
+      </nav>
+    </aside>
 
-  <main>
-    <section id="admin-settings" hidden>
-      <h2>⚙️ 관리자 설정</h2>
-
-      <div class="subsection">
-        <h3>1) AI 커넥트 연결</h3>
-        <p class="setup-progress" id="setup-progress"></p>
-
-        <div class="setup-step" data-step="claude">
-          <div class="setup-step-header">
-            <span class="setup-step-badge" data-badge="claude">○</span>
-            <strong>1단계. Claude CLI 로그인</strong>
-            <a href="#" class="manual-toggle" data-action="toggle-manual" data-manual="claude">[매뉴얼 보기]</a>
+    <main class="main-content">
+      <!-- ============ 홈 ============ -->
+      <section data-view-panel="home">
+        <div class="page-header">
+          <div>
+            <h1>maim 대시보드</h1>
+            <p class="muted">AI가 글과 이미지를 준비해두면, 여기서 복사해서 네이버 블로그에 직접 붙여넣으세요.</p>
           </div>
-          <p class="muted">⚠️ 이 단계는 프로그램을 만들거나 고치는 것과 전혀 상관없습니다. 이 프로그램이 글을 쓸 때
-            내부적으로 <code>claude</code>라는 명령어를 실행하는데, "누구의 Claude 구독으로 실행할지" 딱 한 번
-            등록해두는 로그인 절차일 뿐입니다. 코드를 건드리거나 재배포할 필요가 전혀 없어요.</p>
-          <p class="muted">터미널에 붙여넣을 명령어:</p>
-          <div class="setup-code-row">
-            <pre class="setup-code" id="claude-login-cmd">claude login</pre>
-            <button class="btn-secondary btn-copy-image" data-action="copy-code" data-target="claude-login-cmd">복사</button>
+          <div class="page-header-actions">
+            <button class="btn-secondary" data-action="switch-view" data-view="history">발행 이력</button>
+            <button class="btn-primary" data-action="switch-view" data-view="categories">+ 카테고리 추가</button>
           </div>
-          <button class="btn-secondary" data-action="test-claude">연결 테스트</button>
-          <span class="setup-step-result" data-result="claude"></span>
+        </div>
 
-          <div class="setup-manual" data-manual-panel="claude" hidden>
-            <p><strong>✅ 방법 A. Google Cloud Shell 이용 (추천, 사실상 무료)</strong></p>
-            <p class="muted">Cloud Shell은 구글 계정만 있으면 매일 일정 시간 무료로 쓸 수 있는 브라우저 터미널이라,
-              이 정도 작업엔 별도 비용이 들지 않습니다.</p>
-            <ol>
-              <li><a href="https://console.cloud.google.com" target="_blank" rel="noopener">console.cloud.google.com</a> 접속 → 우측 상단 터미널 아이콘(Cloud Shell) 클릭</li>
-              <li>필요한 CLI 도구 설치(한 번만):
-                <pre class="setup-code">npm install -g @anthropic-ai/claude-code</pre>
-              </li>
-              <li>버킷 쓰기 권한 부여(한 번만, <code>maim-data-...</code> 부분은 본인 버킷 이름으로 교체):
-                <pre class="setup-code">gcloud storage buckets add-iam-policy-binding gs://maim-data-YOUR_PROJECT_ID \
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-card-top"><span class="stat-card-label">오늘 생성된 초안</span><span class="stat-card-icon">✅</span></div>
+            <div class="stat-card-value" id="stat-today-count">0</div>
+            <p class="muted stat-card-sub">오늘 날짜 기준</p>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-top"><span class="stat-card-label">준비된 초안</span><span class="stat-card-icon">📝</span></div>
+            <div class="stat-card-value" id="stat-ready-count">0</div>
+            <p class="muted stat-card-sub" id="stat-ready-hint"></p>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-top"><span class="stat-card-label">활성 카테고리</span><span class="stat-card-icon">📁</span></div>
+            <div class="stat-card-value" id="stat-active-categories">0/0</div>
+            <p class="muted stat-card-sub">활성 / 전체</p>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-top"><span class="stat-card-label">AI 연결 상태</span><span class="stat-card-icon">🔌</span></div>
+            <div class="stat-card-value" id="stat-ai-status">-</div>
+            <p class="muted stat-card-sub" id="stat-ai-hint"></p>
+          </div>
+        </div>
+
+        <div class="home-grid">
+          <div class="card">
+            <div class="card-header">
+              <h2>최근 발행</h2>
+              <a href="#" data-action="switch-view" data-view="history">전체 이력 →</a>
+            </div>
+            <table id="home-history-table">
+              <thead><tr><th>상태</th><th>카테고리</th><th>제목</th><th>결과</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-header"><h2>최근 활동</h2></div>
+            <div id="activity-feed"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 블로그 관리(카테고리) ============ -->
+      <section data-view-panel="categories" hidden>
+        <div class="page-header">
+          <div>
+            <h1>블로그 관리</h1>
+            <p class="muted">카테고리별로 다룰 주제와 검색 방향, 프롬프트 힌트를 관리하세요.</p>
+          </div>
+        </div>
+        <div class="card">
+          <table id="category-table">
+            <thead>
+              <tr><th>이름</th><th>활성</th><th>주제 키워드</th><th>동작</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div class="subsection">
+            <h3>새 카테고리 추가</h3>
+            <form id="category-form">
+              <input name="name" placeholder="카테고리 이름" required />
+              <input name="promptHint" placeholder="카테고리 설명(프롬프트 힌트)" required />
+              <input name="topicKeyword" placeholder="주제 키워드(선택, 예: 2026 최저임금)" />
+              <button type="submit" class="btn-primary">추가</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 글감(준비된 초안) ============ -->
+      <section data-view-panel="drafts" hidden>
+        <div class="page-header">
+          <div>
+            <h1>글감</h1>
+            <p class="muted">준비된 초안을 확인하고, 복사해서 네이버 블로그 에디터에 붙여넣으세요.</p>
+          </div>
+        </div>
+        <div id="ready-list"></div>
+      </section>
+
+      <!-- ============ 발행 이력 ============ -->
+      <section data-view-panel="history" hidden>
+        <div class="page-header">
+          <div>
+            <h1>발행 이력</h1>
+            <p class="muted">지금까지 생성·발행완료 처리된 초안 전체 기록입니다.</p>
+          </div>
+        </div>
+        <div class="card">
+          <table id="history-table">
+            <thead>
+              <tr><th>ID</th><th>카테고리</th><th>제목</th><th>상태</th><th>발행완료 표시 시각</th><th>에러</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ 관리자 설정 ============ -->
+      <section data-view-panel="settings" hidden>
+        <div class="page-header">
+          <div>
+            <h1>⚙️ 관리자 설정</h1>
+            <p class="muted">AI 연결, 블로그 주제/톤, 접속 코드를 관리합니다.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>1) AI 커넥트 연결</h3>
+          <p class="setup-progress" id="setup-progress"></p>
+
+          <div class="setup-step" data-step="claude">
+            <div class="setup-step-header">
+              <span class="setup-step-badge" data-badge="claude">○</span>
+              <strong>1단계. Claude CLI 로그인</strong>
+              <a href="#" class="manual-toggle" data-action="toggle-manual" data-manual="claude">[매뉴얼 보기]</a>
+            </div>
+            <p class="muted">⚠️ 이 단계는 프로그램을 만들거나 고치는 것과 전혀 상관없습니다. 이 프로그램이 글을 쓸 때
+              내부적으로 <code>claude</code>라는 명령어를 실행하는데, "누구의 Claude 구독으로 실행할지" 딱 한 번
+              등록해두는 로그인 절차일 뿐입니다. 코드를 건드리거나 재배포할 필요가 전혀 없어요.</p>
+            <p class="muted">터미널에 붙여넣을 명령어:</p>
+            <div class="setup-code-row">
+              <pre class="setup-code" id="claude-login-cmd">claude login</pre>
+              <button class="btn-secondary btn-copy-image" data-action="copy-code" data-target="claude-login-cmd">복사</button>
+            </div>
+            <button class="btn-secondary" data-action="test-claude">연결 테스트</button>
+            <span class="setup-step-result" data-result="claude"></span>
+
+            <div class="setup-manual" data-manual-panel="claude" hidden>
+              <div class="checklist-stage" data-tone="info">
+                <p class="checklist-stage-title">🔵 준비 단계</p>
+                <div class="checklist-item">
+                  <span class="checklist-item-box">☐</span>
+                  <span><a href="https://console.cloud.google.com" target="_blank" rel="noopener">console.cloud.google.com</a> 접속 (구글 로그인 상태여야 함)</span>
+                </div>
+                <div class="checklist-item">
+                  <span class="checklist-item-box">☐</span>
+                  <span>화면 우측 상단 터미널 모양 아이콘(Cloud Shell 활성화) 클릭 → 화면 하단에 검은 터미널 창이 열릴 때까지 기다리기 (처음 켤 땐 10~30초 정도 걸릴 수 있음)</span>
+                </div>
+              </div>
+
+              <div class="checklist-stage" data-tone="success">
+                <p class="checklist-stage-title">🟢 CLI 설치 단계 (한 번만 하면 계속 유지됨)</p>
+                <div class="checklist-item">
+                  <span class="checklist-item-box">☐</span>
+                  <span>아래 명령어를 통째로 복사해서 터미널에 붙여넣고 Enter
+                    <pre class="setup-code">npm install -g @anthropic-ai/claude-code</pre>
+                    <span class="checklist-item-why">뭘 하는 명령어인가요? <code>claude</code> 명령어 자체를 이 터미널에 설치하는 것입니다. "added N packages" 같은 문구가 뜨면 성공.</span>
+                  </span>
+                </div>
+              </div>
+
+              <div class="checklist-stage" data-tone="indigo">
+                <p class="checklist-stage-title">🟡 권한 부여 단계 (한 번만)</p>
+                <div class="checklist-item">
+                  <span class="checklist-item-box">☐</span>
+                  <span>아래 명령어에서 <code>maim-data-YOUR_PROJECT_ID</code> 부분을 본인 버킷 이름으로 바꿔서 붙여넣기
+                    (버킷 이름이 기억 안 나면 먼저 터미널에 <code>gcloud storage buckets list</code> 입력해서 <code>gs://</code>로 시작하는 이름 확인)
+                    <pre class="setup-code">gcloud storage buckets add-iam-policy-binding gs://maim-data-YOUR_PROJECT_ID \
   --member="user:$(gcloud config get-value account)" --role="roles/storage.objectAdmin"</pre>
-              </li>
-              <li>로그인 진행:
-                <pre class="setup-code">mkdir -p /tmp/maim-home && export HOME=/tmp/maim-home
+                    <span class="checklist-item-why">뭘 하는 명령어인가요? 지금 로그인한 내 구글 계정이 이 버킷에 파일을 쓸 수 있게 허락하는 것입니다. "Updated IAM policy" 문구가 뜨면 성공.</span>
+                  </span>
+                </div>
+              </div>
+
+              <div class="checklist-stage" data-tone="violet">
+                <p class="checklist-stage-title">🟣 실제 로그인 단계</p>
+                <div class="checklist-item">
+                  <span class="checklist-item-box">☐</span>
+                  <span>아래 두 줄을 순서대로 붙여넣기
+                    <pre class="setup-code">mkdir -p /tmp/maim-home && export HOME=/tmp/maim-home
 claude login</pre>
-                화면에 뜨는 링크를 열어 본인 Claude 계정으로 로그인 → 승인하면 "Logged in as ..." 메시지가 뜹니다.
-              </li>
-              <li>로그인 정보를 실제 서버가 쓰는 버킷 위치로 복사(마지막 단계):
-                <pre class="setup-code">gcloud storage cp -r /tmp/maim-home/.claude gs://maim-data-YOUR_PROJECT_ID/home/.claude</pre>
-              </li>
-              <li>이 대시보드로 돌아와 위의 "연결 테스트" 버튼을 눌러 정상 확인.</li>
-            </ol>
-            <p><strong>💡 방법 B. 본인 PC(로컬)에서 로그인 (선택)</strong></p>
-            <p class="muted">Node.js 설치 → <code>npm install -g @anthropic-ai/claude-code</code>로 CLI 설치 →
-              로컬 터미널에서 <code>claude login</code> 실행 → 생성된 로그인 정보(<code>~/.claude</code> 폴더)를
-              서버가 쓰는 버킷 위치로 옮겨야 합니다. 방법 A보다 단계가 늘어나므로, 이미 Cloud Shell을 쓰고 있다면
-              방법 A를 권장합니다.</p>
+                    <span class="checklist-item-why">첫 줄은 로그인 정보를 저장할 임시 폴더 준비, 둘째 줄이 진짜 로그인 시작입니다.</span>
+                  </span>
+                </div>
+                <div class="checklist-item">
+                  <span class="checklist-item-box">☐</span>
+                  <span>터미널에 뜨는 파란 링크를 클릭(또는 복사해서 새 탭에 붙여넣기)</span>
+                </div>
+                <div class="checklist-item">
+                  <span class="checklist-item-box">☐</span>
+                  <span>열린 브라우저 창에서 본인 Claude 계정으로 로그인 → "Authorize" 클릭</span>
+                </div>
+                <div class="checklist-item">
+                  <span class="checklist-item-box">☐</span>
+                  <span>터미널로 돌아와 <code>Logged in as [이메일]</code> 문구가 뜨는지 확인 → 뜨면 성공</span>
+                </div>
+              </div>
+
+              <div class="checklist-stage" data-tone="danger">
+                <p class="checklist-stage-title">🔴 마무리 단계 (이거 빠뜨리면 서버엔 로그인이 반영 안 됩니다 — 꼭 하세요)</p>
+                <div class="checklist-item">
+                  <span class="checklist-item-box">☐</span>
+                  <span>아래 명령어도 버킷 이름을 본인 것으로 바꿔서 붙여넣기
+                    <pre class="setup-code">gcloud storage cp -r /tmp/maim-home/.claude gs://maim-data-YOUR_PROJECT_ID/home/.claude</pre>
+                    <span class="checklist-item-why">뭘 하는 명령어인가요? 방금 만든 로그인 정보를 실제 서버(Cloud Run)가 읽는 위치로 옮기는 것입니다. 이걸 빼먹으면 터미널에서는 로그인됐지만 서버는 여전히 로그인 안 된 상태로 남습니다.</span>
+                  </span>
+                </div>
+              </div>
+
+              <div class="checklist-stage" data-tone="success">
+                <p class="checklist-stage-title">✅ 확인</p>
+                <div class="checklist-item">
+                  <span class="checklist-item-box">☐</span>
+                  <span>이 페이지로 돌아와 위의 "연결 테스트" 버튼 클릭 → "✅ 연결 성공"이 뜨면 전체 완료</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="setup-step" data-step="unsplash">
+            <div class="setup-step-header">
+              <span class="setup-step-badge" data-badge="unsplash">○</span>
+              <strong>2단계. Unsplash API 키</strong>
+              <a href="#" class="manual-toggle" data-action="toggle-manual" data-manual="unsplash">[매뉴얼 보기]</a>
+            </div>
+            <p class="muted">무료 스톡 이미지 검색에 사용됩니다.
+              <a href="https://unsplash.com/developers" target="_blank" rel="noopener">unsplash.com/developers</a>에서
+              무료로 가입 → New Application → Access Key를 복사해서 붙여넣으세요.</p>
+            <div class="setup-input-row">
+              <input type="text" id="unsplash-key-input" placeholder="Access Key 붙여넣기" />
+              <button class="btn-primary" data-action="save-setting" data-key="unsplash_access_key" data-input="unsplash-key-input">저장</button>
+            </div>
+            <p class="muted setup-current-value" data-current="unsplash_access_key"></p>
+
+            <div class="setup-manual" data-manual-panel="unsplash" hidden>
+              <ol>
+                <li><a href="https://unsplash.com/developers" target="_blank" rel="noopener">unsplash.com/developers</a> 접속</li>
+                <li>우측 상단 <strong>"Register as a developer"</strong> 클릭(구글 계정으로 바로 가입 가능, 무료)</li>
+                <li>가입/로그인 후 "Your apps" 페이지에서 <strong>"New Application"</strong> 클릭</li>
+                <li>이용약관 체크박스 2개 모두 체크 후 "Accept terms" 클릭</li>
+                <li>애플리케이션 이름(예: maim blog)을 간단히 입력 후 "Create application" 클릭</li>
+                <li>생성된 앱 페이지 상단의 <strong>"Access Key"</strong> 값을 복사</li>
+                <li>위 입력란에 붙여넣고 "저장" 클릭</li>
+              </ol>
+              <p class="muted">※ 무료 요금제 기준 시간당 50회 검색까지 가능해 이 프로그램 사용량엔 충분합니다.<br />
+                💡 검색한 주제와 정확히 맞는 사진이 없어도 걱정 마세요 — 이 프로그램은 자동으로 점점 더 넓은
+                범용 키워드(예: lifestyle, nature landscape)로 재검색해서 이미지를 최소 3장은 항상 확보합니다.</p>
+            </div>
+          </div>
+
+          <div class="setup-step" data-step="pexels">
+            <div class="setup-step-header">
+              <span class="setup-step-badge" data-badge="pexels">○</span>
+              <strong>3단계. Pexels API 키</strong>
+              <a href="#" class="manual-toggle" data-action="toggle-manual" data-manual="pexels">[매뉴얼 보기]</a>
+            </div>
+            <p class="muted">Unsplash 검색 결과가 부족할 때 함께 사용되는 보조 이미지 검색 API입니다.
+              <a href="https://www.pexels.com/api/" target="_blank" rel="noopener">pexels.com/api</a>에서
+              무료로 가입 → API 키를 복사해서 붙여넣으세요.</p>
+            <div class="setup-input-row">
+              <input type="text" id="pexels-key-input" placeholder="API Key 붙여넣기" />
+              <button class="btn-primary" data-action="save-setting" data-key="pexels_api_key" data-input="pexels-key-input">저장</button>
+            </div>
+            <p class="muted setup-current-value" data-current="pexels_api_key"></p>
+
+            <div class="setup-manual" data-manual-panel="pexels" hidden>
+              <ol>
+                <li><a href="https://www.pexels.com/api/" target="_blank" rel="noopener">pexels.com/api</a> 접속</li>
+                <li><strong>"Get Started"</strong> 클릭 → 이메일 또는 구글 계정으로 무료 가입</li>
+                <li>가입 즉시 API 키가 자동으로 발급되어 화면에 표시됩니다(별도 앱 생성 필요 없음)</li>
+                <li>표시된 API 키를 복사</li>
+                <li>위 입력란에 붙여넣고 "저장" 클릭</li>
+              </ol>
+              <p class="muted">※ 무료 요금제로 시간당 200회 요청까지 가능합니다.</p>
+            </div>
           </div>
         </div>
 
-        <div class="setup-step" data-step="unsplash">
-          <div class="setup-step-header">
-            <span class="setup-step-badge" data-badge="unsplash">○</span>
-            <strong>2단계. Unsplash API 키</strong>
-            <a href="#" class="manual-toggle" data-action="toggle-manual" data-manual="unsplash">[매뉴얼 보기]</a>
-          </div>
-          <p class="muted">무료 스톡 이미지 검색에 사용됩니다.
-            <a href="https://unsplash.com/developers" target="_blank" rel="noopener">unsplash.com/developers</a>에서
-            무료로 가입 → New Application → Access Key를 복사해서 붙여넣으세요.</p>
-          <div class="setup-input-row">
-            <input type="text" id="unsplash-key-input" placeholder="Access Key 붙여넣기" />
-            <button class="btn-primary" data-action="save-setting" data-key="unsplash_access_key" data-input="unsplash-key-input">저장</button>
-          </div>
-          <p class="muted setup-current-value" data-current="unsplash_access_key"></p>
+        <div class="card">
+          <h3>2) 블로그 주제 설정</h3>
+          <p class="muted">1단계 — 블로그 유형</p>
+          <label><input type="radio" name="blog_type" value="personal" /> 개인 블로그</label>
+          <label><input type="radio" name="blog_type" value="business" /> 기업 블로그</label>
 
-          <div class="setup-manual" data-manual-panel="unsplash" hidden>
-            <ol>
-              <li><a href="https://unsplash.com/developers" target="_blank" rel="noopener">unsplash.com/developers</a> 접속</li>
-              <li>우측 상단 <strong>"Register as a developer"</strong> 클릭(구글 계정으로 바로 가입 가능, 무료)</li>
-              <li>가입/로그인 후 "Your apps" 페이지에서 <strong>"New Application"</strong> 클릭</li>
-              <li>이용약관 체크박스 2개 모두 체크 후 "Accept terms" 클릭</li>
-              <li>애플리케이션 이름(예: maim blog)을 간단히 입력 후 "Create application" 클릭</li>
-              <li>생성된 앱 페이지 상단의 <strong>"Access Key"</strong> 값을 복사</li>
-              <li>위 입력란에 붙여넣고 "저장" 클릭</li>
-            </ol>
-            <p class="muted">※ 무료 요금제 기준 시간당 50회 검색까지 가능해 이 프로그램 사용량엔 충분합니다.<br />
-              💡 검색한 주제와 정확히 맞는 사진이 없어도 걱정 마세요 — 이 프로그램은 자동으로 점점 더 넓은
-              범용 키워드(예: lifestyle, nature landscape)로 재검색해서 이미지를 최소 3장은 항상 확보합니다.</p>
+          <p class="muted" style="margin-top:14px">2단계 — 주제 분야</p>
+          <select id="blog-topic-select">
+            <option value="all">전체 (주제 선택 없음)</option>
+            <optgroup label="엔터테인먼트·예술">
+              <option value="literature_books">문학·책</option>
+              <option value="movie">영화</option>
+              <option value="art_design">미술·디자인</option>
+              <option value="performance_exhibit">공연·전시</option>
+              <option value="music">음악</option>
+              <option value="drama">드라마</option>
+              <option value="celebrity">스타·연예인</option>
+              <option value="comics_anime">만화·애니</option>
+              <option value="broadcast">방송</option>
+            </optgroup>
+            <optgroup label="생활·노하우·쇼핑">
+              <option value="daily_thoughts">일상·생각</option>
+              <option value="parenting_marriage">육아·결혼</option>
+              <option value="pets">반려동물</option>
+              <option value="good_words_images">좋은글·이미지</option>
+              <option value="fashion_beauty">패션·미용</option>
+              <option value="interior_diy">인테리어·DIY</option>
+              <option value="cooking_recipe">요리·레시피</option>
+              <option value="product_review">상품리뷰</option>
+              <option value="gardening">원예·재배</option>
+            </optgroup>
+            <optgroup label="취미·여가·여행">
+              <option value="game">게임</option>
+              <option value="sports">스포츠</option>
+              <option value="photo">사진</option>
+              <option value="car">자동차</option>
+              <option value="hobby">취미</option>
+              <option value="domestic_travel">국내여행</option>
+              <option value="world_travel">세계여행</option>
+              <option value="restaurant">맛집</option>
+            </optgroup>
+            <optgroup label="지식·동향">
+              <option value="it_computer">IT·컴퓨터</option>
+              <option value="society_politics">사회·정치</option>
+              <option value="health_medicine">건강·의학</option>
+              <option value="business_economy">비즈니스·경제</option>
+              <option value="language">어학·외국어</option>
+              <option value="education">교육·학문</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="card">
+          <h3>3) 포스팅 방향 설정</h3>
+          <p>
+            <a href="#" id="final-direction-toggle" data-action="toggle-final-direction">[최종 포스팅 기준] 보기</a>
+          </p>
+          <div class="muted setup-manual" id="final-direction-summary" hidden></div>
+
+          <p class="muted">아래 톤 프리셋 중 하나를 선택하세요. 마음에 드는 게 없으면 오른쪽 끝 [+]를 눌러
+            직접 새 프리셋을 만들 수 있고, 아래 보강 입력란에 원하는 방향을 자유롭게 추가로 적을 수도 있습니다.</p>
+          <div class="preset-grid" id="preset-grid"></div>
+
+          <div class="preset-add-form" id="preset-add-form" hidden>
+            <label>프리셋 이름
+              <input type="text" id="preset-add-label" placeholder="예: 담백한 뉴스 브리핑형" />
+            </label>
+            <label>한 줄 설명(선택)
+              <input type="text" id="preset-add-description" placeholder="예: 군더더기 없이 핵심만 전달" />
+            </label>
+            <label>AI에게 전달할 지시문 (실제로 이 문장이 그대로 프롬프트에 들어갑니다)
+              <textarea id="preset-add-instruction" rows="3" placeholder="예: 불필요한 수식어 없이 핵심 정보만 담백하게 전달하고, 문장은 짧게 끊어서 써라."></textarea>
+            </label>
+            <div class="setup-input-row">
+              <button class="btn-primary" data-action="save-new-preset">추가</button>
+              <button class="btn-secondary" data-action="cancel-new-preset">취소</button>
+            </div>
+          </div>
+
+          <textarea id="posting-direction-refinement" rows="3"
+            placeholder="이런 점은 다르게 써줬으면 좋겠다 싶은 부분을 자유롭게 적어주세요 (선택)"></textarea>
+          <button class="btn-primary" data-action="save-posting-direction">보강 내용 저장</button>
+
+          <div class="subsection">
+            <button class="btn-secondary" data-action="preview-post">예시 포스팅 보기</button>
+            <p class="muted">지금 설정 기준으로 짧은 샘플 글을 생성해서 미리 보여줍니다. 마음에 안 들면 위에서
+              프리셋을 바꾸거나 보강 문구를 추가해보세요.</p>
+            <div id="preview-post-result"></div>
           </div>
         </div>
 
-        <div class="setup-step" data-step="pexels">
-          <div class="setup-step-header">
-            <span class="setup-step-badge" data-badge="pexels">○</span>
-            <strong>3단계. Pexels API 키</strong>
-            <a href="#" class="manual-toggle" data-action="toggle-manual" data-manual="pexels">[매뉴얼 보기]</a>
-          </div>
-          <p class="muted">Unsplash 검색 결과가 부족할 때 함께 사용되는 보조 이미지 검색 API입니다.
-            <a href="https://www.pexels.com/api/" target="_blank" rel="noopener">pexels.com/api</a>에서
-            무료로 가입 → API 키를 복사해서 붙여넣으세요.</p>
-          <div class="setup-input-row">
-            <input type="text" id="pexels-key-input" placeholder="API Key 붙여넣기" />
-            <button class="btn-primary" data-action="save-setting" data-key="pexels_api_key" data-input="pexels-key-input">저장</button>
-          </div>
-          <p class="muted setup-current-value" data-current="pexels_api_key"></p>
-
-          <div class="setup-manual" data-manual-panel="pexels" hidden>
-            <ol>
-              <li><a href="https://www.pexels.com/api/" target="_blank" rel="noopener">pexels.com/api</a> 접속</li>
-              <li><strong>"Get Started"</strong> 클릭 → 이메일 또는 구글 계정으로 무료 가입</li>
-              <li>가입 즉시 API 키가 자동으로 발급되어 화면에 표시됩니다(별도 앱 생성 필요 없음)</li>
-              <li>표시된 API 키를 복사</li>
-              <li>위 입력란에 붙여넣고 "저장" 클릭</li>
-            </ol>
-            <p class="muted">※ 무료 요금제로 시간당 200회 요청까지 가능합니다.</p>
-          </div>
+        <div class="card" id="access-codes-section" hidden>
+          <h3>4) 접속 코드 관리 <span class="badge">마스터 전용</span></h3>
+          <p class="muted">지금 쓰고 있는 마스터 토큰은 그대로 유지하면서, 다른 사람에게 이 주소를 공유해야 할 때
+            아래 1회용 코드를 하나 알려주세요. 코드 하나는 딱 한 사람에게 한 번만 통하고, 그 뒤로는(같은 코드를
+            다시 입력해도) 재사용되지 않습니다.</p>
+          <table id="access-codes-table">
+            <thead><tr><th>코드</th><th>상태</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <button class="btn-danger" data-action="reset-access-codes">전체 폐기 후 10개 재발급</button>
         </div>
-      </div>
+      </section>
 
-      <div class="subsection">
-        <h3>2) 블로그 주제 설정</h3>
-        <p class="muted">1단계 — 블로그 유형</p>
-        <label><input type="radio" name="blog_type" value="personal" /> 개인 블로그</label>
-        <label><input type="radio" name="blog_type" value="business" /> 기업 블로그</label>
-
-        <p class="muted" style="margin-top:14px">2단계 — 주제 분야</p>
-        <select id="blog-topic-select">
-          <option value="all">전체 (주제 선택 없음)</option>
-          <optgroup label="엔터테인먼트·예술">
-            <option value="literature_books">문학·책</option>
-            <option value="movie">영화</option>
-            <option value="art_design">미술·디자인</option>
-            <option value="performance_exhibit">공연·전시</option>
-            <option value="music">음악</option>
-            <option value="drama">드라마</option>
-            <option value="celebrity">스타·연예인</option>
-            <option value="comics_anime">만화·애니</option>
-            <option value="broadcast">방송</option>
-          </optgroup>
-          <optgroup label="생활·노하우·쇼핑">
-            <option value="daily_thoughts">일상·생각</option>
-            <option value="parenting_marriage">육아·결혼</option>
-            <option value="pets">반려동물</option>
-            <option value="good_words_images">좋은글·이미지</option>
-            <option value="fashion_beauty">패션·미용</option>
-            <option value="interior_diy">인테리어·DIY</option>
-            <option value="cooking_recipe">요리·레시피</option>
-            <option value="product_review">상품리뷰</option>
-            <option value="gardening">원예·재배</option>
-          </optgroup>
-          <optgroup label="취미·여가·여행">
-            <option value="game">게임</option>
-            <option value="sports">스포츠</option>
-            <option value="photo">사진</option>
-            <option value="car">자동차</option>
-            <option value="hobby">취미</option>
-            <option value="domestic_travel">국내여행</option>
-            <option value="world_travel">세계여행</option>
-            <option value="restaurant">맛집</option>
-          </optgroup>
-          <optgroup label="지식·동향">
-            <option value="it_computer">IT·컴퓨터</option>
-            <option value="society_politics">사회·정치</option>
-            <option value="health_medicine">건강·의학</option>
-            <option value="business_economy">비즈니스·경제</option>
-            <option value="language">어학·외국어</option>
-            <option value="education">교육·학문</option>
-          </optgroup>
-        </select>
-      </div>
-
-      <div class="subsection">
-        <h3>3) 포스팅 방향 설정</h3>
-        <p>
-          <a href="#" id="final-direction-toggle" data-action="toggle-final-direction">[최종 포스팅 기준] 보기</a>
-        </p>
-        <div class="muted setup-manual" id="final-direction-summary" hidden></div>
-
-        <p class="muted">아래 톤 프리셋 중 하나를 선택하세요. 마음에 드는 게 없으면 오른쪽 끝 [+]를 눌러
-          직접 새 프리셋을 만들 수 있고, 아래 보강 입력란에 원하는 방향을 자유롭게 추가로 적을 수도 있습니다.</p>
-        <div class="preset-grid" id="preset-grid"></div>
-
-        <div class="preset-add-form" id="preset-add-form" hidden>
-          <label>프리셋 이름
-            <input type="text" id="preset-add-label" placeholder="예: 담백한 뉴스 브리핑형" />
-          </label>
-          <label>한 줄 설명(선택)
-            <input type="text" id="preset-add-description" placeholder="예: 군더더기 없이 핵심만 전달" />
-          </label>
-          <label>AI에게 전달할 지시문 (실제로 이 문장이 그대로 프롬프트에 들어갑니다)
-            <textarea id="preset-add-instruction" rows="3" placeholder="예: 불필요한 수식어 없이 핵심 정보만 담백하게 전달하고, 문장은 짧게 끊어서 써라."></textarea>
-          </label>
-          <div class="setup-input-row">
-            <button class="btn-primary" data-action="save-new-preset">추가</button>
-            <button class="btn-secondary" data-action="cancel-new-preset">취소</button>
+      <!-- ============ 사용법 ============ -->
+      <section data-view-panel="guide" hidden>
+        <div class="page-header">
+          <div>
+            <h1>📖 사용법</h1>
+            <p class="muted">처음 쓰시는 분들을 위한 전체 흐름 안내입니다.</p>
           </div>
         </div>
 
-        <textarea id="posting-direction-refinement" rows="3"
-          placeholder="이런 점은 다르게 써줬으면 좋겠다 싶은 부분을 자유롭게 적어주세요 (선택)"></textarea>
-        <button class="btn-primary" data-action="save-posting-direction">보강 내용 저장</button>
-
-        <div class="subsection">
-          <button class="btn-secondary" data-action="preview-post">예시 포스팅 보기</button>
-          <p class="muted">지금 설정 기준으로 짧은 샘플 글을 생성해서 미리 보여줍니다. 마음에 안 들면 위에서
-            프리셋을 바꾸거나 보강 문구를 추가해보세요.</p>
-          <div id="preview-post-result"></div>
+        <div class="card">
+          <div class="guide-step">
+            <div class="guide-step-num">1</div>
+            <div class="guide-step-body">
+              <h4>블로그 관리에서 카테고리 설정</h4>
+              <p>기본 카테고리 9개가 이미 준비돼 있습니다. 이름/설명(프롬프트 힌트)을 [수정]으로 언제든 바꿀 수 있고,
+                이번에 특정 이슈를 우선 다루고 싶으면 [주제 키워드]를 한 번만 채워두면 다음 생성에 최우선 반영됩니다.</p>
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-step-num">2</div>
+            <div class="guide-step-body">
+              <h4>[지금 생성] 클릭</h4>
+              <p>Claude가 카테고리 설명과 관리자 설정(블로그 주제/포스팅 방향)을 바탕으로 글을 쓰고, 어울리는 이미지 3장을
+                자동으로 찾아 붙입니다. 완료되면 [글감] 메뉴에 나타납니다.</p>
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-step-num">3</div>
+            <div class="guide-step-body">
+              <h4>글감에서 결과 확인</h4>
+              <p>제목을 클릭하면 본문이 펼쳐집니다. 품질 체크리스트(글자수/서식/키워드/주제 중복)를 확인하고,
+                이미지가 마음에 안 들면 [이미지 재생성]으로 3장을 더 받아볼 수 있습니다.</p>
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-step-num">4</div>
+            <div class="guide-step-body">
+              <h4>네이버 블로그에 붙여넣기</h4>
+              <p>[복사하기]로 제목+본문+태그를 클립보드에 복사하고, [이미지 복사]로 이미지 자체를 클립보드에 담아
+                네이버 에디터에 Ctrl+V로 붙여넣으세요. 이미지 아래 파란 박스의 대체텍스트도 함께 복사해서
+                네이버 에디터의 "대체텍스트" 입력란에 붙여넣으면 검색엔진 노출에 도움이 됩니다.</p>
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-step-num">5</div>
+            <div class="guide-step-body">
+              <h4>발행 완료로 표시</h4>
+              <p>네이버에 실제로 발행한 뒤 [발행 완료로 표시]를 누르면 [발행 이력]으로 이동해 기록으로 남습니다.
+                실제 네이버 발행 여부는 이 프로그램이 알 수 없으므로, 사람이 직접 눌러 표시하는 방식입니다
+                (이 프로그램은 완전자동 발행 대신 반자동 방식을 씁니다 — 아래 참고).</p>
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-step-num">6</div>
+            <div class="guide-step-body">
+              <h4>관리자 설정으로 취향에 맞게 다듬기</h4>
+              <p>AI 커넥트 연결(Claude/이미지 API), 블로그 주제, 포스팅 방향(톤 프리셋+보강 문구)을 관리자 설정에서
+                조정할 수 있습니다. [예시 포스팅 보기]로 톤을 먼저 확인해보세요.</p>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div class="subsection" id="access-codes-section" hidden>
-        <h3>4) 접속 코드 관리 <span class="badge">마스터 전용</span></h3>
-        <p class="muted">지금 쓰고 있는 마스터 토큰은 그대로 유지하면서, 다른 사람에게 이 주소를 공유해야 할 때
-          아래 1회용 코드를 하나 알려주세요. 코드 하나는 딱 한 사람에게 한 번만 통하고, 그 뒤로는(같은 코드를
-          다시 입력해도) 재사용되지 않습니다.</p>
-        <table id="access-codes-table">
-          <thead><tr><th>코드</th><th>상태</th></tr></thead>
-          <tbody></tbody>
-        </table>
-        <button class="btn-danger" data-action="reset-access-codes">전체 폐기 후 10개 재발급</button>
-      </div>
-    </section>
+        <div class="card">
+          <h3>왜 자동 발행이 아니라 반자동인가요?</h3>
+          <p class="muted">이전에 네이버 블로그 에디터를 자동으로 조작하는 방식을 시도했다가, 네이버가 이를
+            자동화 도구로 탐지해 계정에 보호조치(비밀번호 강제 재설정)가 걸린 적이 있습니다. 그 이후로 이
+            프로그램은 "AI가 글과 이미지를 준비 → 사람이 직접 복사해서 발행"하는 반자동 방식으로 설계를
+            바꿨습니다. 다소 손이 더 가지만, 계정 제재 위험 없이 안전하게 쓸 수 있습니다.</p>
+        </div>
 
-    <section>
-      <h2>카테고리</h2>
-      <table id="category-table">
-        <thead>
-          <tr><th>이름</th><th>활성</th><th>주제 키워드</th><th>동작</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <div class="subsection">
-        <h3>새 카테고리 추가</h3>
-        <form id="category-form">
-          <input name="name" placeholder="카테고리 이름" required />
-          <input name="promptHint" placeholder="카테고리 설명(프롬프트 힌트)" required />
-          <input name="topicKeyword" placeholder="주제 키워드(선택, 예: 2026 최저임금)" />
-          <button type="submit" class="btn-primary">추가</button>
-        </form>
-      </div>
-    </section>
-
-    <section>
-      <h2>준비된 초안</h2>
-      <div id="ready-list"></div>
-    </section>
-
-    <section>
-      <h2>히스토리</h2>
-      <table id="history-table">
-        <thead>
-          <tr><th>ID</th><th>카테고리</th><th>제목</th><th>상태</th><th>발행완료 표시 시각</th><th>에러</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
-  </main>
+        <div class="card">
+          <h3>자주 막히는 부분</h3>
+          <p class="muted"><strong>이미지가 안 보여요</strong> — 관리자 설정에서 Unsplash/Pexels 키가 저장돼 있는지
+            확인하세요. 두 키 모두 없으면 이미지 검색 자체가 안 됩니다.</p>
+          <p class="muted"><strong>"지금 생성"을 눌렀는데 에러가 나요</strong> — Claude CLI 로그인이 안 돼 있을 가능성이
+            높습니다. 관리자 설정 1단계의 "연결 테스트"로 확인하세요.</p>
+          <p class="muted"><strong>토큰을 입력하라는 창이 계속 떠요</strong> — 대시보드 토큰(또는 1회용 접속 코드)이
+            틀렸거나 만료된 코드일 수 있습니다. 마스터라면 정확한 토큰을, 게스트라면 새 코드를 받아 입력하세요.</p>
+        </div>
+      </section>
+    </main>
+  </div>
 
   <script src="/app.js"></script>
 </body>

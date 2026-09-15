@@ -341,6 +341,111 @@ async function refreshHistory() {
   }
 }
 
+// --- 홈: 통계 카드 / 최근 활동 / 최근 발행 요약 ---
+// 전부 이미 불러온 categoriesCache/readyPosts/historyCache로만 계산한다
+// (홈 화면만을 위한 별도 API 호출은 없음).
+
+/** SQLite의 datetime('now')는 UTC로 "YYYY-MM-DD HH:MM:SS" 형식이라 'Z'를 붙여 UTC로 파싱한다. */
+function formatRelativeTime(dateStr) {
+  if (!dateStr) return "";
+  const then = new Date(dateStr.replace(" ", "T") + "Z");
+  const diffMs = Date.now() - then.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "방금 전";
+  if (diffMin < 60) return `${diffMin}분 전`;
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return `${diffHour}시간 전`;
+  const diffDay = Math.floor(diffHour / 24);
+  const remHour = diffHour % 24;
+  return remHour > 0 ? `${diffDay}일 ${remHour}시간 전` : `${diffDay}일 전`;
+}
+
+function renderHomeStats() {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayCount = historyCache.filter((p) => (p.created_at || "").startsWith(todayStr)).length;
+  document.getElementById("stat-today-count").textContent = todayCount;
+
+  document.getElementById("stat-ready-count").textContent = readyPosts.length;
+  document.getElementById("stat-ready-hint").textContent =
+    readyPosts.length < 3 ? "3건 이상 준비를 권장해요" : "충분히 준비됐어요";
+
+  const activeCount = categoriesCache.filter((c) => c.active).length;
+  document.getElementById("stat-active-categories").textContent = `${activeCount}/${categoriesCache.length}`;
+
+  const unsplashOk = lastSettingsSnapshot?.unsplash_access_key_set;
+  const pexelsOk = lastSettingsSnapshot?.pexels_api_key_set;
+  const okCount = [claudeTestedOk, unsplashOk, pexelsOk].filter(Boolean).length;
+  const aiEl = document.getElementById("stat-ai-status");
+  const aiHint = document.getElementById("stat-ai-hint");
+  if (okCount === 3) {
+    aiEl.textContent = "정상";
+    aiHint.textContent = "Claude·이미지 API 모두 연결됨";
+  } else if (lastSettingsSnapshot === null) {
+    aiEl.textContent = "확인 필요";
+    aiHint.textContent = "관리자 설정에서 확인하세요";
+  } else {
+    aiEl.textContent = "설정 필요";
+    aiHint.textContent = `${okCount}/3 연결됨 — 관리자 설정에서 확인`;
+  }
+}
+
+const ACTIVITY_STATUS_LABEL = { draft: "초안 생성 중", ready: "초안 준비 완료", published: "발행 완료 표시", failed: "생성 실패" };
+const ACTIVITY_STATUS_ICON = { draft: "📝", ready: "✅", published: "🎉", failed: "⚠️" };
+
+function renderActivityFeed() {
+  const feed = document.getElementById("activity-feed");
+  if (!feed) return;
+  const items = historyCache.slice(0, 6);
+  if (items.length === 0) {
+    feed.innerHTML = `<p class="muted">아직 활동이 없습니다.</p>`;
+    return;
+  }
+  feed.innerHTML = items
+    .map(
+      (p) => `
+      <div class="activity-item">
+        <span class="activity-icon">${ACTIVITY_STATUS_ICON[p.status] || "•"}</span>
+        <div class="activity-body">
+          <p class="activity-title">${escapeHtml(ACTIVITY_STATUS_LABEL[p.status] || p.status)} · ${escapeHtml(p.category_name)}</p>
+          <p class="muted activity-sub">${escapeHtml(p.title || "(제목 없음)")}</p>
+        </div>
+        <span class="muted activity-time">${formatRelativeTime(p.published_at || p.created_at)}</span>
+      </div>`,
+    )
+    .join("");
+}
+
+function renderHomeHistoryTable() {
+  const tbody = document.querySelector("#home-history-table tbody");
+  if (!tbody) return;
+  const items = historyCache.slice(0, 5);
+  if (items.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" class="muted">아직 발행 이력이 없습니다.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = items
+    .map(
+      (p) => `
+      <tr>
+        <td><span class="badge badge-${p.status}">${p.status}</span></td>
+        <td>${escapeHtml(p.category_name)}</td>
+        <td>${escapeHtml(p.title || "—")}</td>
+        <td>${
+          p.error_message
+            ? `<button class="btn-danger btn-copy-image" data-action="show-error" data-error="${escapeHtml(p.error_message)}">오류 보기</button>`
+            : '<span class="muted">-</span>'
+        }</td>
+      </tr>`,
+    )
+    .join("");
+}
+
+function renderHome() {
+  renderHomeStats();
+  renderActivityFeed();
+  renderHomeHistoryTable();
+}
+
 async function refreshAll() {
   // 초안 품질 체크리스트가 히스토리 데이터(historyCache)로 "최근 글과 주제
   // 중복" 여부를 계산하므로, 큐보다 히스토리를 먼저 받아온다.
@@ -350,6 +455,7 @@ async function refreshAll() {
   const tasks = [refreshQueue()];
   if (editingCategoryId === null) tasks.push(refreshCategories());
   await Promise.all(tasks);
+  renderHome();
 }
 
 // --- ⚙️ 관리자 설정: AI 커넥트 연결 / 블로그 주제 설정 / 포스팅 방향 설정 ---
@@ -362,6 +468,9 @@ let selectedPreset = "balanced";
 // 확인 가능한 라이브 상태라서, 페이지를 새로고침하면 다시 초기화된다.
 let claudeTestedOk = false;
 let isMasterSession = false;
+// 홈 화면의 "AI 연결 상태" 카드가 참고하는 마지막 GET /api/settings 응답.
+// null이면 아직 한 번도 안 불러온 것(부팅 직후).
+let lastSettingsSnapshot = null;
 
 function setStepBadge(step, done) {
   const el = document.querySelector(`[data-badge="${step}"]`);
@@ -450,6 +559,7 @@ async function refreshAccessCodes() {
 async function refreshSettings() {
   const [s, who] = await Promise.all([api("/api/settings"), api("/api/auth/whoami")]);
   isMasterSession = !!who.isMaster;
+  lastSettingsSnapshot = s;
 
   setStepBadge("unsplash", s.unsplash_access_key_set);
   document.querySelector('[data-current="unsplash_access_key"]').textContent = s.unsplash_access_key_set
@@ -474,6 +584,23 @@ async function refreshSettings() {
   renderPresetGrid();
   renderFinalDirectionSummary();
   await refreshAccessCodes();
+  renderHomeStats();
+}
+
+// --- 사이드바 뷰 전환 (홈/블로그 관리/글감/발행 이력/관리자 설정/사용법) ---
+
+let currentView = "home";
+
+async function switchView(view) {
+  currentView = view;
+  document.querySelectorAll("[data-view-panel]").forEach((el) => {
+    el.hidden = el.dataset.viewPanel !== view;
+  });
+  document.querySelectorAll(".sidebar-nav-item").forEach((navBtn) => {
+    navBtn.classList.toggle("active", navBtn.dataset.view === view);
+  });
+  if (view === "settings") await refreshSettings();
+  if (view === "home") renderHome();
 }
 
 document.getElementById("category-form").addEventListener("submit", async (e) => {
@@ -588,12 +715,11 @@ document.addEventListener("click", async (e) => {
       setTimeout(() => {
         btn.textContent = original;
       }, 1500);
-    } else if (action === "admin-settings-toggle") {
-      const section = document.getElementById("admin-settings");
-      const willShow = section.hidden;
-      section.hidden = !willShow;
-      btn.textContent = willShow ? "⚙️ 관리자 설정 닫기" : "⚙️ 관리자 설정";
-      if (willShow) await refreshSettings();
+    } else if (action === "switch-view") {
+      e.preventDefault();
+      await switchView(btn.dataset.view);
+    } else if (action === "show-error") {
+      alert(btn.dataset.error || "오류 메시지가 없습니다.");
     } else if (action === "save-setting") {
       const key = btn.dataset.key;
       const input = document.getElementById(btn.dataset.input);
@@ -764,3 +890,9 @@ function safeRefreshAll() {
 
 safeRefreshAll();
 setInterval(safeRefreshAll, 15000);
+
+// 홈 화면의 "AI 연결 상태" 카드가 처음부터 정확한 값을 보여주도록, 설정
+// 섹션을 열기 전이라도 한 번 가볍게 불러와둔다(전부 로컬 DB 조회라 저렴함).
+refreshSettings()
+  .then(renderHome)
+  .catch((err) => console.error("[maim] 초기 설정 조회 실패:", err));
