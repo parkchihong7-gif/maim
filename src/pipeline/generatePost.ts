@@ -6,7 +6,7 @@ import { buildPostPrompt } from "../claude/promptBuilder.js";
 import { buildBlogProfileBlock } from "../claude/blogProfile.js";
 import { runClaude } from "../claude/runClaude.js";
 import { parsePostResponse } from "../claude/parseResponse.js";
-import { getSettings } from "../db/repositories/settings.js";
+import { getSettings, resolvePostingDirectionInstruction } from "../db/repositories/settings.js";
 import type { PostDirective } from "./directives.js";
 import { config } from "../config.js";
 
@@ -26,7 +26,7 @@ export async function generatePost(category: Category, directive: PostDirective)
   const blogProfileBlock = buildBlogProfileBlock({
     blogType: blogSettings.blog_type,
     blogTopic: blogSettings.blog_topic,
-    postingDirectionPreset: blogSettings.posting_direction_preset,
+    postingDirectionInstruction: resolvePostingDirectionInstruction(blogSettings.posting_direction_preset),
     postingDirectionRefinement: blogSettings.posting_direction_refinement,
   });
   const prompt = buildPostPrompt(category, directive, today, recentTitles, blogProfileBlock);

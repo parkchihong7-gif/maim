@@ -19,6 +19,19 @@ function setDashboardToken(token) {
 // 이미 떠 있으면 그 결과를 같이 기다려서 창이 여러 개 겹쳐 뜨지 않게 한다.
 let dashboardTokenPromptPromise = null;
 
+/** 입력값(마스터 토큰 또는 1회용 접속 코드)을 실제 세션 토큰으로 교환한다.
+ * 이 호출 자체는 로그인 전이라 토큰이 없는 게 당연하므로 인증 훅의 예외 대상이다. */
+async function redeemToken(value) {
+  const res = await fetch("/api/auth/redeem", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "인증에 실패했습니다.");
+  return data.token;
+}
+
 async function api(path, options = {}) {
   const token = getDashboardToken();
   const res = await fetch(path, {
@@ -43,14 +56,27 @@ async function api(path, options = {}) {
     }
     if (!dashboardTokenPromptPromise) {
       dashboardTokenPromptPromise = Promise.resolve()
-        .then(() => window.prompt("대시보드 토큰이 필요합니다 (DASHBOARD_TOKEN):"))
+        .then(async () => {
+          let lastError = "";
+          for (;;) {
+            const entered = window.prompt(
+              (lastError ? `${lastError}\n\n` : "") + "대시보드 토큰 또는 1회용 접속 코드를 입력하세요:",
+            );
+            if (!entered) return null;
+            try {
+              return await redeemToken(entered);
+            } catch (err) {
+              lastError = err.message;
+            }
+          }
+        })
         .finally(() => {
           dashboardTokenPromptPromise = null;
         });
     }
-    const entered = await dashboardTokenPromptPromise;
-    if (entered) {
-      setDashboardToken(entered);
+    const sessionToken = await dashboardTokenPromptPromise;
+    if (sessionToken) {
+      setDashboardToken(sessionToken);
       return api(path, options);
     }
     throw new Error("대시보드 토큰이 필요합니다.");
@@ -335,6 +361,7 @@ let selectedPreset = "balanced";
 // Claude CLI 로그인 여부는 저장된 값이 아니라 "연결 테스트" 버튼을 눌렀을 때만
 // 확인 가능한 라이브 상태라서, 페이지를 새로고침하면 다시 초기화된다.
 let claudeTestedOk = false;
+let isMasterSession = false;
 
 function setStepBadge(step, done) {
   const el = document.querySelector(`[data-badge="${step}"]`);
@@ -355,18 +382,25 @@ async function loadPresetsIfNeeded() {
   postingDirectionPresets = await api("/api/settings/posting-direction-presets");
 }
 
+async function reloadPresets() {
+  postingDirectionPresets = await api("/api/settings/posting-direction-presets");
+}
+
 function renderPresetGrid() {
   const grid = document.getElementById("preset-grid");
   if (!grid || postingDirectionPresets.length === 0) return;
-  grid.innerHTML = postingDirectionPresets
+  const cards = postingDirectionPresets
     .map(
       (p) => `
       <div class="preset-card${p.id === selectedPreset ? " selected" : ""}" data-action="select-preset" data-preset="${p.id}">
+        ${p.custom ? `<button class="preset-delete" data-action="delete-preset" data-preset="${p.id}" title="이 프리셋 삭제">✕</button>` : ""}
         <strong>${escapeHtml(p.label)}</strong>
         <p class="muted">${escapeHtml(p.description)}</p>
       </div>`,
     )
     .join("");
+  grid.innerHTML =
+    cards + `<div class="preset-card preset-card-add" data-action="show-add-preset-form">+<span>새 프리셋 추가</span></div>`;
 }
 
 function renderFinalDirectionSummary() {
@@ -374,13 +408,48 @@ function renderFinalDirectionSummary() {
   if (!el) return;
   const preset = postingDirectionPresets.find((p) => p.id === selectedPreset);
   const refinement = document.getElementById("posting-direction-refinement").value.trim();
-  const parts = [`톤 프리셋: ${preset ? preset.label : selectedPreset}`];
-  if (refinement) parts.push(`보강 지시: ${refinement}`);
-  el.textContent = parts.join(" / ");
+  const typeInput = document.querySelector('input[name="blog_type"]:checked');
+  const typeLabel = typeInput ? (typeInput.value === "business" ? "기업 블로그" : "개인 블로그") : "지정 안 함";
+  const topicSelect = document.getElementById("blog-topic-select");
+  const topicLabel =
+    topicSelect && topicSelect.value !== "all" ? topicSelect.selectedOptions[0]?.textContent : "전체(주제 선택 없음)";
+
+  el.innerHTML = `
+    <p><strong>지금 이 블로그의 글은 다음 기준으로 작성됩니다:</strong></p>
+    <ul class="final-direction-list">
+      <li><strong>블로그 유형:</strong> ${escapeHtml(typeLabel)}</li>
+      <li><strong>주제 분야:</strong> ${escapeHtml(topicLabel || "전체(주제 선택 없음)")}</li>
+      <li><strong>톤 프리셋:</strong> ${escapeHtml(preset ? preset.label : selectedPreset)}${
+        preset ? ` — ${escapeHtml(preset.description)}` : ""
+      }</li>
+      ${preset && preset.instruction ? `<li><strong>AI에게 실제로 전달되는 지시문:</strong> "${escapeHtml(preset.instruction)}"</li>` : ""}
+      <li><strong>추가 보강 지시사항:</strong> ${refinement ? escapeHtml(refinement) : "없음"}</li>
+    </ul>`;
+}
+
+async function refreshAccessCodes() {
+  const section = document.getElementById("access-codes-section");
+  if (!isMasterSession) {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+  const codes = await api("/api/auth/codes");
+  const tbody = document.querySelector("#access-codes-table tbody");
+  tbody.innerHTML = codes
+    .map(
+      (c) => `
+      <tr>
+        <td><code>${escapeHtml(c.code)}</code></td>
+        <td><span class="badge ${c.redeemed ? "badge-inactive" : "badge-active"}">${c.redeemed ? "사용됨" : "미사용"}</span></td>
+      </tr>`,
+    )
+    .join("");
 }
 
 async function refreshSettings() {
-  const s = await api("/api/settings");
+  const [s, who] = await Promise.all([api("/api/settings"), api("/api/auth/whoami")]);
+  isMasterSession = !!who.isMaster;
 
   setStepBadge("unsplash", s.unsplash_access_key_set);
   document.querySelector('[data-current="unsplash_access_key"]').textContent = s.unsplash_access_key_set
@@ -404,6 +473,7 @@ async function refreshSettings() {
   await loadPresetsIfNeeded();
   renderPresetGrid();
   renderFinalDirectionSummary();
+  await refreshAccessCodes();
 }
 
 document.getElementById("category-form").addEventListener("submit", async (e) => {
@@ -581,6 +651,7 @@ document.addEventListener("click", async (e) => {
       renderFinalDirectionSummary();
       const el = document.getElementById("final-direction-summary");
       el.hidden = !el.hidden;
+      btn.textContent = el.hidden ? "[최종 포스팅 기준] 보기" : "[최종 포스팅 기준] 닫기";
     } else if (action === "preview-post") {
       btn.disabled = true;
       const original = btn.textContent;
@@ -598,6 +669,62 @@ document.addEventListener("click", async (e) => {
         btn.disabled = false;
         btn.textContent = original;
       }
+    } else if (action === "toggle-manual") {
+      const key = btn.dataset.manual;
+      const panel = document.querySelector(`[data-manual-panel="${key}"]`);
+      if (!panel) return;
+      panel.hidden = !panel.hidden;
+      btn.textContent = panel.hidden ? "[매뉴얼 보기]" : "[매뉴얼 닫기]";
+    } else if (action === "copy-code") {
+      const target = document.getElementById(btn.dataset.target);
+      await navigator.clipboard.writeText(target.textContent);
+      const original = btn.textContent;
+      btn.textContent = "복사됨!";
+      setTimeout(() => {
+        btn.textContent = original;
+      }, 1500);
+    } else if (action === "show-add-preset-form") {
+      document.getElementById("preset-add-form").hidden = false;
+    } else if (action === "cancel-new-preset") {
+      document.getElementById("preset-add-form").hidden = true;
+      document.getElementById("preset-add-label").value = "";
+      document.getElementById("preset-add-description").value = "";
+      document.getElementById("preset-add-instruction").value = "";
+    } else if (action === "save-new-preset") {
+      const label = document.getElementById("preset-add-label").value.trim();
+      const description = document.getElementById("preset-add-description").value.trim();
+      const instruction = document.getElementById("preset-add-instruction").value.trim();
+      if (!label || !instruction) {
+        alert("프리셋 이름과 AI 지시문은 필수입니다.");
+        return;
+      }
+      const created = await api("/api/settings/posting-direction-presets", {
+        method: "POST",
+        body: JSON.stringify({ label, description, instruction }),
+      });
+      document.getElementById("preset-add-form").hidden = true;
+      document.getElementById("preset-add-label").value = "";
+      document.getElementById("preset-add-description").value = "";
+      document.getElementById("preset-add-instruction").value = "";
+      await reloadPresets();
+      selectedPreset = created.id;
+      await api("/api/settings", {
+        method: "PUT",
+        body: JSON.stringify({ posting_direction_preset: selectedPreset }),
+      });
+      renderPresetGrid();
+      renderFinalDirectionSummary();
+    } else if (action === "delete-preset") {
+      if (!confirm("이 프리셋을 삭제할까요?")) return;
+      await api(`/api/settings/posting-direction-presets/${btn.dataset.preset}`, { method: "DELETE" });
+      if (selectedPreset === btn.dataset.preset) selectedPreset = "balanced";
+      await reloadPresets();
+      renderPresetGrid();
+      renderFinalDirectionSummary();
+    } else if (action === "reset-access-codes") {
+      if (!confirm("기존 접속 코드 10개를 모두 폐기하고 새로 발급할까요? 이미 나눠준 코드는 즉시 무효화됩니다.")) return;
+      await api("/api/auth/codes/reset", { method: "POST" });
+      await refreshAccessCodes();
     }
   } catch (err) {
     alert(err.message);

@@ -1,8 +1,17 @@
 import type { FastifyInstance } from "fastify";
-import { getSettings, setSetting, getUnsplashKey, getPexelsKey } from "../../db/repositories/settings.js";
+import {
+  getSettings,
+  setSetting,
+  getUnsplashKey,
+  getPexelsKey,
+  getAllPostingDirectionPresets,
+  addCustomPreset,
+  deleteCustomPreset,
+  resolvePostingDirectionInstruction,
+} from "../../db/repositories/settings.js";
 import { runClaude } from "../../claude/runClaude.js";
 import { buildPreviewPrompt } from "../../claude/promptBuilder.js";
-import { buildBlogProfileBlock, POSTING_DIRECTION_PRESETS } from "../../claude/blogProfile.js";
+import { buildBlogProfileBlock } from "../../claude/blogProfile.js";
 import { parsePreviewResponse } from "../../claude/parseResponse.js";
 
 const SETTINGS_KEYS = [
@@ -66,7 +75,7 @@ export async function settingsRoutes(app: FastifyInstance) {
     const blogProfileBlock = buildBlogProfileBlock({
       blogType: raw.blog_type,
       blogTopic: raw.blog_topic,
-      postingDirectionPreset: raw.posting_direction_preset,
+      postingDirectionInstruction: resolvePostingDirectionInstruction(raw.posting_direction_preset),
       postingDirectionRefinement: raw.posting_direction_refinement,
     });
     const directive = {
@@ -93,6 +102,33 @@ export async function settingsRoutes(app: FastifyInstance) {
   });
 
   app.get("/api/settings/posting-direction-presets", async () => {
-    return Object.entries(POSTING_DIRECTION_PRESETS).map(([id, preset]) => ({ id, ...preset }));
+    return getAllPostingDirectionPresets();
+  });
+
+  app.post("/api/settings/posting-direction-presets", async (req, reply) => {
+    const body = req.body as { label?: string; description?: string; instruction?: string };
+    const label = (body.label || "").trim();
+    const instruction = (body.instruction || "").trim();
+    if (!label || !instruction) {
+      reply.code(400);
+      return { error: "이름과 AI 지시문은 필수입니다." };
+    }
+    const preset = addCustomPreset({
+      label,
+      description: (body.description || "").trim() || "사용자가 추가한 프리셋",
+      instruction,
+    });
+    reply.code(201);
+    return preset;
+  });
+
+  app.delete("/api/settings/posting-direction-presets/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!id.startsWith("custom_")) {
+      reply.code(403);
+      return { error: "기본 제공 프리셋은 삭제할 수 없습니다." };
+    }
+    deleteCustomPreset(id);
+    return { ok: true };
   });
 }

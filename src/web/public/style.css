@@ -545,3 +545,139 @@ textarea:focus {
   margin: 0;
   font-size: 0.78rem;
 }
+
+.preset-card {
+  position: relative;
+}
+
+.preset-delete {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.preset-delete:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.preset-card-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 1.4rem;
+  color: var(--text-muted);
+  border-style: dashed;
+  text-align: center;
+}
+
+.preset-card-add span {
+  font-size: 0.75rem;
+}
+
+.preset-card-add:hover {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+.preset-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.preset-add-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.preset-add-form input,
+.preset-add-form textarea {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* --- AI 커넥트 연결: 매뉴얼 토글, 명령어 복사 --- */
+
+.setup-step-header {
+  flex-wrap: wrap;
+}
+
+.manual-toggle {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--gold);
+  text-decoration: none;
+}
+
+.manual-toggle:hover {
+  text-decoration: underline;
+}
+
+.setup-code-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.setup-code-row .setup-code {
+  flex: 1;
+  margin: 0;
+}
+
+.setup-manual {
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.86rem;
+}
+
+.setup-manual ol {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.setup-manual li {
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.setup-manual .setup-code {
+  margin: 6px 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.final-direction-list {
+  padding-left: 18px;
+  margin: 8px 0 0;
+}
+
+.final-direction-list li {
+  margin-bottom: 6px;
+  line-height: 1.5;
+}

@@ -25,18 +25,55 @@
           <div class="setup-step-header">
             <span class="setup-step-badge" data-badge="claude">○</span>
             <strong>1단계. Claude CLI 로그인</strong>
+            <a href="#" class="manual-toggle" data-action="toggle-manual" data-manual="claude">[매뉴얼 보기]</a>
           </div>
-          <p class="muted">이 프로그램은 Claude Code CLI(<code>claude</code> 명령어)로 글을 생성합니다.
-            서버 터미널(예: Google Cloud Shell)에서 아래 명령을 한 번만 실행해서 로그인하세요.</p>
-          <pre class="setup-code">claude login</pre>
+          <p class="muted">⚠️ 이 단계는 프로그램을 만들거나 고치는 것과 전혀 상관없습니다. 이 프로그램이 글을 쓸 때
+            내부적으로 <code>claude</code>라는 명령어를 실행하는데, "누구의 Claude 구독으로 실행할지" 딱 한 번
+            등록해두는 로그인 절차일 뿐입니다. 코드를 건드리거나 재배포할 필요가 전혀 없어요.</p>
+          <p class="muted">터미널에 붙여넣을 명령어:</p>
+          <div class="setup-code-row">
+            <pre class="setup-code" id="claude-login-cmd">claude login</pre>
+            <button class="btn-secondary btn-copy-image" data-action="copy-code" data-target="claude-login-cmd">복사</button>
+          </div>
           <button class="btn-secondary" data-action="test-claude">연결 테스트</button>
           <span class="setup-step-result" data-result="claude"></span>
+
+          <div class="setup-manual" data-manual-panel="claude" hidden>
+            <p><strong>✅ 방법 A. Google Cloud Shell 이용 (추천, 사실상 무료)</strong></p>
+            <p class="muted">Cloud Shell은 구글 계정만 있으면 매일 일정 시간 무료로 쓸 수 있는 브라우저 터미널이라,
+              이 정도 작업엔 별도 비용이 들지 않습니다.</p>
+            <ol>
+              <li><a href="https://console.cloud.google.com" target="_blank" rel="noopener">console.cloud.google.com</a> 접속 → 우측 상단 터미널 아이콘(Cloud Shell) 클릭</li>
+              <li>필요한 CLI 도구 설치(한 번만):
+                <pre class="setup-code">npm install -g @anthropic-ai/claude-code</pre>
+              </li>
+              <li>버킷 쓰기 권한 부여(한 번만, <code>maim-data-...</code> 부분은 본인 버킷 이름으로 교체):
+                <pre class="setup-code">gcloud storage buckets add-iam-policy-binding gs://maim-data-YOUR_PROJECT_ID \
+  --member="user:$(gcloud config get-value account)" --role="roles/storage.objectAdmin"</pre>
+              </li>
+              <li>로그인 진행:
+                <pre class="setup-code">mkdir -p /tmp/maim-home && export HOME=/tmp/maim-home
+claude login</pre>
+                화면에 뜨는 링크를 열어 본인 Claude 계정으로 로그인 → 승인하면 "Logged in as ..." 메시지가 뜹니다.
+              </li>
+              <li>로그인 정보를 실제 서버가 쓰는 버킷 위치로 복사(마지막 단계):
+                <pre class="setup-code">gcloud storage cp -r /tmp/maim-home/.claude gs://maim-data-YOUR_PROJECT_ID/home/.claude</pre>
+              </li>
+              <li>이 대시보드로 돌아와 위의 "연결 테스트" 버튼을 눌러 정상 확인.</li>
+            </ol>
+            <p><strong>💡 방법 B. 본인 PC(로컬)에서 로그인 (선택)</strong></p>
+            <p class="muted">Node.js 설치 → <code>npm install -g @anthropic-ai/claude-code</code>로 CLI 설치 →
+              로컬 터미널에서 <code>claude login</code> 실행 → 생성된 로그인 정보(<code>~/.claude</code> 폴더)를
+              서버가 쓰는 버킷 위치로 옮겨야 합니다. 방법 A보다 단계가 늘어나므로, 이미 Cloud Shell을 쓰고 있다면
+              방법 A를 권장합니다.</p>
+          </div>
         </div>
 
         <div class="setup-step" data-step="unsplash">
           <div class="setup-step-header">
             <span class="setup-step-badge" data-badge="unsplash">○</span>
             <strong>2단계. Unsplash API 키</strong>
+            <a href="#" class="manual-toggle" data-action="toggle-manual" data-manual="unsplash">[매뉴얼 보기]</a>
           </div>
           <p class="muted">무료 스톡 이미지 검색에 사용됩니다.
             <a href="https://unsplash.com/developers" target="_blank" rel="noopener">unsplash.com/developers</a>에서
@@ -46,12 +83,28 @@
             <button class="btn-primary" data-action="save-setting" data-key="unsplash_access_key" data-input="unsplash-key-input">저장</button>
           </div>
           <p class="muted setup-current-value" data-current="unsplash_access_key"></p>
+
+          <div class="setup-manual" data-manual-panel="unsplash" hidden>
+            <ol>
+              <li><a href="https://unsplash.com/developers" target="_blank" rel="noopener">unsplash.com/developers</a> 접속</li>
+              <li>우측 상단 <strong>"Register as a developer"</strong> 클릭(구글 계정으로 바로 가입 가능, 무료)</li>
+              <li>가입/로그인 후 "Your apps" 페이지에서 <strong>"New Application"</strong> 클릭</li>
+              <li>이용약관 체크박스 2개 모두 체크 후 "Accept terms" 클릭</li>
+              <li>애플리케이션 이름(예: maim blog)을 간단히 입력 후 "Create application" 클릭</li>
+              <li>생성된 앱 페이지 상단의 <strong>"Access Key"</strong> 값을 복사</li>
+              <li>위 입력란에 붙여넣고 "저장" 클릭</li>
+            </ol>
+            <p class="muted">※ 무료 요금제 기준 시간당 50회 검색까지 가능해 이 프로그램 사용량엔 충분합니다.<br />
+              💡 검색한 주제와 정확히 맞는 사진이 없어도 걱정 마세요 — 이 프로그램은 자동으로 점점 더 넓은
+              범용 키워드(예: lifestyle, nature landscape)로 재검색해서 이미지를 최소 3장은 항상 확보합니다.</p>
+          </div>
         </div>
 
         <div class="setup-step" data-step="pexels">
           <div class="setup-step-header">
             <span class="setup-step-badge" data-badge="pexels">○</span>
             <strong>3단계. Pexels API 키</strong>
+            <a href="#" class="manual-toggle" data-action="toggle-manual" data-manual="pexels">[매뉴얼 보기]</a>
           </div>
           <p class="muted">Unsplash 검색 결과가 부족할 때 함께 사용되는 보조 이미지 검색 API입니다.
             <a href="https://www.pexels.com/api/" target="_blank" rel="noopener">pexels.com/api</a>에서
@@ -61,6 +114,17 @@
             <button class="btn-primary" data-action="save-setting" data-key="pexels_api_key" data-input="pexels-key-input">저장</button>
           </div>
           <p class="muted setup-current-value" data-current="pexels_api_key"></p>
+
+          <div class="setup-manual" data-manual-panel="pexels" hidden>
+            <ol>
+              <li><a href="https://www.pexels.com/api/" target="_blank" rel="noopener">pexels.com/api</a> 접속</li>
+              <li><strong>"Get Started"</strong> 클릭 → 이메일 또는 구글 계정으로 무료 가입</li>
+              <li>가입 즉시 API 키가 자동으로 발급되어 화면에 표시됩니다(별도 앱 생성 필요 없음)</li>
+              <li>표시된 API 키를 복사</li>
+              <li>위 입력란에 붙여넣고 "저장" 클릭</li>
+            </ol>
+            <p class="muted">※ 무료 요금제로 시간당 200회 요청까지 가능합니다.</p>
+          </div>
         </div>
       </div>
 
@@ -121,11 +185,27 @@
         <p>
           <a href="#" id="final-direction-toggle" data-action="toggle-final-direction">[최종 포스팅 기준] 보기</a>
         </p>
-        <p class="muted" id="final-direction-summary" hidden></p>
+        <div class="muted setup-manual" id="final-direction-summary" hidden></div>
 
-        <p class="muted">아래 톤 프리셋 중 하나를 선택하세요. 마음에 드는 게 없으면 아래 보강 입력란에
-          원하는 방향을 자유롭게 추가로 적을 수 있습니다.</p>
+        <p class="muted">아래 톤 프리셋 중 하나를 선택하세요. 마음에 드는 게 없으면 오른쪽 끝 [+]를 눌러
+          직접 새 프리셋을 만들 수 있고, 아래 보강 입력란에 원하는 방향을 자유롭게 추가로 적을 수도 있습니다.</p>
         <div class="preset-grid" id="preset-grid"></div>
+
+        <div class="preset-add-form" id="preset-add-form" hidden>
+          <label>프리셋 이름
+            <input type="text" id="preset-add-label" placeholder="예: 담백한 뉴스 브리핑형" />
+          </label>
+          <label>한 줄 설명(선택)
+            <input type="text" id="preset-add-description" placeholder="예: 군더더기 없이 핵심만 전달" />
+          </label>
+          <label>AI에게 전달할 지시문 (실제로 이 문장이 그대로 프롬프트에 들어갑니다)
+            <textarea id="preset-add-instruction" rows="3" placeholder="예: 불필요한 수식어 없이 핵심 정보만 담백하게 전달하고, 문장은 짧게 끊어서 써라."></textarea>
+          </label>
+          <div class="setup-input-row">
+            <button class="btn-primary" data-action="save-new-preset">추가</button>
+            <button class="btn-secondary" data-action="cancel-new-preset">취소</button>
+          </div>
+        </div>
 
         <textarea id="posting-direction-refinement" rows="3"
           placeholder="이런 점은 다르게 써줬으면 좋겠다 싶은 부분을 자유롭게 적어주세요 (선택)"></textarea>
@@ -137,6 +217,18 @@
             프리셋을 바꾸거나 보강 문구를 추가해보세요.</p>
           <div id="preview-post-result"></div>
         </div>
+      </div>
+
+      <div class="subsection" id="access-codes-section" hidden>
+        <h3>4) 접속 코드 관리 <span class="badge">마스터 전용</span></h3>
+        <p class="muted">지금 쓰고 있는 마스터 토큰은 그대로 유지하면서, 다른 사람에게 이 주소를 공유해야 할 때
+          아래 1회용 코드를 하나 알려주세요. 코드 하나는 딱 한 사람에게 한 번만 통하고, 그 뒤로는(같은 코드를
+          다시 입력해도) 재사용되지 않습니다.</p>
+        <table id="access-codes-table">
+          <thead><tr><th>코드</th><th>상태</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <button class="btn-danger" data-action="reset-access-codes">전체 폐기 후 10개 재발급</button>
       </div>
     </section>
 

@@ -111,7 +111,10 @@ export function findBlogTopicLabel(value: string): string | null {
 export interface BlogProfileSettings {
   blogType: string | null;
   blogTopic: string | null;
-  postingDirectionPreset: string | null;
+  /** 프리셋이 내장이든 사용자 커스텀이든, 호출부에서 미리 찾아온 실제 지시문 텍스트를 받는다
+   * (프리셋 저장 위치가 바뀌어도 이 함수는 몰라도 되게 하기 위함 — settings.ts의
+   * resolvePostingDirectionInstruction() 참고). */
+  postingDirectionInstruction: string | null;
   postingDirectionRefinement: string | null;
 }
 
@@ -128,10 +131,9 @@ export function buildBlogProfileBlock(settings: BlogProfileSettings): string {
     lines.push(`이 블로그의 주제 분야는 "${topicLabel}"이다. 이 분야와 맞닿는 소재를 우선 고려하라.`);
   }
 
-  const preset = settings.postingDirectionPreset
-    ? POSTING_DIRECTION_PRESETS[settings.postingDirectionPreset]
-    : null;
-  if (preset?.instruction) lines.push(preset.instruction);
+  if (settings.postingDirectionInstruction?.trim()) {
+    lines.push(settings.postingDirectionInstruction.trim());
+  }
 
   if (settings.postingDirectionRefinement?.trim()) {
     lines.push(`추가로 다음 사항도 반드시 반영하라: ${settings.postingDirectionRefinement.trim()}`);

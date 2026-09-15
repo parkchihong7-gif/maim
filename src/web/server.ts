@@ -8,6 +8,8 @@ import { historyRoutes } from "./routes/history.js";
 import { manualRunRoutes } from "./routes/manualRun.js";
 import { postsRoutes } from "./routes/posts.js";
 import { settingsRoutes } from "./routes/settings.js";
+import { authRoutes } from "./routes/auth.js";
+import { isValidGuestSessionToken } from "../db/repositories/accessCodes.js";
 
 export async function buildServer() {
   // 대시보드가 15초마다 자동 새로고침하면서 여러 API를 호출하는데, 매 요청마다
@@ -29,10 +31,13 @@ export async function buildServer() {
   if (config.dashboardToken) {
     app.addHook("onRequest", async (req, reply) => {
       if (!req.url.startsWith("/api/") || req.url === "/api/health") return;
+      // 로그인(코드 교환) 자체는 아직 토큰이 없는 게 당연하므로 예외 처리한다.
+      if (req.url.startsWith("/api/auth/redeem")) return;
       const header = req.headers["x-dashboard-token"];
       const query = (req.query as { token?: string } | undefined)?.token;
       const provided = (Array.isArray(header) ? header[0] : header) ?? query;
-      if (provided !== config.dashboardToken) {
+      // 마스터 토큰이거나, 1회용 게스트 코드를 교환해 발급받은 세션 토큰이면 통과.
+      if (provided !== config.dashboardToken && !(provided && isValidGuestSessionToken(provided))) {
         reply.code(401).send({ error: "유효하지 않은 대시보드 토큰입니다." });
       }
     });
@@ -44,6 +49,7 @@ export async function buildServer() {
   await app.register(manualRunRoutes);
   await app.register(postsRoutes);
   await app.register(settingsRoutes);
+  await app.register(authRoutes);
 
   await app.register(fastifyStatic, {
     root: path.join(import.meta.dirname, "public"),
