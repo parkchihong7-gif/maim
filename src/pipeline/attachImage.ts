@@ -6,6 +6,7 @@ import { searchWithFallback } from "../images/searchImages.js";
 import { selectBestImages } from "../images/selectImage.js";
 import { processImage } from "../images/processImage.js";
 import { config } from "../config.js";
+import { recordImageDownload } from "../db/repositories/imageDownloads.js";
 
 export interface AttachImageOptions {
   /** 몇 장을 새로 준비할지. 최초 생성/"재생성" 클릭 모두 기본 3장. */
@@ -50,6 +51,17 @@ export async function attachImage(post: Post, options: AttachImageOptions = {}):
     await processImage(selected[i].filePath, finalPath);
     newPaths.push(finalPath);
     newAlts.push(selected[i].alt);
+    // 나중에 "이 이미지를 언제/어디서/어떤 라이선스로 받았는지" 증빙이 필요할
+    // 때를 대비해, 실제로 최종 채택된 이미지만 출처를 기록한다(후보 전체가
+    // 아니라 실제 쓰인 것만 — 기록이 불필요하게 부풀지 않도록).
+    recordImageDownload({
+      postId: post.id,
+      imageIndex: existingCount + i,
+      sourceSite: selected[i].sourceSite,
+      sourceId: selected[i].sourceId,
+      sourceUrl: selected[i].sourceUrl,
+      license: selected[i].license,
+    });
   }
 
   addPostImages(post.id, newPaths, newAlts, append);

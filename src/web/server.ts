@@ -9,6 +9,7 @@ import { manualRunRoutes } from "./routes/manualRun.js";
 import { postsRoutes } from "./routes/posts.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { authRoutes } from "./routes/auth.js";
+import { imageDownloadsRoutes } from "./routes/imageDownloads.js";
 import { isValidGuestSessionToken } from "../db/repositories/accessCodes.js";
 
 export async function buildServer() {
@@ -50,6 +51,7 @@ export async function buildServer() {
   await app.register(postsRoutes);
   await app.register(settingsRoutes);
   await app.register(authRoutes);
+  await app.register(imageDownloadsRoutes);
 
   await app.register(fastifyStatic, {
     root: path.join(import.meta.dirname, "public"),

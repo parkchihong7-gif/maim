@@ -810,6 +810,10 @@ document.addEventListener("click", async (e) => {
       setTimeout(() => {
         btn.textContent = original;
       }, 1500);
+    } else if (action === "download-image-log") {
+      const token = getDashboardToken();
+      const url = `/api/image-downloads/csv${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+      window.location.href = url;
     } else if (action === "switch-view") {
       e.preventDefault();
       await switchView(btn.dataset.view);

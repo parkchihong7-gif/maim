@@ -11,13 +11,13 @@ import fs from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
 import { config } from "../src/config.js";
-import { searchAndDownloadCandidates } from "../src/images/searchImages.js";
+import { searchAndDownloadCandidates, type DownloadedCandidate } from "../src/images/searchImages.js";
 import { selectBestImages } from "../src/images/selectImage.js";
 import { processImage } from "../src/images/processImage.js";
 
 const TEST_DIR = path.join(config.paths.generatedDir, "phase3-test");
 
-async function makeSyntheticCandidates(): Promise<string[]> {
+async function makeSyntheticCandidates(): Promise<DownloadedCandidate[]> {
   const dir = path.join(TEST_DIR, "candidates");
   fs.mkdirSync(dir, { recursive: true });
   const specs = [
@@ -25,15 +25,21 @@ async function makeSyntheticCandidates(): Promise<string[]> {
     { name: "forest_green.jpg", bg: { r: 40, g: 150, b: 80 } },
     { name: "ocean_blue.jpg", bg: { r: 40, g: 100, b: 200 } },
   ];
-  const files: string[] = [];
+  const candidates: DownloadedCandidate[] = [];
   for (const spec of specs) {
     const filePath = path.join(dir, spec.name);
     await sharp({ create: { width: 800, height: 600, channels: 3, background: spec.bg } })
       .jpeg()
       .toFile(filePath);
-    files.push(filePath);
+    candidates.push({
+      filePath,
+      sourceSite: "unsplash",
+      sourceId: spec.name,
+      sourceUrl: `https://example.com/${spec.name}`,
+      license: "test",
+    });
   }
-  return files;
+  return candidates;
 }
 
 async function main() {

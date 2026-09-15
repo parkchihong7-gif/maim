@@ -2,10 +2,15 @@ import path from "node:path";
 import { runClaude } from "../claude/runClaude.js";
 import { parseImageSelectResponse } from "../claude/parseResponse.js";
 import { buildImageSelectPrompt } from "../claude/promptBuilder.js";
+import type { DownloadedCandidate } from "./searchImages.js";
 
 export interface SelectedImage {
   filePath: string;
   alt: string;
+  sourceSite: DownloadedCandidate["sourceSite"];
+  sourceId: string;
+  sourceUrl: string;
+  license: string;
 }
 
 /**
@@ -15,18 +20,23 @@ export interface SelectedImage {
  * 실제 검증했다.
  */
 export async function selectBestImages(
-  candidateFiles: string[],
+  candidates: DownloadedCandidate[],
   postSummary: string,
   count: number,
 ): Promise<SelectedImage[]> {
-  if (candidateFiles.length === 0) {
+  if (candidates.length === 0) {
     throw new Error("이미지 후보가 없습니다.");
   }
 
+  const candidateFiles = candidates.map((c) => c.filePath);
   const fallbackAlt = (postSummary || "블로그 포스트 관련 이미지").slice(0, 40);
+  const withMeta = (filePath: string, alt: string): SelectedImage => {
+    const meta = candidates.find((c) => c.filePath === filePath)!;
+    return { filePath, alt, sourceSite: meta.sourceSite, sourceId: meta.sourceId, sourceUrl: meta.sourceUrl, license: meta.license };
+  };
 
-  if (candidateFiles.length <= count) {
-    return candidateFiles.map((filePath) => ({ filePath, alt: fallbackAlt }));
+  if (candidates.length <= count) {
+    return candidates.map((c) => withMeta(c.filePath, fallbackAlt));
   }
 
   // Claude 비전 선택은 후보를 "더 잘" 고르기 위한 단계일 뿐, 이게 실패했다고
@@ -77,5 +87,5 @@ export async function selectBestImages(
     }
   }
 
-  return chosenPaths.slice(0, count).map((filePath, idx) => ({ filePath, alt: chosenAlts[idx] }));
+  return chosenPaths.slice(0, count).map((filePath, idx) => withMeta(filePath, chosenAlts[idx]));
 }
