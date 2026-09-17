@@ -100,8 +100,13 @@ gcloud run deploy maim \
   --region=us-central1 \
   --allow-unauthenticated \
   --min-instances=0 --max-instances=1 --concurrency=1 \
+  --timeout=1800 \
   --set-env-vars=HOST=0.0.0.0,DATA_DIR=/tmp/maim-state,HOME=/tmp/maim-state/home,GCS_STATE_BUCKET=maim-data-YOUR_PROJECT_ID,TIMEZONE=Asia/Seoul,CLAUDE_BIN=claude,DASHBOARD_TOKEN=YOUR_DASHBOARD_TOKEN,UNSPLASH_ACCESS_KEY=YOUR_UNSPLASH_KEY,PEXELS_API_KEY=YOUR_PEXELS_KEY
 ```
+(`--timeout=1800`: "지금 생성" 한 번이 글쓰기 재시도 + 이미지 검색/선택까지
+전부 끝날 때까지 최악의 경우 10분 넘게 걸릴 수 있는데, Cloud Run 기본값(5분)을
+넘기면 다 되어가던 요청이 강제로 끊겨 "요청 실패"로 뜬다. 넉넉하게 30분으로
+늘려서 이 문제를 막는다.)
 (GCS 버킷을 실시간 디스크처럼 마운트하지 않고, 컨테이너가 시작될 때 버킷
 내용을 로컬에 내려받아 쓰고 주기적으로/종료 시 다시 올리는 방식입니다 —
 SQLite가 일반 로컬 디스크에서만 안전하게 동작하기 때문입니다.)

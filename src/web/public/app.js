@@ -100,7 +100,12 @@ async function api(path, options = {}) {
   }
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `요청 실패 (${res.status})`);
+  if (!res.ok) {
+    // 서버가 JSON 에러 대신 순수 오류(예: Cloud Run이 너무 오래 걸린 요청을
+    // 강제로 끊었을 때의 504)를 돌려주면 data.error가 비어있다 — 그때도
+    // 상태 코드/문구는 남겨서 "요청 실패"만 뜨고 끝나지 않게 한다.
+    throw new Error(data.error || `요청 실패 (${res.status} ${res.statusText || ""})`.trim());
+  }
   return data;
 }
 
