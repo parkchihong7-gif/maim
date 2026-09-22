@@ -145,6 +145,42 @@ gcloud scheduler jobs create http maim-daily \
   --headers="x-dashboard-token=YOUR_DASHBOARD_TOKEN"
 ```
 
+### 접속키 — 통합 관리자 대시보드 장부를 씁니다
+
+이 프로그램은 **자기 접속 코드를 만들지 않습니다.** 예전에는 만들었는데,
+모양은 같아도(1차 초대 → 2차 기기별 3개) 장부가 달라서 통합 관리자 대시보드
+에서 판 키가 여기서는 안 통했습니다. 파는 곳과 여는 곳이 갈라져 있으면 누구
+에게 무엇을 팔았는지 한 군데서 볼 수가 없습니다.
+
+이제 키는 대시보드에서 발급하고, 이 프로그램은 그 장부(앱스 스크립트 + 구글
+시트)에 물어봅니다. 그래서 환경변수 둘이 필요합니다.
+
+| 이름 | 값 |
+|---|---|
+| `KEYSERVER_URL` | 앱스 스크립트 웹 앱 주소 (`https://script.google.com/macros/s/…/exec`) |
+| `KEYSERVER_PROGRAM` | `naver-blog` (기본값이라 안 넣어도 됩니다) |
+
+`KEYSERVER_PROGRAM` 이 중요합니다. 키는 **프로그램마다 따로**입니다 — 안 맞으면
+1번 프로그램 키로 여기가 열리거나, 여기 키가 안 먹습니다.
+
+```bash
+gcloud run services update maim --region us-central1 \
+  --update-env-vars KEYSERVER_URL=https://script.google.com/macros/s/…/exec
+```
+
+`KEYSERVER_URL` 을 안 넣으면 **마스터 토큰(`DASHBOARD_TOKEN`)으로만** 들어올
+수 있습니다. 주인은 쓸 수 있고 고객은 못 들어옵니다.
+
+들어오는 길은 두 가지뿐입니다.
+
+* **마스터 토큰** — 주인용. 1차 인증키 칸에 넣으면 됩니다
+* **1차 + 2차 인증키** — 대시보드가 발급해 메일로 보낸 것
+
+2차 인증키는 **기기마다 다릅니다.** 같은 2차키로 다른 기기에서 들어오면 먼저
+쓰던 기기가 잠깁니다. 화면이 1분마다 확인해서 그 자리에서 내보냅니다.
+
+---
+
 ### 코드만 고쳐서 다시 올릴 때 — 처음 설치와 다릅니다
 
 **위 3) 의 긴 명령을 다시 쓰지 마세요.** `--set-env-vars` 는 적어 준 값으로

@@ -7,6 +7,38 @@
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
+  <!-- ============ 로그인 관문 ============
+       통합 관리자 대시보드가 발급한 1차·2차 인증키를 받는 곳.
+       예전에는 window.prompt() 창으로 받았는데, 파는 물건의 첫 화면이
+       브라우저 기본 창이면 곤란하다. 키가 두 개가 되면서 창도 두 번
+       떠야 해서 더 그랬다. -->
+  <div class="gate" id="gate" hidden>
+    <div class="gate-card">
+      <div class="gate-brand">
+        <span class="sidebar-brand-mark">N</span>
+        <span class="sidebar-brand-name">블로그 포스팅</span>
+      </div>
+      <p class="muted gate-lead">받으신 메일의 <strong>1차·2차 인증키</strong>를 넣어 주세요.</p>
+
+      <label class="gate-label" for="gate-key1">1차 인증키</label>
+      <input type="text" id="gate-key1" autocomplete="off" spellcheck="false"
+             placeholder="AAAA-BBBB-CCCC" />
+
+      <label class="gate-label" for="gate-key2">2차 인증키</label>
+      <input type="text" id="gate-key2" autocomplete="off" spellcheck="false"
+             placeholder="이 기기(PC · 노트북 · 휴대폰)의 키" />
+
+      <p class="gate-msg" id="gate-msg"></p>
+      <button class="btn-primary gate-go" id="gate-go">들어가기</button>
+
+      <p class="muted gate-help">
+        2차 인증키는 <strong>기기마다 다릅니다.</strong> 지금 쓰시는 기기에 맞는
+        것을 넣어 주세요. 같은 2차키로 다른 기기에서 들어오면 먼저 쓰던 기기가
+        잠깁니다.
+      </p>
+    </div>
+  </div>
+
   <div class="app-shell">
     <aside class="sidebar">
       <div class="sidebar-brand">

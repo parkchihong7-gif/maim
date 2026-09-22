@@ -10,7 +10,7 @@ import { postsRoutes } from "./routes/posts.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { authRoutes } from "./routes/auth.js";
 import { imageDownloadsRoutes } from "./routes/imageDownloads.js";
-import { isValidGuestSessionToken } from "../db/repositories/accessCodes.js";
+import { isValidGuestSessionToken } from "../db/repositories/keyserverSessions.js";
 
 export async function buildServer() {
   // 대시보드가 15초마다 자동 새로고침하면서 여러 API를 호출하는데, 매 요청마다
@@ -32,12 +32,17 @@ export async function buildServer() {
   if (config.dashboardToken) {
     app.addHook("onRequest", async (req, reply) => {
       if (!req.url.startsWith("/api/") || req.url === "/api/health") return;
-      // 로그인(코드 교환) 자체는 아직 토큰이 없는 게 당연하므로 예외 처리한다.
+      // 로그인(키 교환) 자체는 아직 토큰이 없는 게 당연하므로 예외 처리한다.
       if (req.url.startsWith("/api/auth/redeem")) return;
+      // 세션 확인도 여기서 막으면 안 된다. 끊긴 기기에게 **왜** 끊겼는지
+      // 말해 줄 수 있는 것은 그 길뿐인데, 여기서 막으면 "유효하지 않은
+      // 대시보드 토큰입니다" 라는 엉뚱한 말이 대신 간다. 그 길은 세션값
+      // 하나를 받아 살았는지만 답한다 — 막지 않아도 새는 것이 없다.
+      if (req.url.startsWith("/api/auth/heartbeat")) return;
       const header = req.headers["x-dashboard-token"];
       const query = (req.query as { token?: string } | undefined)?.token;
       const provided = (Array.isArray(header) ? header[0] : header) ?? query;
-      // 마스터 토큰이거나, 1회용 게스트 코드를 교환해 발급받은 세션 토큰이면 통과.
+      // 마스터 토큰이거나, 통합 관리자 대시보드 접속키로 통과해 받은 세션 토큰이면 통과.
       if (provided !== config.dashboardToken && !(provided && isValidGuestSessionToken(provided))) {
         reply.code(401).send({ error: "유효하지 않은 대시보드 토큰입니다." });
       }

@@ -1150,3 +1150,73 @@ textarea:focus {
     padding: 20px 16px 56px;
   }
 }
+
+
+/* ── 로그인 관문 ──────────────────────────────────────────────────
+   키를 넣기 전에는 그 뒤가 보이면 안 된다. 화면을 통째로 덮는다. */
+.gate {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.gate[hidden] { display: none; }
+
+.gate-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 28px 28px 24px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.gate-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.gate-lead { margin: 0 0 20px; }
+
+.gate-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.gate-card input {
+  width: 100%;
+  flex: none;
+  margin-bottom: 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.04em;
+}
+
+/* 비어 있을 때 자리를 잡아 둔다. 글이 생길 때 아래가 덜컥 밀리지 않게. */
+.gate-msg {
+  min-height: 1.4em;
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: var(--danger);
+}
+
+.gate-msg.working { color: var(--text-muted); }
+
+.gate-go { width: 100%; justify-content: center; }
+
+.gate-help {
+  margin: 18px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  line-height: 1.7;
+}

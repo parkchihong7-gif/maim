@@ -14,25 +14,113 @@ function setDashboardToken(token) {
   }
 }
 
-// refreshAll()이 카테고리/큐/히스토리를 동시에 불러오다 보니 토큰이 없을 때
-// 401이 한꺼번에 여러 번 돌아온다. 이 값이 없으면 새로 prompt()를 띄우고,
-// 이미 떠 있으면 그 결과를 같이 기다려서 창이 여러 개 겹쳐 뜨지 않게 한다.
-let dashboardTokenPromptPromise = null;
-
+/** 기기 이름을 한글로. 2차키가 어느 기기 것인지 화면에 쓸 때 쓴다. */
 const DEVICE_LABEL_KO = { pc: "PC", laptop: "노트북", mobile: "휴대폰" };
 
-/** 입력값(마스터 토큰 / 1차 초대 코드 / 2차 기기 코드)을 교환한다. 마스터·2차 코드는
- * 곧바로 세션 토큰({token})을, 1차 코드는 기기별 2차 코드 3개({tier:1, deviceCodes})를
- * 돌려준다. 이 호출 자체는 로그인 전이라 토큰이 없는 게 당연하므로 인증 훅의 예외 대상이다. */
-async function redeemToken(value) {
+/**
+ * 1차·2차 인증키를 통합 관리자 대시보드 장부에 확인시킨다.
+ *
+ * 이 프로그램은 예전에 자기 접속 코드를 따로 만들어 썼다. 모양은 같았지만
+ * 장부가 달라서, 대시보드에서 판 키가 여기서는 안 통했다. 이제 장부는 하나다.
+ *
+ * 로그인 전이라 토큰이 없는 게 당연하므로 인증 훅의 예외 대상이다.
+ */
+async function redeemToken(value, value2) {
   const res = await fetch("/api/auth/redeem", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ value }),
+    body: JSON.stringify({ value, value2 }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "인증에 실패했습니다.");
   return data;
+}
+
+// ── 로그인 관문 ────────────────────────────────────────────────────
+//
+// 예전에는 window.prompt() 로 받았다. 파는 물건의 첫 화면이 브라우저 기본
+// 창이면 곤란하고, 키가 두 개가 되면서 창이 두 번 떠야 해서 더 그랬다.
+
+/** 관문이 열려 있는 동안의 약속. 401 이 여러 개 와도 관문은 하나만 뜬다. */
+let gatePromise = null;
+
+function openGate(먼저할말) {
+  if (gatePromise) return gatePromise;
+  const gate = document.getElementById("gate");
+  const key1 = document.getElementById("gate-key1");
+  const key2 = document.getElementById("gate-key2");
+  const msg = document.getElementById("gate-msg");
+  const go = document.getElementById("gate-go");
+  if (!gate) return Promise.resolve(null);   // 옛 화면에서 열었을 때
+
+  gate.hidden = false;
+  msg.className = "gate-msg";
+  msg.textContent = 먼저할말 || "";
+  key1.focus();
+
+  gatePromise = new Promise((resolve) => {
+    async function 들어가기() {
+      const a = key1.value.trim();
+      const b = key2.value.trim();
+      if (!a) { msg.textContent = "1차 인증키를 넣어 주세요."; key1.focus(); return; }
+      go.disabled = true;
+      msg.className = "gate-msg working";
+      msg.textContent = "확인 중...";
+      try {
+        const 답 = await redeemToken(a, b);
+        if (!답.token) { throw new Error("예상치 못한 응답입니다. 다시 시도해주세요."); }
+        gate.hidden = true;
+        key1.value = ""; key2.value = "";
+        msg.textContent = "";
+        떼어내기();
+        resolve(답.token);
+      } catch (err) {
+        msg.className = "gate-msg";
+        msg.textContent = err.message;
+        // 2차키를 안 넣어 걸렸으면 그 칸으로 데려다 준다.
+        (b ? key1 : key2).focus();
+      } finally {
+        go.disabled = false;
+      }
+    }
+    function 엔터(e) { if (e.key === "Enter") { e.preventDefault(); 들어가기(); } }
+    function 떼어내기() {
+      go.removeEventListener("click", 들어가기);
+      key1.removeEventListener("keydown", 엔터);
+      key2.removeEventListener("keydown", 엔터);
+      gatePromise = null;
+    }
+    go.addEventListener("click", 들어가기);
+    key1.addEventListener("keydown", 엔터);
+    key2.addEventListener("keydown", 엔터);
+  });
+  return gatePromise;
+}
+
+// ── 이 기기가 아직 주인인가 ────────────────────────────────────────
+//
+// 같은 2차키로 다른 기기에서 들어오면 먼저 있던 기기가 끊긴다. 그것을
+// 알아채려면 주기적으로 물어야 한다 — 안 물으면 끊긴 줄도 모르고 계속 쓴다.
+const HEARTBEAT_MS = 60_000;
+let heartbeatTimer = null;
+
+function startHeartbeat() {
+  if (heartbeatTimer) clearInterval(heartbeatTimer);
+  heartbeatTimer = setInterval(async () => {
+    const token = getDashboardToken();
+    if (!token) return;
+    try {
+      const res = await fetch("/api/auth/heartbeat", { headers: { "x-dashboard-token": token } });
+      if (res.status === 401) {
+        const data = await res.json().catch(() => ({}));
+        setDashboardToken("");
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+        const 새토큰 = await openGate(data.error || "접속이 종료되었습니다. 다시 들어와 주세요.");
+        if (새토큰) { setDashboardToken(새토큰); startHeartbeat(); }
+      }
+    } catch { /* 인터넷이 잠깐 끊긴 것. 다음 차례에 다시 묻는다 */ }
+  }, HEARTBEAT_MS);
 }
 
 async function api(path, options = {}) {
@@ -48,55 +136,21 @@ async function api(path, options = {}) {
   });
 
   if (res.status === 401) {
-    // window.prompt()는 동기/블로킹이라, 이 요청이 401을 받은 시점과 그 처리를
-    // 실제로 실행하는 시점 사이에 "먼저 온" 다른 요청의 prompt가 이미 뜨고
-    // 닫혔을 수 있다. 그러면 dashboardTokenPromptPromise는 이미 null로
-    // 리셋된 뒤라 아래 없이는 이 요청도 새 창을 또 띄운다. 그러니 새 창을
-    // 띄우기 전에 "혹시 그새 다른 요청이 이미 토큰을 받아왔는지"부터 확인한다.
+    // 화면이 여러 API 를 한꺼번에 부르므로 401 도 한꺼번에 온다. 관문을
+    // 열기 전에 "혹시 그새 다른 요청이 이미 통과했는지" 부터 본다 —
+    // 안 그러면 이미 들어왔는데 관문이 또 뜬다.
+    // (관문 자체도 `gatePromise` 로 하나만 뜨게 잡아 둔다.)
     const latestToken = getDashboardToken();
     if (latestToken && latestToken !== token) {
       return api(path, options);
     }
-    if (!dashboardTokenPromptPromise) {
-      dashboardTokenPromptPromise = Promise.resolve()
-        .then(async () => {
-          let lastError = "";
-          for (;;) {
-            const entered = window.prompt(
-              (lastError ? `${lastError}\n\n` : "") + "대시보드 토큰 또는 접속 코드를 입력하세요:",
-            );
-            if (!entered) return null;
-            try {
-              const result = await redeemToken(entered);
-              if (result.token) return result.token;
-              if (result.tier === 1 && result.deviceCodes) {
-                // 1차(초대) 코드는 그 자체로 로그인되지 않는다 — 기기별 2차 코드
-                // 3개를 발급받았다고 보여주고, 그중 하나를 다시 입력받는다.
-                const lines = result.deviceCodes
-                  .map((d) => `${DEVICE_LABEL_KO[d.device_label] || d.device_label}: ${d.code}`)
-                  .join("\n");
-                alert(
-                  `1차 초대 코드가 확인됐습니다. 기기별 코드 3개가 발급됐어요 — 꼭 기록해두세요(다시 보여주지 않습니다):\n\n${lines}\n\n지금 이 기기에서 로그인하려면, 위 코드 중 이 기기에 맞는 코드 하나를 아래 입력창에 입력하세요.`,
-                );
-                lastError = "";
-                continue;
-              }
-              lastError = "예상치 못한 응답입니다. 다시 시도해주세요.";
-            } catch (err) {
-              lastError = err.message;
-            }
-          }
-        })
-        .finally(() => {
-          dashboardTokenPromptPromise = null;
-        });
-    }
-    const sessionToken = await dashboardTokenPromptPromise;
+    const sessionToken = await openGate();
     if (sessionToken) {
       setDashboardToken(sessionToken);
+      startHeartbeat();
       return api(path, options);
     }
-    throw new Error("대시보드 토큰이 필요합니다.");
+    throw new Error("접속키가 필요합니다.");
   }
 
   const data = await res.json().catch(() => ({}));
@@ -959,3 +1013,8 @@ setInterval(safeRefreshAll, 15000);
 refreshSettings()
   .then(renderHome)
   .catch((err) => console.error("[maim] 초기 설정 조회 실패:", err));
+
+
+// 이미 토큰을 들고 있는 브라우저도 확인을 시작해야 한다. 안 그러면 다른
+// 기기가 같은 2차키로 들어왔을 때, 화면을 새로 열기 전까지 끊긴 줄 모른다.
+if (getDashboardToken()) { startHeartbeat(); }

@@ -1,13 +1,27 @@
+/**
+ * 들어오는 문.
+ *
+ * 예전에는 이 프로그램이 **자기 접속 코드**를 따로 만들어 썼다. 모양은
+ * 같았지만(1차 초대 → 2차 기기별 3개) 장부가 달라서, 통합 관리자 대시보드
+ * 에서 판 키가 여기서는 안 통했다. 이제 장부는 하나다.
+ *
+ *   마스터 토큰   주인만. 환경변수 DASHBOARD_TOKEN
+ *   1차 + 2차키   대시보드가 발급해 메일로 보낸 것
+ */
+
 import type { FastifyInstance } from "fastify";
 import { config } from "../../config.js";
+import { validateKeyPair, checkSession, keyserverEnabled } from "../../keyserver.js";
 import {
-  redeemAccessCode,
-  listAccessCodeTree,
-  resetAccessCodes,
-} from "../../db/repositories/accessCodes.js";
+  openSession,
+  findSession,
+  closeSession,
+  touchSession,
+} from "../../db/repositories/keyserverSessions.js";
 
 // 짧은 코드를 무차별 대입으로 시도해보는 걸 늦추기 위한 간단한 IP별 레이트 리밋.
 // 프로세스 하나짜리 소규모 개인용 도구라 인메모리로 충분하다.
+// (키 서버도 자기 쪽에서 따로 센다. 여기는 그 앞에서 한 겹 더 막는 것이다.)
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 10;
 const attemptsByIp = new Map<string, { count: number; windowStart: number }>();
@@ -31,6 +45,13 @@ function isMaster(req: { headers: Record<string, unknown>; query: unknown }): bo
   return provided === config.dashboardToken;
 }
 
+function givenToken(req: { headers: Record<string, unknown>; query: unknown }): string {
+  const header = req.headers["x-dashboard-token"];
+  const query = (req.query as { token?: string } | undefined)?.token;
+  const provided = (Array.isArray(header) ? header[0] : header) ?? query;
+  return typeof provided === "string" ? provided : "";
+}
+
 export async function authRoutes(app: FastifyInstance) {
   // 로그인 전이라 아직 토큰이 없는 게 당연하므로 토큰 검사 훅의 예외 대상이다(server.ts 참고).
   app.post("/api/auth/redeem", async (req, reply) => {
@@ -39,47 +60,90 @@ export async function authRoutes(app: FastifyInstance) {
       return { error: "너무 많이 시도했습니다. 잠시 후 다시 시도해주세요." };
     }
 
-    const { value } = req.body as { value?: string };
-    const input = (value || "").trim();
-    if (!input) {
+    const body = req.body as { value?: string; value2?: string };
+    const key1 = (body.value || "").trim().toUpperCase();
+    const key2 = (body.value2 || "").trim().toUpperCase();
+    if (!key1) {
       reply.code(400);
       return { error: "값을 입력해주세요." };
     }
 
-    if (config.dashboardToken && input === config.dashboardToken) {
+    // 주인은 토큰 하나로 들어온다. 2차키를 물을 대상이 아니다.
+    if (config.dashboardToken && key1 === config.dashboardToken.toUpperCase()) {
+      return { token: config.dashboardToken, master: true };
+    }
+    // 대소문자를 바꿔 버리면 토큰이 안 맞을 수 있어, 원문으로도 한 번 본다.
+    if (config.dashboardToken && (body.value || "").trim() === config.dashboardToken) {
       return { token: config.dashboardToken, master: true };
     }
 
-    const result = redeemAccessCode(input);
-    if (!result) {
+    if (!keyserverEnabled()) {
+      reply.code(503);
+      return { error: "접속키 서버가 아직 연결되지 않았습니다. 관리자에게 문의해주세요." };
+    }
+    if (!key2) {
+      reply.code(400);
+      return { error: "2차 인증키도 함께 입력해주세요.", needSecondary: true };
+    }
+
+    const answer = await validateKeyPair(key1, key2);
+    if (!answer.ok) {
+      // 서버가 준 말을 그대로 전한다. "틀렸습니다" 보다 "사용이 중지된
+      // 키입니다" 가 다음에 무엇을 할지 알려 준다.
+      reply.code(answer.reason === "unreachable" ? 503 : 401);
+      return { error: answer.message || "유효하지 않거나 만료된 접속키입니다.",
+               reason: answer.reason };
+    }
+    if (!answer.sessionToken) {
       reply.code(401);
-      return { error: "이미 사용됐거나 존재하지 않는 접속 코드입니다." };
+      return { error: "2차 인증키도 함께 입력해주세요.", needSecondary: true };
     }
-    if (result.kind === "tier1") {
-      // 1차(초대) 코드는 그 자리에서 로그인시키지 않고, 기기별 2차 코드 3개를
-      // 발급해서 보여준다 — 실제 로그인은 그중 하나를 다시 입력해야 이뤄진다.
-      return { tier: 1, deviceCodes: result.deviceCodes };
+
+    const token = openSession({
+      key2,
+      remoteToken: answer.sessionToken,
+      holderName: answer.name,
+      role: answer.role,
+      deviceLabel: answer.deviceLabel,
+    });
+    return { token, master: false, name: answer.name || "", role: answer.role || "client" };
+  });
+
+  /**
+   * 이 기기가 아직 주인인지 확인한다. 화면이 1분마다 부른다.
+   *
+   * 같은 2차키로 다른 기기에서 들어오면 키 서버의 세션값이 바뀌고, 여기서
+   * 그것을 알아채 이 브라우저를 끊는다. 키를 정지시켰을 때도 같다 —
+   * 들어와 있던 사람이 계속 쓰면 정지시킨 뜻이 없다.
+   */
+  app.get("/api/auth/heartbeat", async (req, reply) => {
+    if (isMaster(req)) return { ok: true, master: true };
+
+    const session = findSession(givenToken(req));
+    if (!session) {
+      reply.code(401);
+      return { ok: false, reason: "no_session" };
     }
-    return { token: result.sessionToken, master: false, tier: 2 };
+    const answer = await checkSession(session.key2, session.remote_token);
+    if (answer.ok) {
+      touchSession(session.token);
+      return { ok: true };
+    }
+    // 닿지 못한 것은 끊을 이유가 아니다. 인터넷이 잠깐 끊겼다고 쓰던 사람을
+    // 내보내면, 고칠 수 없는 이유로 일이 끊긴다. 다음 차례에 다시 묻는다.
+    if (answer.reason === "unreachable" || answer.reason === "bad_answer") {
+      return { ok: true, unchecked: true };
+    }
+    closeSession(session.token);
+    reply.code(401);
+    return { ok: false, reason: answer.reason || "revoked",
+             error: answer.message || "접속이 종료되었습니다." };
   });
 
   app.get("/api/auth/whoami", async (req) => {
-    return { isMaster: isMaster(req) };
-  });
-
-  app.get("/api/auth/codes", async (req, reply) => {
-    if (!isMaster(req)) {
-      reply.code(403);
-      return { error: "마스터만 접속 코드를 조회할 수 있습니다." };
-    }
-    return listAccessCodeTree();
-  });
-
-  app.post("/api/auth/codes/reset", async (req, reply) => {
-    if (!isMaster(req)) {
-      reply.code(403);
-      return { error: "마스터만 접속 코드를 재발급할 수 있습니다." };
-    }
-    return resetAccessCodes();
+    if (isMaster(req)) return { isMaster: true, name: "", role: "owner" };
+    const session = findSession(givenToken(req));
+    return { isMaster: false, name: session?.holder_name || "",
+             role: session?.role || "client" };
   });
 }

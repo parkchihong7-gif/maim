@@ -33,6 +33,13 @@ export const config = {
   dashboardToken: process.env.DASHBOARD_TOKEN || "",
   // 설정하면 DATA_DIR 전체를 이 GCS 버킷과 주기적으로 동기화한다(Cloud Run 전용, 위 설명 참고).
   gcsStateBucket: process.env.GCS_STATE_BUCKET || "",
+  // 통합 관리자 대시보드가 접속키를 적어 두는 앱스 스크립트 주소(.../exec).
+  // 이 프로그램은 자기 접속 코드를 따로 만들지 않고 그 장부에 묻는다 —
+  // 파는 곳과 여는 곳이 갈라져 있으면 누구에게 무엇을 팔았는지 한 군데서
+  // 볼 수가 없다. 비워 두면 마스터 토큰으로만 들어올 수 있다.
+  keyserverUrl: process.env.KEYSERVER_URL || "",
+  // 키는 프로그램마다 따로다. 안 보내면 서버가 다른 프로그램의 장부를 뒤진다.
+  keyserverProgram: process.env.KEYSERVER_PROGRAM || "naver-blog",
   paths: {
     projectRoot,
     dataDir,
