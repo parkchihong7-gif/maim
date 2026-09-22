@@ -99,14 +99,30 @@ export async function authRoutes(app: FastifyInstance) {
       return { error: "2차 인증키도 함께 입력해주세요.", needSecondary: true };
     }
 
-    const token = openSession({
-      key2,
-      remoteToken: answer.sessionToken,
-      holderName: answer.name,
-      role: answer.role,
-      deviceLabel: answer.deviceLabel,
-    });
-    return { token, master: false, name: answer.name || "", role: answer.role || "client" };
+    // 키는 맞았다. 여기서부터는 **이 서버 안의 일**이다.
+    //
+    // 감싸는 이유: 한 번 데였다. 여기서 터지면 관문에 «Internal Server Error»
+    // 만 뜨고, 쓰는 분도 고치는 사람도 무엇이 잘못인지 알 길이 없었다.
+    // 키가 틀린 것인지, 서버가 못 닿은 것인지, 이쪽 탈인지 갈라 줘야 한다.
+    try {
+      const token = openSession({
+        key2,
+        remoteToken: answer.sessionToken,
+        holderName: answer.name,
+        role: answer.role,
+        deviceLabel: answer.deviceLabel,
+      });
+      return { token, master: false, name: answer.name || "", role: answer.role || "client" };
+    } catch (err) {
+      req.log.error({ err }, "[auth] 세션을 여는 데 실패했습니다");
+      reply.code(500);
+      return {
+        error: "접속키는 맞았는데 이 서버가 기록을 못 했습니다. "
+             + "관리자에게 알려 주세요.",
+        reason: "session_store_failed",
+        detail: String((err as Error)?.message || err),
+      };
+    }
   });
 
   /**

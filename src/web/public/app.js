@@ -32,8 +32,23 @@ async function redeemToken(value, value2) {
     body: JSON.stringify({ value, value2 }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "인증에 실패했습니다.");
+  if (!res.ok) throw new Error(로그인_오류(res, data));
   return data;
+}
+
+/**
+ * 왜 안 됐는지 **사람이 읽을 수 있게.**
+ *
+ * 한 번 데였다. 서버 안에서 터지면 Fastify 가 `error: "Internal Server Error"`
+ * 를 주는데, 우리는 그 글자를 그대로 화면에 찍었다. 쓰는 분도 고치는 사람도
+ * 무엇이 잘못인지 알 길이 없었다. 진짜 이유는 `message` 에 따로 담겨 온다.
+ */
+function 로그인_오류(res, data) {
+  const 뻔한말 = ["Internal Server Error", "Bad Request", "Unauthorized"];
+  const 쓸것 = [data.error, data.detail, data.message]
+    .filter((x) => x && !뻔한말.includes(x));
+  if (쓸것.length) { return [...new Set(쓸것)].join(" — "); }
+  return `인증에 실패했습니다. (${res.status})`;
 }
 
 // ── 로그인 관문 ────────────────────────────────────────────────────
