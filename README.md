@@ -145,6 +145,37 @@ gcloud scheduler jobs create http maim-daily \
   --headers="x-dashboard-token=YOUR_DASHBOARD_TOKEN"
 ```
 
+### 코드만 고쳐서 다시 올릴 때 — 처음 설치와 다릅니다
+
+**위 3) 의 긴 명령을 다시 쓰지 마세요.** `--set-env-vars` 는 적어 준 값으로
+환경변수를 **통째로 갈아엎습니다.** `YOUR_UNSPLASH_KEY` 같은 자리표시가 섞인
+채로 도시면, 지금 넣어 두신 진짜 키가 그 글자로 덮여서 이미지 검색이 멈춥니다.
+
+다시 올릴 때는 이 한 줄이면 됩니다.
+
+```bash
+git pull
+gcloud run deploy maim --source . --region us-central1
+```
+
+환경변수는 **건드리지 않으면 그대로 남습니다.** 다시 적을 필요가 없습니다.
+
+설정값 하나만 바꾸고 싶으실 때는 `update` 를 쓰십시오. 적어 준 것만 바뀌고
+나머지는 남습니다.
+
+```bash
+gcloud run services update maim --region us-central1 \
+  --update-env-vars UNSPLASH_ACCESS_KEY=진짜키
+```
+
+| 무엇을 하려는가 | 무슨 명령 |
+|---|---|
+| 처음 설치 | 위 3) 의 긴 명령 (`--set-env-vars`) |
+| 코드 고친 것 올리기 | `gcloud run deploy maim --source . --region us-central1` |
+| 설정값 하나 바꾸기 | `gcloud run services update … --update-env-vars …` |
+
+---
+
 **6) 코드가 바뀔 때마다 자동 재배포되게 하기**: Google Cloud 콘솔(브라우저)에서
 Cloud Run → `maim` 서비스 → **"저장소에서 계속 배포"(Continuously deploy from a
 repository)** 설정을 켜고 이 GitHub 저장소(`parkchihong7-gif/maim`)와
