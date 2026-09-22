@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>maim — 네이버 블로그 콘텐츠 생성</title>
+  <title>블로그 포스팅 — 네이버 블로그 콘텐츠 생성</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <span class="sidebar-brand-mark">m</span>
-        <span class="sidebar-brand-name">maim</span>
+        <span class="sidebar-brand-mark">블</span>
+        <span class="sidebar-brand-name">블로그 포스팅</span>
       </div>
       <nav class="sidebar-nav">
         <button class="sidebar-nav-item active" data-action="switch-view" data-view="home">🏠 <span>홈</span></button>
@@ -28,7 +28,7 @@
       <section data-view-panel="home">
         <div class="page-header">
           <div>
-            <h1>maim 대시보드</h1>
+            <h1>블로그 포스팅</h1>
             <p class="muted">AI가 글과 이미지를 준비해두면, 여기서 복사해서 네이버 블로그에 직접 붙여넣으세요.</p>
           </div>
           <div class="page-header-actions">
@@ -431,16 +431,6 @@ claude login</pre>
           </div>
         </div>
 
-        <div class="card" id="access-codes-section" hidden>
-          <h3>4) 접속 코드 관리 <span class="badge">마스터 전용</span></h3>
-          <p class="muted">지금 쓰고 있는 마스터 토큰(<code>redwind7</code>)은 그대로 유지됩니다. 다른 사람에게 이 주소를
-            공유해야 할 땐 아래 <strong>1차 코드</strong> 하나를 알려주세요. 상대가 1차 코드를 입력하면 그 사람 전용
-            <strong>기기별(PC/노트북/휴대폰) 2차 코드 3개</strong>가 새로 발급되고, 그중 하나씩을 각 기기에 입력해야
-            비로소 그 기기에서 로그인됩니다. 1차 코드와 2차 코드 모두 각각 딱 한 번만 통하고, 이후엔(같은 코드를 다시
-            넣어도) 재사용되지 않습니다.</p>
-          <div id="access-codes-list"></div>
-          <button class="btn-danger" data-action="reset-access-codes">전체 폐기 후 1차 코드 10개 재발급</button>
-        </div>
       </section>
 
       <!-- ============ 사용법 ============ -->

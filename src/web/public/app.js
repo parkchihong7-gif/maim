@@ -596,42 +596,6 @@ function renderFinalDirectionSummary() {
     </ul>`;
 }
 
-async function refreshAccessCodes() {
-  const section = document.getElementById("access-codes-section");
-  if (!isMasterSession) {
-    section.hidden = true;
-    return;
-  }
-  section.hidden = false;
-  const tree = await api("/api/auth/codes");
-  const container = document.getElementById("access-codes-list");
-  container.innerHTML = tree
-    .map((t1) => {
-      const childrenHtml =
-        t1.deviceCodes.length > 0
-          ? `<div class="access-code-children">${t1.deviceCodes
-              .map(
-                (d) => `
-              <div class="access-code-row access-code-child">
-                <span class="muted">${escapeHtml(DEVICE_LABEL_KO[d.device_label] || d.device_label)}</span>
-                <code>${escapeHtml(d.code)}</code>
-                <span class="badge ${d.redeemed ? "badge-inactive" : "badge-active"}">${d.redeemed ? "사용됨" : "미사용"}</span>
-              </div>`,
-              )
-              .join("")}</div>`
-          : "";
-      return `
-        <div class="access-code-group">
-          <div class="access-code-row">
-            <code>${escapeHtml(t1.code)}</code>
-            <span class="badge ${t1.redeemed ? "badge-inactive" : "badge-active"}">${t1.redeemed ? "등록됨" : "미등록"}</span>
-          </div>
-          ${childrenHtml}
-        </div>`;
-    })
-    .join("");
-}
-
 async function refreshSettings() {
   const [s, who] = await Promise.all([api("/api/settings"), api("/api/auth/whoami")]);
   isMasterSession = !!who.isMaster;
@@ -664,7 +628,6 @@ async function refreshSettings() {
   await loadPresetsIfNeeded();
   renderPresetGrid();
   renderFinalDirectionSummary();
-  await refreshAccessCodes();
   renderHomeStats();
 }
 
@@ -951,10 +914,6 @@ document.addEventListener("click", async (e) => {
       await reloadPresets();
       renderPresetGrid();
       renderFinalDirectionSummary();
-    } else if (action === "reset-access-codes") {
-      if (!confirm("기존 접속 코드 10개를 모두 폐기하고 새로 발급할까요? 이미 나눠준 코드는 즉시 무효화됩니다.")) return;
-      await api("/api/auth/codes/reset", { method: "POST" });
-      await refreshAccessCodes();
     }
   } catch (err) {
     alert(err.message);
