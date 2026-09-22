@@ -17,6 +17,43 @@ function getBucket() {
 const GENERATED_PREFIX = "generated/";
 
 /**
+ * **내려받지도 올리지도 않을 것들.** 한 번 데였다.
+ *
+ * `/tmp` 는 컨테이너 메모리를 깎아 쓰는 램디스크다. 시작할 때 여기에 102MB 를
+ * 풀어 놓고, 그 위에서 파일 330개를 한꺼번에 주고받으니 512Mi 가 바닥났다.
+ * 메모리가 모자라면 쓰던 것이 잘리고, 그게 SQLite 에는 **깨진 파일**로 보인다.
+ * 마이그레이션이 "적용됐다"고 기록만 남고 표는 안 생긴 일이 실제로 있었다.
+ *
+ * `cash-flow/` 는 **남의 것**이다. 통합 관리자 대시보드가 같은 버킷의 제
+ * 칸을 쓴다. 가져올 이유가 없고, 더 나쁜 것은 60초마다 **도로 올린다는**
+ * 것이다 — 대시보드가 글을 쓰는 중에 덮으면 그쪽 DB 도 같은 식으로 깨진다.
+ */
+const SKIP_PREFIXES = [
+  "cash-flow/",             // 통합 관리자 대시보드 몫
+  "home/.claude/backups/",  // Claude CLI 가 쌓는 백업. 로그인에는 필요 없다
+];
+
+function 건너뛸것(name: string): boolean {
+  return SKIP_PREFIXES.some((접두) => name.startsWith(접두));
+}
+
+/**
+ * 한 번에 몇 개씩만 한다.
+ *
+ * `Promise.all` 에 330개를 한꺼번에 넣으면 그만큼의 버퍼가 동시에 잡힌다.
+ * 작은 컨테이너에서는 그것만으로 메모리가 넘친다. 조금 느려도 안 죽는 편이 낫다.
+ */
+async function 나눠서<T>(목록: T[], 한번에: number,
+                          일: (하나: T) => Promise<unknown>): Promise<void> {
+  for (let i = 0; i < 목록.length; i += 한번에) {
+    await Promise.all(목록.slice(i, i + 한번에).map(일));
+  }
+}
+
+/** 한 번에 주고받을 개수. 메모리와 속도의 타협점. */
+const AT_ONCE = 8;
+
+/**
  * Cloud Run처럼 컨테이너 로컬 디스크가 요청 사이/재시작 사이에 보존되지 않는
  * 환경을 위한 것. GCS를 실시간 FUSE 마운트로 쓰면 SQLite가 필요로 하는 파일
  * 잠금 등 POSIX 동작이 온전히 지원되지 않아 DB 접근이 깨지므로, 대신 시작 시
@@ -34,14 +71,14 @@ export async function downloadState(): Promise<void> {
   const root = config.paths.dataDir;
   fs.mkdirSync(root, { recursive: true });
   const [files] = await bucket.getFiles();
-  const essential = files.filter((file) => !file.name.startsWith(GENERATED_PREFIX));
-  await Promise.all(
-    essential.map(async (file) => {
-      const localPath = path.join(root, file.name);
-      fs.mkdirSync(path.dirname(localPath), { recursive: true });
-      await file.download({ destination: localPath });
-    }),
+  const essential = files.filter(
+    (file) => !file.name.startsWith(GENERATED_PREFIX) && !건너뛸것(file.name),
   );
+  await 나눠서(essential, AT_ONCE, async (file) => {
+    const localPath = path.join(root, file.name);
+    fs.mkdirSync(path.dirname(localPath), { recursive: true });
+    await file.download({ destination: localPath });
+  });
   console.log(
     `[gcsState] gs://${config.gcsStateBucket}에서 ${essential.length}개 파일을 복원했습니다 ` +
       `(생성 이미지 ${files.length - essential.length}개는 필요할 때 낱개로 내려받습니다).`,
@@ -119,15 +156,15 @@ export async function uploadState(): Promise<void> {
   const dbRel = path.relative(root, config.paths.dbFile);
   const 곁파일 = DB_SIDE_FILES.map((끝) => dbRel + 끝);
   const relPaths = listLocalFiles(root, root).filter(
-    (rel) => rel !== dbRel && !곁파일.includes(rel) && !rel.endsWith(".snapshot"),
+    (rel) => rel !== dbRel && !곁파일.includes(rel)
+             && !rel.endsWith(".snapshot") && !건너뛸것(rel),
   );
 
   const 뜬것 = await 성한DB한벌();
   try {
-    await Promise.all([
-      ...relPaths.map((rel) => bucket.upload(path.join(root, rel), { destination: rel })),
-      ...(뜬것 ? [bucket.upload(뜬것, { destination: dbRel })] : []),
-    ]);
+    await 나눠서(relPaths, AT_ONCE,
+                 (rel) => bucket.upload(path.join(root, rel), { destination: rel }));
+    if (뜬것) { await bucket.upload(뜬것, { destination: dbRel }); }
   } finally {
     if (뜬것) { try { fs.rmSync(뜬것, { force: true }); } catch { /* 이미 없으면 그만 */ } }
   }

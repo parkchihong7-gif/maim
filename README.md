@@ -145,6 +145,42 @@ gcloud scheduler jobs create http maim-daily \
   --headers="x-dashboard-token=YOUR_DASHBOARD_TOKEN"
 ```
 
+### 메모리는 2Gi 로 — 512Mi 로는 DB 가 깨집니다
+
+**한 번 데였습니다.**
+
+`DATA_DIR=/tmp/maim-state` 인데, Cloud Run 의 `/tmp` 는 디스크가 아니라
+**컨테이너 메모리를 깎아 쓰는 램디스크**입니다. 시작할 때 버킷에서 파일을
+거기에 풀어 놓으므로, 그 용량이 통째로 메모리에서 빠집니다.
+
+512Mi 로 두었더니 이렇게 됐습니다.
+
+| | |
+|---|---|
+| 램디스크에 푼 것 | 102MB |
+| 그 위의 Node + 스토리지 라이브러리 | 나머지 |
+| 결과 | 쓰던 것이 잘려 **SQLite 가 깨짐** |
+
+증상이 헷갈립니다. 읽기는 다 되는데 쓰기만 죽고, 마이그레이션이 "적용됐다"고
+기록만 남고 표는 안 생깁니다. `database disk image is malformed` 가 그것입니다.
+
+```bash
+gcloud run services update maim --region us-central1 --memory 2Gi
+```
+
+메모리는 **쓴 시간만큼만** 과금되고 `--min-instances=0` 이면 안 쓸 때 잠들어
+있으므로, 올려도 개인 사용량에서는 거의 붙지 않습니다.
+
+`/api/health` 가 지금 상태를 알려 줍니다.
+
+```bash
+curl -s https://<서비스 주소>/api/health
+```
+
+`"db": { "ok": true, ... "writable": true }` 면 성한 것입니다.
+
+---
+
 ### 접속키 — 통합 관리자 대시보드 장부를 씁니다
 
 이 프로그램은 **자기 접속 코드를 만들지 않습니다.** 예전에는 만들었는데,
