@@ -2,6 +2,7 @@ import { Storage } from "@google-cloud/storage";
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "../config.js";
+import { getDb } from "../db/index.js";
 
 let storage: Storage | undefined;
 
@@ -75,14 +76,59 @@ function listLocalFiles(dir: string, root: string, out: string[] = []): string[]
   return out;
 }
 
-/** 로컬 디스크 상태(DB/생성된 이미지/claude 로그인 정보 등)를 통째로 버킷에 다시 올린다. */
+/** SQLite 가 쓰는 동안 생기는 곁파일들. 통째로 올리면 안 되는 것들이다. */
+const DB_SIDE_FILES = ["-journal", "-wal", "-shm"];
+
+/**
+ * DB 를 **성한 한 벌**로 떠 둔다. 실패하면 null.
+ *
+ * 왜 파일을 그냥 복사하면 안 되나 — **한 번 데였다.**
+ *   예전에는 `app.db` 를 다른 파일과 똑같이 바이트째 올렸다. SQLite 가 글을
+ *   쓰는 중에 올리면 **반쯤 쓰인 판**이 버킷에 남는다. 다음에 그걸 내려받은
+ *   컨테이너는 읽기는 되는데 쓰려고만 하면
+ *     database disk image is malformed
+ *   로 죽는다. 실제로 그렇게 됐다.
+ *
+ *   `backup()` 은 SQLite 가 제 잠금을 쥔 채 떠 주는 것이라 언제 떠도 앞뒤가
+ *   맞는다. 곁파일(-journal 등)을 따로 챙길 일도 없어진다.
+ */
+async function 성한DB한벌(): Promise<string | null> {
+  const 원본 = config.paths.dbFile;
+  if (!fs.existsSync(원본)) return null;
+  const 뜬것 = `${원본}.snapshot`;
+  try {
+    await getDb().backup(뜬것);
+    return 뜬것;
+  } catch (err) {
+    // **깨진 것을 올리지 않는다.** 버킷에 아직 성한 판이 있을 수 있는데,
+    // 그 위에 덮으면 되살릴 길이 사라진다. 나머지 파일은 그대로 올린다.
+    console.error("[gcsState] DB 를 뜨지 못해 **올리지 않습니다** — "
+                  + "버킷의 판을 덮지 않으려는 것입니다:", err);
+    try { fs.rmSync(뜬것, { force: true }); } catch { /* 없으면 그만 */ }
+    return null;
+  }
+}
+
+/** 로컬 디스크 상태(DB/생성된 이미지/claude 로그인 정보 등)를 버킷에 다시 올린다. */
 export async function uploadState(): Promise<void> {
   const bucket = getBucket();
   if (!bucket) return;
   const root = config.paths.dataDir;
   if (!fs.existsSync(root)) return;
-  const relPaths = listLocalFiles(root, root);
-  await Promise.all(
-    relPaths.map((rel) => bucket.upload(path.join(root, rel), { destination: rel })),
+
+  const dbRel = path.relative(root, config.paths.dbFile);
+  const 곁파일 = DB_SIDE_FILES.map((끝) => dbRel + 끝);
+  const relPaths = listLocalFiles(root, root).filter(
+    (rel) => rel !== dbRel && !곁파일.includes(rel) && !rel.endsWith(".snapshot"),
   );
+
+  const 뜬것 = await 성한DB한벌();
+  try {
+    await Promise.all([
+      ...relPaths.map((rel) => bucket.upload(path.join(root, rel), { destination: rel })),
+      ...(뜬것 ? [bucket.upload(뜬것, { destination: dbRel })] : []),
+    ]);
+  } finally {
+    if (뜬것) { try { fs.rmSync(뜬것, { force: true }); } catch { /* 이미 없으면 그만 */ } }
+  }
 }
