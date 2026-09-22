@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import path from "node:path";
 import { config } from "../config.js";
+import { getDb } from "../db/index.js";
 import { categoriesRoutes } from "./routes/categories.js";
 import { queueRoutes } from "./routes/queue.js";
 import { historyRoutes } from "./routes/history.js";
@@ -18,10 +19,43 @@ export async function buildServer() {
   // 에러/경고는 그대로 로그에 남기고, 정상 요청 단위 로그만 끈다.
   const app = Fastify({ logger: true, disableRequestLogging: true });
 
-  app.get("/api/health", async () => ({
-    ok: true,
-    timezone: config.timezone,
-  }));
+  /**
+   * 살아 있나 + **쓸 수 있나.**
+   *
+   * 한 번 데였다. 읽는 요청은 전부 200 인데 로그인만 «Internal Server Error»
+   * 가 났다. 읽기는 되고 쓰기만 막히면 그렇게 보인다 — 디스크가 찼거나,
+   * 파일이 읽기 전용이거나, 표가 없거나. 그런데 그것을 알아보려면 로그를
+   * 뒤져야 했고, 로그에는 아무것도 안 남아 있었다.
+   *
+   * 이제 이 한 줄이면 갈린다. 비밀은 담지 않는다 — 되나 안 되나만.
+   */
+  app.get("/api/health", async () => {
+    const db: Record<string, unknown> = { ok: false };
+    try {
+      const 손 = getDb();
+      db.tables = (손
+        .prepare("SELECT count(*) AS n FROM sqlite_master WHERE type='table'")
+        .get() as { n: number }).n;
+      db.sessionTable = !!손
+        .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='keyserver_sessions'")
+        .get();
+      // 진짜로 써 본다. 디스크가 찼거나 읽기 전용이면 여기서 드러난다.
+      손.prepare("CREATE TABLE IF NOT EXISTS _writecheck (at TEXT)").run();
+      손.prepare("DELETE FROM _writecheck").run();
+      db.writable = true;
+      db.ok = true;
+    } catch (err) {
+      db.error = String((err as Error)?.message || err);
+    }
+    return {
+      ok: true,
+      timezone: config.timezone,
+      keyserver: config.keyserverUrl
+        ? { set: true, program: config.keyserverProgram }
+        : { set: false },
+      db,
+    };
+  });
 
   // DASHBOARD_TOKEN이 설정된 경우에만 활성화되는 최소 방어선. 기본(로컬, 127.0.0.1
   // 바인딩 + 미설정)에서는 아무 영향이 없다. VPS/Cloud Run에서 대시보드를 직접
