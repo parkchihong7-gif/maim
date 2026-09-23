@@ -2,6 +2,8 @@ import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import path from "node:path";
 import fs from "node:fs";
+import { SECRET_SETTINGS, ENGINE_IDS, ENGINES } from "../ai/engines.js";
+import { getSetting } from "../db/repositories/settings.js";
 import { config } from "../config.js";
 import { getDb } from "../db/index.js";
 import { categoriesRoutes } from "./routes/categories.js";
@@ -15,6 +17,34 @@ import { imageDownloadsRoutes } from "./routes/imageDownloads.js";
 import { tenantsRoutes } from "./routes/tenants.js";
 import { findSession } from "../db/repositories/keyserverSessions.js";
 import { 자리에서, 주인, type 쓰는이 } from "../tenancy.js";
+/** 지금 서버가 들고 있는 비밀값들. 설정에 저장된 것과 환경변수 양쪽. */
+function 비밀들(): string[] {
+  const 것들: string[] = [];
+  for (const 칸 of SECRET_SETTINGS) {
+    try { const v = getSetting(칸); if (v) 것들.push(v.trim()); } catch { /* DB 가 아직이면 넘어간다 */ }
+  }
+  for (const id of ENGINE_IDS) {
+    const v = process.env[ENGINES[id].auth.envVar];
+    if (v) 것들.push(v.trim());
+  }
+  if (config.dashboardToken) 것들.push(config.dashboardToken);
+  return 것들;
+}
+
+
+/**
+ * 오류 글에 키가 섞여 나가지 않게 지운다.
+ *
+ * 오류에는 명령 도구가 뱉은 말이 통째로 담긴다. 그 안에 키가 그대로
+ * 들어 있을 수 있는데, 화면은 여러 사람이 본다.
+ */
+function 비밀빼고(글: string): string {
+  let 답 = 글;
+  for (const 것 of 비밀들()) {
+    if (것 && 것.length >= 8) 답 = 답.split(것).join("••••••");
+  }
+  return 답;
+}
 
 /**
  * 이 코드가 만들어진 때. 빌드가 `dist/BUILD_AT` 에 적어 둔다.
@@ -40,6 +70,22 @@ export async function buildServer() {
   // "incoming request"/"request completed" 로그가 찍히면 터미널이 너무 시끄러워진다.
   // 에러/경고는 그대로 로그에 남기고, 정상 요청 단위 로그만 끈다.
   const app = Fastify({ logger: true, disableRequestLogging: true });
+
+  /**
+   * **탈이 났을 때 「Internal Server Error」 만 남기지 않는다.**
+   *
+   * 여태 라우트 안에서 뭔가 터지면 화면에는 저 여섯 글자만 떴다. 무엇이
+   * 왜 안 됐는지 알 길이 없어서, 고치는 사람도 서버를 우회해 직접 불러
+   * 봐야 원인을 알았다. 쓰시는 분은 그마저도 못 한다.
+   *
+   * 오류 글에는 도구가 한 말이 들어 있고, 그게 유일한 단서다. 그대로
+   * 드린다. 다만 **키가 섞여 나갈 수는 없으니** 지우고 보낸다.
+   */
+  app.setErrorHandler((탈, req, reply) => {
+    req.log.error({ err: 탈 }, "요청 처리 중 탈");
+    const 코드 = 탈.statusCode && 탈.statusCode >= 400 ? 탈.statusCode : 500;
+    reply.code(코드).send({ error: 비밀빼고(탈.message || String(탈)) });
+  });
 
   /**
    * 살아 있나 + **쓸 수 있나.**

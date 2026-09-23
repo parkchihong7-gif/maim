@@ -76,9 +76,57 @@ export function sanitizeContent(content: string): { sanitized: string; warnings:
   return { sanitized, warnings };
 }
 
+/**
+ * Zod 가 내는 영문 덩어리를 **읽을 수 있는 한 줄**로 바꾼다.
+ *
+ * 그대로 두면 화면에 이런 것이 뜬다.
+ *
+ *   [{"code":"too_small","minimum":500,"type":"string", … "path":["content"]}]
+ *
+ * 쓰시는 분은 여기서 무엇을 해야 할지 알 수가 없다. 무엇이 모자란지,
+ * 그래서 어떻게 하면 되는지를 말해 준다.
+ */
+const 칸이름: Record<string, string> = {
+  title: "제목", content: "본문", image_query: "이미지 검색어",
+  tags: "태그", title_variants: "제목 후보",
+};
+
+/** 받침이 있으면 «이», 없으면 «가». 「본문이(가)」 같은 글은 읽기 나쁘다. */
+function 이가(말: string): string {
+  const 끝 = 말.charCodeAt(말.length - 1);
+  if (끝 < 0xac00 || 끝 > 0xd7a3) return "가";      // 한글이 아니면 그냥
+  return (끝 - 0xac00) % 28 === 0 ? "가" : "이";
+}
+
+export function 읽기쉽게(탈: unknown): string {
+  if (!(탈 instanceof z.ZodError)) return (탈 as Error)?.message ?? String(탈);
+  const 줄들 = 탈.issues.map((것) => {
+    const 이름 = 칸이름[String(것.path[0])] ?? String(것.path[0] || "답");
+    if (것.code === "too_small") {
+      const 최소 = (것 as unknown as { minimum: number }).minimum;
+      const 단위 = 것.type === "array" ? "개" : "자";
+      return `${이름}${이가(이름)} 모자랍니다 (${최소}${단위} 이상 필요)`;
+    }
+    if (것.code === "too_big") {
+      const 최대 = (것 as unknown as { maximum: number }).maximum;
+      return `${이름}${이가(이름)} 너무 깁니다`;
+    }
+    if (것.code === "invalid_type") return `${이름}${이가(이름)} 아예 없습니다`;
+    return `${이름}: ${것.message}`;
+  });
+  return `AI 가 돌려준 글이 규격에 안 맞습니다 — ${[...new Set(줄들)].join(" · ")}. `
+       + `고르신 모델이 지시를 덜 따르는 것일 수 있습니다. `
+       + `[관리자 설정] 1단계에서 다른 모델을 적어 보십시오.`;
+}
+
 export function parsePostResponse(rawResult: string): { post: PostResponse; warnings: string[] } {
   const parsedRaw = parseJsonLoose(rawResult);
-  const post = PostResponseSchema.parse(parsedRaw);
+  let post: PostResponse;
+  try {
+    post = PostResponseSchema.parse(parsedRaw);
+  } catch (탈) {
+    throw new Error(읽기쉽게(탈));
+  }
   const { sanitized, warnings } = sanitizeContent(post.content);
   return { post: { ...post, content: sanitized }, warnings };
 }

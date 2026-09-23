@@ -403,5 +403,11 @@ export function 엔진(id: string | undefined): Engine {
 /** 대시보드가 키를 저장해 둘 수 있는 이름 전부. 설정 화면이 이걸 쓴다. */
 export const ENGINE_KEY_SETTINGS = ENGINE_IDS.map((id) => ENGINES[id].auth.settingKey);
 
+/** 화면이나 기록에 새면 안 되는 값들의 설정 칸 이름. */
+export const SECRET_SETTINGS = [
+  ...ENGINE_IDS.map((id) => ENGINES[id].auth.settingKey),
+  "unsplash_access_key", "pexels_api_key", "pixabay_api_key",
+];
+
 /** 모델을 적어 두는 칸 이름 전부. */
 export const ENGINE_MODEL_SETTINGS = ENGINE_IDS.map((id) => ENGINES[id].modelSetting);
