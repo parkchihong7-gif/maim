@@ -1257,7 +1257,9 @@ textarea:focus {
   border: 1px solid var(--border); border-left: 3px solid var(--gold);
   background: var(--bg-sunk);
 }
-.schedule-alarm strong { display: block; margin: 0 0 4px; font-size: 13.5px; }
+/* 제목만 한 줄 차지한다. `.schedule-alarm strong` 으로 두면 본문 안에서
+   굵게 쓴 말까지 줄이 끊겨, 한 문장이 서너 토막으로 보인다. */
+.schedule-alarm > strong { display: block; margin: 0 0 4px; font-size: 13.5px; }
 .schedule-alarm p { margin: 0; font-size: 13px; line-height: 1.7; color: var(--text-dim); }
 
 .schedule-cap-row { align-items: center; gap: 10px; }

@@ -7,9 +7,12 @@ import {
 } from "../../db/repositories/categories.js";
 import {
   오늘목록, 오늘몇편, 지금차례, 차례정하기, 차례이름, 하루최대, 지금상한, 상한정하기, 카테고리상한,
+  지금시각, 시각정하기, 크론식,
   마지막으로돈때,
   type 차례,
 } from "../../scheduler/예약.js";
+import { 다시걸기 } from "../../scheduler/cron.js";
+import { config } from "../../config.js";
 
 export async function categoriesRoutes(app: FastifyInstance) {
   app.get("/api/categories", async () => listAllCategories());
@@ -35,6 +38,13 @@ export async function categoriesRoutes(app: FastifyInstance) {
       // 대신 **마지막으로 돈 때**를 돌려준다. 한 번도 안 돌았거나 하루하고
       // 반나절이 넘었으면 화면이 «꺼져 있습니다» 라고 말한다.
       lastRun: 마지막으로돈때(),
+      time: 지금시각(),
+      cron: 크론식(),
+      // Cloud Run 은 아무도 안 쓸 때 잠들고, 잠든 프로세스의 시계는 멈춘다.
+      // 그래서 **시각을 여기서 바꿔도 그것만으로는 안 바뀐다.** 밖에서
+      // 두드려 주는 Cloud Scheduler 가 진짜 자명종이고, 그건 이 프로그램이
+      // 손댈 수 없는 자리다. 대신 붙여넣을 명령을 만들어 준다.
+      cloudRun: !!config.gcsStateBucket,
       preview: 오늘목록(방식).map((h) => ({
         categoryId: h.category.id, name: h.category.name, nth: h.nth,
       })),
@@ -42,7 +52,8 @@ export async function categoriesRoutes(app: FastifyInstance) {
   });
 
   app.put("/api/schedule", async (req, reply) => {
-    const { order, dailyCap } = (req.body ?? {}) as { order?: string; dailyCap?: number };
+    const { order, dailyCap, time } =
+      (req.body ?? {}) as { order?: string; dailyCap?: number; time?: string };
 
     if (order !== undefined) {
       if (order !== "sequential" && order !== "random" && order !== "least_used") {
@@ -50,6 +61,18 @@ export async function categoriesRoutes(app: FastifyInstance) {
         return { error: "차례는 sequential · random · least_used 중 하나여야 합니다." };
       }
       차례정하기(order);
+    }
+
+    if (time !== undefined) {
+      try {
+        시각정하기(String(time));
+        // 늘 켜 두고 쓰는 판에서는 이쪽이 진짜 자명종이다. 다시 걸지 않으면
+        // 서버를 껐다 켤 때까지 옛 시각으로 돈다.
+        다시걸기();
+      } catch (탈) {
+        reply.code(400);
+        return { error: (탈 as Error).message };
+      }
     }
 
     if (dailyCap !== undefined) {
@@ -68,7 +91,7 @@ export async function categoriesRoutes(app: FastifyInstance) {
       상한정하기(n);
     }
 
-    return { ok: true, dailyCap: 지금상한() };
+    return { ok: true, dailyCap: 지금상한(), time: 지금시각(), cron: 크론식() };
   });
 
   app.post("/api/categories", async (req, reply) => {

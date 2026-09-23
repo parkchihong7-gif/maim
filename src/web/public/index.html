@@ -521,7 +521,26 @@ claude login</pre>
               설치 안내서 <strong>3-6</strong>을 따라 한 번만 걸어 두십시오.</p>
           </div>
 
-          <p class="muted" style="margin-top:16px">하루에 몇 건까지 준비할까요 <strong>(최대 10건)</strong></p>
+          <p class="muted" style="margin-top:16px">몇 시에 준비해 둘까요</p>
+          <div class="setup-input-row schedule-cap-row">
+            <input type="time" id="schedule-time-input" step="60" />
+            <button class="btn-primary" data-action="save-daily-time">저장</button>
+          </div>
+          <p class="muted" id="schedule-time-note">이 시각에 맞춰 그날 쓸 글이 준비돼 있습니다.</p>
+
+          <div class="schedule-alarm" id="schedule-cloudrun" hidden>
+            <strong>한 줄 더 하셔야 바뀝니다</strong>
+            <p>이 서버는 아무도 안 쓸 때 <strong>잠듭니다</strong>(그래서 요금이 0원입니다).
+              잠든 서버는 스스로 못 일어나서, <strong>Cloud Scheduler</strong>가 밖에서 깨워 줍니다.
+              시각도 거기에 적혀 있어서 <strong>여기만 바꾸면 안 바뀝니다.</strong>
+              아래를 검은 창(Cloud Shell)에 붙여넣으세요.</p>
+            <div class="setup-code-row">
+              <pre class="setup-code" id="schedule-gcloud-cmd"></pre>
+              <button class="btn-secondary btn-copy-image" data-action="copy-code" data-target="schedule-gcloud-cmd">복사</button>
+            </div>
+          </div>
+
+          <p class="muted" style="margin-top:18px">하루에 몇 건까지 준비할까요 <strong>(최대 10건)</strong></p>
           <div class="setup-input-row schedule-cap-row">
             <input type="number" id="schedule-cap-input" min="0" max="10" step="1" />
             <span class="schedule-cap-unit">건 / 하루</span>

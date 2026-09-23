@@ -66,6 +66,28 @@ export const 차례이름: Record<차례, string> = {
 
 const 차례키 = "schedule_order";
 const 마지막키 = "last_daily_run";
+const 시각키 = "daily_time";
+
+/** 아침에 글이 준비되는 시각. `HH:MM`. */
+export function 지금시각(): string {
+  const 글 = (getSetting(시각키) ?? "").trim();
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(글) ? 글 : "06:00";
+}
+
+export function 시각정하기(글: string): string {
+  const 값 = (글 ?? "").trim();
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(값)) {
+    throw new Error("시각은 00:00 ~ 23:59 사이여야 합니다.");
+  }
+  setSetting(시각키, 값);
+  return 값;
+}
+
+/** 자명종에게 줄 말. `분 시 * * *` 꼴이다. */
+export function 크론식(시각: string = 지금시각()): string {
+  const [시, 분] = 시각.split(":");
+  return `${Number(분)} ${Number(시)} * * *`;
+}
 
 /** 매일 작업이 돌았다고 적는다. 화면이 «자명종이 꺼졌다» 를 아는 근거다. */
 export function 돌았다고적기(): void {

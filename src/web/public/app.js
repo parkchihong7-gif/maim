@@ -867,6 +867,19 @@ document.addEventListener("click", async (e) => {
       await switchView(btn.dataset.view);
     } else if (action === "show-error") {
       alert(btn.dataset.error || "오류 메시지가 없습니다.");
+    } else if (action === "save-daily-time") {
+      const 칸 = document.getElementById("schedule-time-input");
+      if (!칸.value) {
+        alert("시각을 골라 주세요.");
+        return;
+      }
+      try {
+        await api("/api/schedule", { method: "PUT", body: JSON.stringify({ time: 칸.value }) });
+      } catch (탈) {
+        alert("시각을 바꾸지 못했습니다: " + (탈 && 탈.message ? 탈.message : 탈));
+        return;
+      }
+      await refreshSchedule();
     } else if (action === "save-daily-cap") {
       const 칸 = document.getElementById("schedule-cap-input");
       const 값 = Number(칸.value);
@@ -1109,6 +1122,27 @@ async function refreshSchedule() {
   if (칸수 && document.activeElement !== 칸수) {
     칸수.value = String(s.dailyCap);
     칸수.max = String(s.dailyCapMax ?? 10);
+  }
+
+  // 시각 칸도 고치는 중이면 덮어쓰지 않는다.
+  const 칸시각 = document.getElementById("schedule-time-input");
+  if (칸시각 && document.activeElement !== 칸시각) 칸시각.value = s.time;
+
+  const 말시각 = document.getElementById("schedule-time-note");
+  if (말시각) 말시각.textContent = `매일 ${s.time} 에 맞춰 그날 쓸 글이 준비돼 있습니다.`;
+
+  // 잠들었다 깨는 판에서는 시각이 **밖에** 적혀 있다. 그 한 줄을 만들어 준다.
+  const 클라우드 = document.getElementById("schedule-cloudrun");
+  if (클라우드) {
+    클라우드.hidden = !s.cloudRun;
+    const 칸명령 = document.getElementById("schedule-gcloud-cmd");
+    if (칸명령 && s.cloudRun) {
+      칸명령.textContent =
+        `gcloud scheduler jobs update http maim-daily \\\n` +
+        `  --location=us-central1 \\\n` +
+        `  --schedule="${s.cron}" \\\n` +
+        `  --time-zone="Asia/Seoul"`;
+    }
   }
 
   const 수 = document.getElementById("schedule-planned");
