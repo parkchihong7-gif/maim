@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { config } from "../../config.js";
+import { 주인자리인가, 체험은못함 } from "../../tenancy.js";
 import {
   getSettings,
   setSetting,
@@ -39,12 +40,15 @@ function maskSecret(value: string | null): string | null {
 export async function settingsRoutes(app: FastifyInstance) {
   app.get("/api/settings", async () => {
     const raw = getSettings(SETTINGS_KEYS);
+    // 가려 놓았어도 앞 네 자는 보인다. 체험 회원에게 보일 것이 아니다.
+    const 주인 = 주인자리인가();
+    const 가림 = (값: string | null) => (주인 ? maskSecret(값) : null);
     return {
-      unsplash_access_key: maskSecret(getUnsplashKey()),
+      unsplash_access_key: 가림(getUnsplashKey()),
       unsplash_access_key_set: !!getUnsplashKey(),
-      pexels_api_key: maskSecret(getPexelsKey()),
+      pexels_api_key: 가림(getPexelsKey()),
       pexels_api_key_set: !!getPexelsKey(),
-      pixabay_api_key: maskSecret(getPixabayKey()),
+      pixabay_api_key: 가림(getPixabayKey()),
       pixabay_api_key_set: !!getPixabayKey(),
       blog_type: raw.blog_type,
       blog_topic: raw.blog_topic,
@@ -54,6 +58,7 @@ export async function settingsRoutes(app: FastifyInstance) {
   });
 
   app.put("/api/settings", async (req, reply) => {
+    if (!주인자리인가()) { reply.code(403); return { error: 체험은못함 }; }
     const body = req.body as Record<string, string | null>;
 
     // AI 키는 **저장하기 전에** 본다. 잘못된 것이 들어가면 나중에
@@ -74,12 +79,15 @@ export async function settingsRoutes(app: FastifyInstance) {
   // 어느 AI 를 쓰는지, 고를 수 있는 것은 무엇인지.
   app.get("/api/settings/ai", async () => {
     const 지금 = 지금엔진();
+    const 주인 = 주인자리인가();
     return {
       current: 지금.id,
       ready: 준비됐나(지금),
+      // 화면이 «바꿀 수 있는 자리인가» 를 알아야 단추를 감춘다.
+      canChange: 주인,
       // 안내 명령에 저장통 이름을 **미리 박아서** 내보낸다. 「YOUR_PROJECT_ID
       // 를 본인 것으로 바꾸세요」 가 여태 제일 많이 틀리던 자리였다.
-      bucket: config.gcsStateBucket,
+      bucket: 주인 ? config.gcsStateBucket : "",
       engines: ENGINE_IDS.map((id) => {
         const e = ENGINES[id];
         return {
@@ -92,13 +100,14 @@ export async function settingsRoutes(app: FastifyInstance) {
           keyHow: e.auth.keyHow,
           settingKey: e.auth.settingKey,
           keySet: !!엔진키(e),
-          key: maskSecret(엔진키(e) || null),
+          key: 주인 ? maskSecret(엔진키(e) || null) : null,
         };
       }),
     };
   });
 
   app.put("/api/settings/ai", async (req, reply) => {
+    if (!주인자리인가()) { reply.code(403); return { error: 체험은못함 }; }
     const { engine } = (req.body ?? {}) as { engine?: string };
     try {
       const 것 = 엔진고르기(String(engine));
@@ -110,7 +119,9 @@ export async function settingsRoutes(app: FastifyInstance) {
   });
 
   // 실제로 한 번 불러 보는 것이라 사용자가 버튼을 눌렀을 때만 실행한다.
-  app.post("/api/settings/test-claude", async () => {
+  // 이것도 사장님 AI 한도를 쓴다. 체험 회원이 누를 자리가 아니다.
+  app.post("/api/settings/test-claude", async (_req, reply) => {
+    if (!주인자리인가()) { reply.code(403); return { ok: false, error: 체험은못함 }; }
     const 준비 = 준비됐나();
     if (!준비.ok) return { ok: false, engine: 지금엔진().label, error: 준비.why };
     try {
@@ -124,7 +135,10 @@ export async function settingsRoutes(app: FastifyInstance) {
     }
   });
 
+  // 미리보기도 글 한 편을 진짜로 쓴다. 체험 하루 3건 셈에도 안 잡히는
+  // 자리라, 여기로 사장님 한도가 새면 막을 길이 없다.
   app.post("/api/settings/preview-post", async (_req, reply) => {
+    if (!주인자리인가()) { reply.code(403); return { error: 체험은못함 }; }
     const raw = getSettings(SETTINGS_KEYS);
     const blogProfileBlock = buildBlogProfileBlock({
       blogType: raw.blog_type,
@@ -156,6 +170,7 @@ export async function settingsRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/settings/posting-direction-presets", async (req, reply) => {
+    if (!주인자리인가()) { reply.code(403); return { error: 체험은못함 }; }
     const body = req.body as { label?: string; description?: string; instruction?: string };
     const label = (body.label || "").trim();
     const instruction = (body.instruction || "").trim();
@@ -173,6 +188,7 @@ export async function settingsRoutes(app: FastifyInstance) {
   });
 
   app.delete("/api/settings/posting-direction-presets/:id", async (req, reply) => {
+    if (!주인자리인가()) { reply.code(403); return { error: 체험은못함 }; }
     const { id } = req.params as { id: string };
     if (!id.startsWith("custom_")) {
       reply.code(403);

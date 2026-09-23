@@ -4,7 +4,7 @@ import { insertDraftPost, listRecentTitles, type Post } from "../db/repositories
 import { markCategoryUsed } from "../db/repositories/categories.js";
 import { buildPostPrompt } from "../claude/promptBuilder.js";
 import { buildBlogProfileBlock } from "../claude/blogProfile.js";
-import { runAI } from "../ai/run.js";
+import { runAI, 지금엔진 } from "../ai/run.js";
 import { parsePostResponse } from "../claude/parseResponse.js";
 import { getSettings, resolvePostingDirectionInstruction } from "../db/repositories/settings.js";
 import type { PostDirective } from "./directives.js";
@@ -46,7 +46,10 @@ export async function generatePost(category: Category, directive: PostDirective)
     try {
       parsed = await attempt(retryPrompt);
     } catch (secondErr) {
-      throw new Error(`[${category.name}] claude -p 호출/파싱 실패: ${(secondErr as Error).message}`);
+      // 엔진 이름을 «claude» 로 박아 두면, Gemini 를 쓰시는 분이 이 글을
+      // 보고 Claude 쪽을 뒤지게 된다. 지금 쓰는 것의 이름을 적는다.
+      throw new Error(`[${category.name}] ${지금엔진().label} 호출/파싱 실패: `
+                    + `${(secondErr as Error).message}`);
     }
   }
 

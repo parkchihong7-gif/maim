@@ -13,6 +13,7 @@ import {
 } from "../../scheduler/예약.js";
 import { 다시걸기 } from "../../scheduler/cron.js";
 import { config } from "../../config.js";
+import { 주인자리인가, 체험은못함 } from "../../tenancy.js";
 
 export async function categoriesRoutes(app: FastifyInstance) {
   app.get("/api/categories", async () => listAllCategories());
@@ -54,6 +55,9 @@ export async function categoriesRoutes(app: FastifyInstance) {
   });
 
   app.put("/api/schedule", async (req, reply) => {
+    // 이건 **서버 한 대의 시간표**다. 자리마다 갈라져 있지 않아서,
+    // 체험 회원이 고치면 사장님 아침 글의 시각이 바뀐다.
+    if (!주인자리인가()) { reply.code(403); return { error: 체험은못함 }; }
     const { order, dailyCap, time, synced } = (req.body ?? {}) as
       { order?: string; dailyCap?: number; time?: string; synced?: boolean };
 
