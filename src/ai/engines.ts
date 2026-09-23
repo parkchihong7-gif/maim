@@ -131,15 +131,56 @@ function 비면던진다(글: string, 엔진: string): string {
   return 답;
 }
 
+/**
+ * 답 글자에서 **JSON 덩어리만** 골라 읽는다.
+ *
+ * 통째로 `JSON.parse` 하면 안 된다. 이 도구들은 JSON 을 내놓기 전에
+ * 안내문을 함께 뱉는 일이 있다. 실제로 본 것만 해도
+ *
+ *     Security Warning: Skipping system defaults file '/etc/gemini-cli/...'
+ *     Ripgrep is not available. Falling back to GrepTool.
+ *     { "response": "ok", ... }
+ *
+ * 이렇다. 이 줄들이 어느 통로로 나올지는 판과 자리마다 다르고, 우리가
+ * 정할 수 있는 것이 아니다. 한 줄만 섞여도 글이 통째로 안 읽히면서
+ * «로그인이 안 됐나 봅니다» 라는 엉뚱한 안내가 나간다. 그러니 앞뒤에
+ * 무엇이 붙든 **중괄호 짝이 맞는 첫 덩어리**를 찾아 읽는다.
+ */
 function 제이슨(stdout: string, 엔진: string): Record<string, unknown> {
+  const 글 = (stdout ?? "").trim();
   try {
-    return JSON.parse(stdout) as Record<string, unknown>;
-  } catch {
-    // 로그인이 안 됐거나 설치가 덜 된 경우, JSON 대신 안내문이 그대로
-    // 나온다. 그걸 «JSON 이 아닙니다» 로만 말하면 무엇이 문제인지 모른다.
-    throw new Error(`${엔진} 이 JSON 이 아닌 답을 돌려주었습니다. `
-                  + `로그인이 안 돼 있을 수 있습니다.\n${stdout.slice(0, 600)}`);
+    return JSON.parse(글) as Record<string, unknown>;
+  } catch { /* 앞뒤에 뭔가 붙은 것이다. 아래에서 골라낸다. */ }
+
+  const 시작 = 글.indexOf("{");
+  if (시작 >= 0) {
+    // 글자 안의 중괄호에 속지 않도록 따옴표 안인지 보며 짝을 센다.
+    let 깊이 = 0, 따옴표 = false, 백슬래시 = false;
+    for (let i = 시작; i < 글.length; i++) {
+      const c = 글[i];
+      if (백슬래시) { 백슬래시 = false; continue; }
+      if (c === "\\") { 백슬래시 = true; continue; }
+      if (c === '"') { 따옴표 = !따옴표; continue; }
+      if (따옴표) continue;
+      if (c === "{") 깊이++;
+      else if (c === "}") {
+        깊이--;
+        if (깊이 === 0) {
+          try {
+            return JSON.parse(글.slice(시작, i + 1)) as Record<string, unknown>;
+          } catch { break; }
+        }
+      }
+    }
   }
+
+  // 정말로 JSON 이 없다. 그러면 그 글이 **멈춘 까닭**이다.
+  //
+  // 여기서 «로그인이 안 돼 있을 수 있습니다» 라고 덧붙이면 안 된다.
+  // 바로 아랫줄에 진짜 까닭이 적혀 있는데(«API key not valid» 같은),
+  // 그 위에 엉뚱한 짐작을 얹으면 읽는 분이 그 짐작을 쫓아간다.
+  throw new Error(`${엔진} 에서 답을 읽지 못했습니다. 도구가 한 말은 이렇습니다:\n`
+                + `${글.slice(0, 600)}`);
 }
 
 export const ENGINES: Record<EngineId, Engine> = {
