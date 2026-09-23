@@ -295,7 +295,7 @@ claude login</pre>
                 </div>
                 <div class="checklist-item">
                   <span class="checklist-item-box">☐</span>
-                  <span>열린 브라우저 창에서 본인 Claude 계정으로 로그인 → "Authorize" 클릭</span>
+                  <span>열린 브라우저 창에서 <strong>본인 계정</strong>(고르신 AI 의 계정)으로 로그인 → 승인</span>
                 </div>
                 <div class="checklist-item">
                   <span class="checklist-item-box">☐</span>
@@ -633,7 +633,7 @@ claude login</pre>
             <div class="guide-step-num">2</div>
             <div class="guide-step-body">
               <h4>[지금 생성] 클릭</h4>
-              <p>Claude가 카테고리 설명과 관리자 설정(블로그 주제/포스팅 방향)을 바탕으로 글을 쓰고, 어울리는 이미지 3장을
+              <p>고르신 AI 가 카테고리 설명과 관리자 설정(블로그 주제/포스팅 방향)을 바탕으로 글을 쓰고, 어울리는 이미지 3장을
                 자동으로 찾아 붙입니다. 완료되면 [포스팅] 메뉴에 나타납니다.</p>
             </div>
           </div>
@@ -667,7 +667,7 @@ claude login</pre>
             <div class="guide-step-num">6</div>
             <div class="guide-step-body">
               <h4>관리자 설정으로 취향에 맞게 다듬기</h4>
-              <p>AI 커넥트 연결(Claude/이미지 API), 블로그 주제, 포스팅 방향(톤 프리셋+보강 문구)을 관리자 설정에서
+              <p>AI 커넥트 연결(글 쓸 AI·이미지 API), 블로그 주제, 포스팅 방향(톤 프리셋+보강 문구)을 관리자 설정에서
                 조정할 수 있습니다. [예시 포스팅 보기]로 톤을 먼저 확인해보세요.</p>
             </div>
           </div>
@@ -704,8 +704,9 @@ claude login</pre>
           <h3>자주 막히는 부분</h3>
           <p class="muted"><strong>이미지가 안 보여요</strong> — 관리자 설정에서 Unsplash/Pexels 키가 저장돼 있는지
             확인하세요. 두 키 모두 없으면 이미지 검색 자체가 안 됩니다.</p>
-          <p class="muted"><strong>"지금 생성"을 눌렀는데 에러가 나요</strong> — Claude CLI 로그인이 안 돼 있을 가능성이
-            높습니다. 관리자 설정 1단계의 "연결 테스트"로 확인하세요.</p>
+          <p class="muted"><strong>"지금 생성"을 눌렀는데 에러가 나요</strong> — 고르신 AI 의 로그인이 안 돼 있을 가능성이
+            높습니다. <strong>관리자 설정 1단계</strong>에서 어느 AI 로 돼 있는지 확인하시고 <strong>[연결 테스트]</strong>를
+            눌러 보세요. 오류 글에 무엇이 문제인지 그대로 나옵니다.</p>
           <p class="muted"><strong>아침에 아무것도 안 쌓여 있어요</strong> — 예약 화면(관리자 설정 → 4)의
             맨 위를 보세요. <strong>⏰ 자동 준비가 …</strong> 경고가 떠 있으면 자명종(Cloud Scheduler)이
             안 걸린 것이고, <strong>「아직 반만 바뀌었습니다」</strong>가 떠 있으면 시각을 바꾸고
