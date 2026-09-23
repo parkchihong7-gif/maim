@@ -53,6 +53,13 @@
         <button class="sidebar-nav-item" data-action="switch-view" data-view="settings">⚙️ <span>관리자 설정</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="guide">📖 <span>사용법</span></button>
       </nav>
+
+      <!-- 접속키는 이 브라우저에 저장된다. 나갈 길이 없으면 다른 키로
+           바꿔 들어올 수가 없고, 남의 컴퓨터에서 쓰고 나올 수도 없다. -->
+      <div class="sidebar-foot">
+        <p class="sidebar-who" id="sidebar-who" hidden></p>
+        <button class="sidebar-out" data-action="logout">나가기</button>
+      </div>
     </aside>
 
     <main class="main-content">

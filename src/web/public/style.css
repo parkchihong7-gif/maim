@@ -1520,3 +1520,34 @@ textarea:focus {
   border-color: var(--gold);
   color: var(--gold);
 }
+
+/* ─── 사이드바 아래: 지금 누구인지 + 나가기 ─────────────────────── */
+.sidebar-foot {
+  margin-top: auto;
+  padding: 14px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-who {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.sidebar-out {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.sidebar-out:hover {
+  border-color: var(--danger-line);
+  background: var(--danger-bg);
+  color: var(--danger);
+}

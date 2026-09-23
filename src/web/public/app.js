@@ -1248,6 +1248,13 @@ async function refreshEngines() {
       + `방금 글을 만드는 중일 수 있습니다. 1~2분 뒤 다시 열어 보세요.</p>`;
     return;
   }
+  const 옆칸 = document.getElementById("sidebar-who");
+  if (옆칸) {
+    // 관리자 설정을 아직 안 여셨으면 모른다. 그때는 빈 줄을 남기지 않는다.
+    옆칸.textContent = 엔진목록.roleLabel || "";
+    옆칸.hidden = !엔진목록.roleLabel;
+  }
+
   const 누구 = document.getElementById("ai-who");
   if (누구) {
     const 주인 = 엔진목록.role === "admin";
@@ -1388,6 +1395,20 @@ function 모델칸보이기(것) {
       : "지금은 도구 기본값으로 씁니다.";
   }
 }
+
+// 접속키는 이 브라우저(localStorage)에 남는다. 나갈 길이 없으면 프로그램이
+// 로그인 화면을 아예 안 띄워서, 다른 키로 바꿔 들어올 수가 없다.
+// 파실 때도 필요하다 — 남의 컴퓨터에서 쓰고 그냥 나오면 안 된다.
+document.addEventListener("click", (e) => {
+  const 단추 = e.target.closest && e.target.closest('[data-action="logout"]');
+  if (!단추) return;
+  e.preventDefault();
+  if (!confirm("나가시겠습니까?\n\n이 브라우저에 저장된 접속키를 지웁니다. "
+             + "다음에 들어오실 때 키를 다시 넣으셔야 합니다.")) return;
+  try { setDashboardToken(""); } catch { /* 저장소를 못 써도 새로고침은 한다 */ }
+  try { localStorage.removeItem("maim-dashboard-token"); } catch { /* 위와 같다 */ }
+  location.reload();
+});
 
 document.addEventListener("click", async (e) => {
   const 모델단추 = e.target.closest && e.target.closest('[data-action="save-ai-model"]');
