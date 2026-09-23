@@ -1,5 +1,13 @@
 import { getDb } from "../index.js";
 import { 지금주인 } from "../../tenancy.js";
+import { 카테고리상한 } from "../../scheduler/예약.js";
+
+/** 편수는 0~10 사이여야 한다. 화면을 안 거치고 들어오는 길도 있어서 여기서 막는다. */
+function 맞춘편수(값: number | undefined): number {
+  const n = Math.floor(Number(값));
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(0, Math.min(카테고리상한, n));
+}
 
 export interface Category {
   id: number;
@@ -10,6 +18,8 @@ export interface Category {
   last_used_at: string | null;
   created_at: string;
   topic_keyword: string | null;
+  /** 하루에 몇 편 준비할지 (0~10). 0 이면 쉰다. scheduler/예약.ts 참고 */
+  daily_count: number;
   /** 누구의 자리인가. 빈 값이면 주인 것. tenancy.ts 참고 */
   owner_key: string;
 }
@@ -33,12 +43,14 @@ export function createCategory(input: {
   requiresSearch: boolean;
   promptHint: string;
   topicKeyword?: string | null;
+  dailyCount?: number;
 }): Category {
   const result = getDb()
     .prepare(
-      "INSERT INTO categories (name, requires_search, prompt_hint, active, topic_keyword, owner_key) VALUES (?, ?, ?, 1, ?, ?)",
+      "INSERT INTO categories (name, requires_search, prompt_hint, active, topic_keyword, daily_count, owner_key) VALUES (?, ?, ?, 1, ?, ?, ?)",
     )
-    .run(input.name, input.requiresSearch ? 1 : 0, input.promptHint, input.topicKeyword || null, 지금주인());
+    .run(input.name, input.requiresSearch ? 1 : 0, input.promptHint, input.topicKeyword || null,
+         맞춘편수(input.dailyCount), 지금주인());
   return getCategory(Number(result.lastInsertRowid))!;
 }
 
@@ -50,13 +62,14 @@ export function updateCategory(
     promptHint: string;
     active: boolean;
     topicKeyword: string | null;
+    dailyCount: number;
   }>,
 ): void {
   const current = getCategory(id);
   if (!current) throw new Error(`Category ${id} not found`);
   getDb()
     .prepare(
-      "UPDATE categories SET name = ?, requires_search = ?, prompt_hint = ?, active = ?, topic_keyword = ? WHERE id = ? AND owner_key = ?",
+      "UPDATE categories SET name = ?, requires_search = ?, prompt_hint = ?, active = ?, topic_keyword = ?, daily_count = ? WHERE id = ? AND owner_key = ?",
     )
     .run(
       input.name ?? current.name,
@@ -64,6 +77,7 @@ export function updateCategory(
       input.promptHint ?? current.prompt_hint,
       input.active !== undefined ? (input.active ? 1 : 0) : current.active,
       input.topicKeyword !== undefined ? input.topicKeyword || null : current.topic_keyword,
+      input.dailyCount !== undefined ? 맞춘편수(input.dailyCount) : current.daily_count,
       id,
       지금주인(),
     );
@@ -77,15 +91,4 @@ export function markCategoryUsed(id: number): void {
   getDb()
     .prepare("UPDATE categories SET last_used_at = datetime('now') WHERE id = ? AND owner_key = ?")
     .run(id, 지금주인());
-}
-
-/** 활성 카테고리 전체를 가볍게 섞어서 반환한다 (하루 생성 개수 제한이 없으므로 전부 처리). */
-export function pickCategoriesForToday(): Category[] {
-  const active = listActiveCategories();
-  const shuffled = [...active];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
 }

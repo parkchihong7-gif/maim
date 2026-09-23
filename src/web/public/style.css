@@ -1220,3 +1220,42 @@ textarea:focus {
   font-size: 0.8rem;
   line-height: 1.7;
 }
+
+
+/* ── 포스팅 예약 설정 ─────────────────────────────────────────
+   숫자 하나(«하루 몇 편»)가 이 화면의 답이다. 그것만 크게 두고
+   나머지는 뒤로 물린다. */
+.schedule-order {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; margin: 0 0 8px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg-sunk); cursor: pointer;
+  font-size: 14px; transition: border-color .12s, background .12s;
+}
+.schedule-order:hover { border-color: var(--gold); }
+.schedule-order input { margin: 0; accent-color: var(--gold); }
+.schedule-order:has(input:checked) {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 8%, transparent);
+}
+
+.schedule-sum {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  margin: 18px 0 0; padding: 16px 18px;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--bg-sunk);
+}
+.schedule-sum-num { font-size: 30px; font-weight: 700; color: var(--gold); line-height: 1; }
+.schedule-sum-unit { font-size: 14px; font-weight: 600; }
+.schedule-sum p { margin: 0; flex: 1 1 260px; font-size: 13px; line-height: 1.65; }
+
+.schedule-preview { margin: 8px 0 0; padding-left: 22px; font-size: 13.5px; line-height: 1.9; }
+.schedule-preview li::marker { color: var(--gold); font-weight: 700; }
+
+/* 자명종을 안 걸면 이 화면의 설정이 전부 헛것이 된다. 그때만 뜬다. */
+.schedule-alarm {
+  margin: 14px 0 0; padding: 14px 16px; border-radius: 10px;
+  border: 1px solid var(--border); border-left: 3px solid var(--gold);
+  background: var(--bg-sunk);
+}
+.schedule-alarm strong { display: block; margin: 0 0 4px; font-size: 13.5px; }
+.schedule-alarm p { margin: 0; font-size: 13px; line-height: 1.7; color: var(--text-dim); }

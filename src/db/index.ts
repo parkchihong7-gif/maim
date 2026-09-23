@@ -93,6 +93,15 @@ function runMigrations(database: Database.Database) {
   // 한 사람의 글이 세 자리로 흩어진다.
   칸붙이기(database, "keyserver_sessions", "key1", "TEXT NOT NULL DEFAULT ''");
 
+  // ── 포스팅 예약 ──────────────────────────────────────────────
+  //
+  // 카테고리마다 **하루에 몇 편**을 준비할지. 예전에는 활성 카테고리
+  // 전부를 한 편씩 돌렸다. 카테고리가 아홉이면 매일 아홉 편이 나오는데,
+  // 그만큼 올리는 사람은 없다. 쌓이기만 하고 Claude 한도만 쓴다.
+  //
+  // 기본값 1 로 둔다. 이 칸이 생겨도 어제와 똑같이 돈다.
+  칸붙이기(database, "categories", "daily_count", "INTEGER NOT NULL DEFAULT 1");
+
   database.exec(`
     CREATE INDEX IF NOT EXISTS idx_categories_owner ON categories (owner_key);
     CREATE INDEX IF NOT EXISTS idx_posts_owner ON posts (owner_key);

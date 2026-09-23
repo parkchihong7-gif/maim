@@ -115,13 +115,14 @@
         <div class="page-header">
           <div>
             <h1>블로그 관리</h1>
-            <p class="muted">카테고리별로 다룰 주제와 검색 방향, 프롬프트 힌트를 관리하세요.</p>
+            <p class="muted">카테고리별로 다룰 주제와 <strong>하루 몇 편</strong>을 준비할지 정하세요.
+              차례와 전체 상한은 <strong>[관리자 설정 → 4) 포스팅 예약 설정]</strong>에 있습니다.</p>
           </div>
         </div>
         <div class="card">
           <table id="category-table">
             <thead>
-              <tr><th>이름</th><th>활성</th><th>주제 키워드</th><th>동작</th></tr>
+              <tr><th>이름</th><th>활성</th><th>하루 편수</th><th>주제 키워드</th><th>동작</th></tr>
             </thead>
             <tbody></tbody>
           </table>
@@ -131,6 +132,7 @@
               <input name="name" placeholder="카테고리 이름" required />
               <input name="promptHint" placeholder="카테고리 설명(프롬프트 힌트)" required />
               <input name="topicKeyword" placeholder="주제 키워드(선택, 예: 2026 최저임금)" />
+              <input name="dailyCount" type="number" min="0" max="10" value="1" title="하루 몇 편" placeholder="하루 편수" />
               <button type="submit" class="btn-primary">추가</button>
             </form>
           </div>
@@ -461,6 +463,35 @@ claude login</pre>
               프리셋을 바꾸거나 보강 문구를 추가해보세요.</p>
             <div id="preview-post-result"></div>
           </div>
+        </div>
+
+        <!-- 4) 포스팅 예약 설정 -->
+        <div class="card">
+          <h3>4) 포스팅 예약 설정</h3>
+          <p class="muted">매일 아침 <strong>어떤 카테고리로 몇 편</strong>을 준비할지 정합니다.
+            편수는 <strong>[블로그 관리]</strong>의 각 카테고리에서 정하시고, 여기서는
+            <strong>차례</strong>를 정하십니다.</p>
+
+          <div class="schedule-alarm" id="schedule-alarm" hidden>
+            <strong>⏰ 자동 준비가 꺼져 있습니다</strong>
+            <p>이 설정은 <strong>Cloud Scheduler</strong>가 매일 서버를 깨워 줄 때만 돕니다.
+              서버는 아무도 안 쓸 때 잠들기 때문에 스스로 일어나지 못합니다.
+              설치 안내서 <strong>3-6</strong>을 따라 한 번만 걸어 두십시오.</p>
+          </div>
+
+          <p class="muted" style="margin-top:14px">차례 — 하루 상한에 걸려 뒤가 잘릴 때 <strong>무엇이 잘리는지</strong>가 달라집니다</p>
+          <div id="schedule-orders"></div>
+
+          <div class="schedule-sum">
+            <div>
+              <span class="schedule-sum-num" id="schedule-planned">–</span>
+              <span class="schedule-sum-unit">편 / 하루</span>
+            </div>
+            <p class="muted" id="schedule-note">지금 설정대로면 내일 아침에 이만큼 준비됩니다.</p>
+          </div>
+
+          <p class="muted" style="margin-top:6px">내일 아침에 나올 순서</p>
+          <ol class="schedule-preview" id="schedule-preview"></ol>
         </div>
 
       </section>

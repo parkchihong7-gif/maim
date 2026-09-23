@@ -203,7 +203,7 @@ function renderCategories(categories) {
     const tr = document.createElement("tr");
     if (c.id === editingCategoryId) {
       tr.innerHTML = `
-        <td colspan="4">
+        <td colspan="5">
           <div class="category-edit-form">
             <label>이름
               <input class="edit-name" value="${escapeHtml(c.name)}" />
@@ -213,6 +213,9 @@ function renderCategories(categories) {
             </label>
             <label>주제 키워드(선택 — 있으면 생성 시 관련 최신 뉴스를 최우선 검색·반영)
               <input class="edit-keyword" placeholder="예: 2026 최저임금 인상" value="${escapeHtml(c.topic_keyword ?? "")}" />
+            </label>
+            <label>하루 편수 (0~10 — 0이면 이 카테고리는 쉽니다)
+              <input class="edit-daily" type="number" min="0" max="10" value="${Number(c.daily_count ?? 1)}" />
             </label>
             <div class="category-edit-actions">
               <button class="btn-primary" data-action="save-category" data-id="${c.id}">저장</button>
@@ -224,6 +227,9 @@ function renderCategories(categories) {
       tr.innerHTML = `
         <td>${escapeHtml(c.name)}</td>
         <td><span class="badge ${c.active ? "badge-active" : "badge-inactive"}">${c.active ? "활성" : "비활성"}</span></td>
+        <td>${Number(c.daily_count ?? 1) === 0
+              ? '<span class="muted">쉼</span>'
+              : `<strong>${Number(c.daily_count ?? 1)}</strong>편`}</td>
         <td>${c.topic_keyword ? escapeHtml(c.topic_keyword) : '<span class="muted">-</span>'}</td>
         <td>
           <button class="btn-primary" data-action="generate" data-id="${c.id}">지금 생성</button>
@@ -712,7 +718,7 @@ async function switchView(view) {
   document.querySelectorAll(".sidebar-nav-item").forEach((navBtn) => {
     navBtn.classList.toggle("active", navBtn.dataset.view === view);
   });
-  if (view === "settings") await refreshSettings();
+  if (view === "settings") { await refreshSettings(); await refreshSchedule(); }
   if (view === "home") renderHome();
 }
 
@@ -727,10 +733,12 @@ document.getElementById("category-form").addEventListener("submit", async (e) =>
         requiresSearch: true,
         promptHint: form.promptHint.value,
         topicKeyword: form.topicKeyword.value || null,
+        dailyCount: Number(form.dailyCount.value),
       }),
     });
     form.reset();
     await refreshCategories();
+    await refreshSchedule();
   } catch (err) {
     alert(err.message);
   }
@@ -796,16 +804,19 @@ document.addEventListener("click", async (e) => {
       const name = row.querySelector(".edit-name").value.trim();
       const promptHint = row.querySelector(".edit-hint").value.trim();
       const topicKeyword = row.querySelector(".edit-keyword").value.trim();
+      const dailyCount = Number(row.querySelector(".edit-daily").value);
       if (!name || !promptHint) {
         alert("이름과 설명은 비워둘 수 없습니다.");
         return;
       }
       await api(`/api/categories/${id}`, {
         method: "PUT",
-        body: JSON.stringify({ name, promptHint, topicKeyword: topicKeyword || null }),
+        body: JSON.stringify({ name, promptHint, topicKeyword: topicKeyword || null, dailyCount }),
       });
       editingCategoryId = null;
       await refreshCategories();
+      // 편수를 바꾸면 «내일 몇 편» 이 달라진다. 설정 화면을 안 열어도 맞게 둔다.
+      await refreshSchedule();
     } else if (action === "toggle-content") {
       const postId = Number(id);
       const preview = btn.closest(".post-card").querySelector(".post-preview");
@@ -1033,3 +1044,71 @@ refreshSettings()
 // 이미 토큰을 들고 있는 브라우저도 확인을 시작해야 한다. 안 그러면 다른
 // 기기가 같은 2차키로 들어왔을 때, 화면을 새로 열기 전까지 끊긴 줄 모른다.
 if (getDashboardToken()) { startHeartbeat(); }
+
+
+// ─────────────────────────────────────────── 포스팅 예약 설정
+//
+// 설정만 있고 결과가 안 보이면, 맞게 넣었는지 **다음 날 아침까지** 알 수가
+// 없다. 그래서 «지금 이대로면 내일 무엇이 몇 편 나오는가» 를 그대로 보여 준다.
+
+async function refreshSchedule() {
+  const 칸 = document.getElementById("schedule-orders");
+  if (!칸) return;
+  let s;
+  try {
+    s = await api("/api/schedule");
+  } catch {
+    return;   // 로그인 전이거나 잠깐 못 닿은 것. 다음 차례에 다시 그린다
+  }
+
+  칸.innerHTML = s.orders.map((o) => `
+    <label class="schedule-order">
+      <input type="radio" name="schedule_order" value="${o.id}" ${o.id === s.order ? "checked" : ""} />
+      <span>${escapeHtml(o.label)}</span>
+    </label>`).join("");
+
+  const 수 = document.getElementById("schedule-planned");
+  const 말 = document.getElementById("schedule-note");
+  if (수) 수.textContent = s.planned;
+  if (말) {
+    말.textContent = s.trimmed > 0
+      ? `카테고리 편수를 모두 더하면 ${s.planned + s.trimmed}편인데, 하루 상한이 ${s.dailyCap}편이라 ${s.trimmed}편은 잘립니다.`
+      : s.planned === 0
+        ? "지금은 아무것도 준비되지 않습니다. [블로그 관리]에서 카테고리의 하루 편수를 1 이상으로 올려 주세요."
+        : "지금 설정대로면 내일 아침에 이만큼 준비됩니다.";
+  }
+
+  // 자명종이 꺼졌나. 한 번도 안 돌았거나 36시간이 넘었으면 알린다.
+  // 36시간으로 두는 이유는, 하루에 한 번 도는 일이라 24시간을 갓 넘긴 것만
+  // 으로는 «늦은 것» 인지 «꺼진 것» 인지 가릴 수 없기 때문이다.
+  const 종 = document.getElementById("schedule-alarm");
+  if (종) {
+    const 마지막 = s.lastRun ? Date.parse(s.lastRun) : NaN;
+    const 잠잠 = Number.isNaN(마지막) || (Date.now() - 마지막) > 36 * 60 * 60 * 1000;
+    종.hidden = !잠잠;
+    const 말 = 종.querySelector("strong");
+    if (말) {
+      말.textContent = Number.isNaN(마지막)
+        ? "⏰ 자동 준비가 한 번도 돌지 않았습니다"
+        : `⏰ 자동 준비가 ${new Date(마지막).toLocaleString("ko-KR")} 이후로 멈춰 있습니다`;
+    }
+  }
+
+  const 미리 = document.getElementById("schedule-preview");
+  if (미리) {
+    미리.innerHTML = s.preview.length === 0
+      ? '<li class="muted">준비할 것이 없습니다</li>'
+      : s.preview.map((x) => `<li>${escapeHtml(x.name)}${x.nth > 1 ? ` <span class="muted">(${x.nth}편째)</span>` : ""}</li>`).join("");
+  }
+}
+
+document.addEventListener("change", async (e) => {
+  const el = e.target;
+  if (!(el instanceof HTMLInputElement) || el.name !== "schedule_order") return;
+  try {
+    await api("/api/schedule", { method: "PUT", body: JSON.stringify({ order: el.value }) });
+    await refreshSchedule();
+  } catch (err) {
+    alert("차례를 바꾸지 못했습니다: " + (err && err.message ? err.message : err));
+  }
+});
