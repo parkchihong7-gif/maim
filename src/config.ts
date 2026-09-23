@@ -45,5 +45,28 @@ export const config = {
     dataDir,
     dbFile: path.join(dataDir, "app.db"),
     generatedDir: path.join(dataDir, "generated"),
+    // AI 명령 도구들이 로그인 정보를 찾는 자리($HOME). 저장통에서
+    // 내려받은 .claude/.codex 폴더가 여기 놓인다.
+    home: path.join(dataDir, "home"),
   },
 } as const;
+
+/**
+ * **HOME 을 코드에서 못 박는다.**
+ *
+ * `claude` 같은 도구는 로그인 정보를 `$HOME/.claude` 에서 찾는다. 우리는
+ * 그 폴더를 저장통에서 `DATA_DIR/home` 으로 내려받으니, HOME 이 거기를
+ * 가리켜야 맞는다.
+ *
+ * 그런데 지금까지 이건 **배포 명령의 플래그로만** 붙어 있었다. 누가
+ * `--update-env-vars` 대신 `--set-env-vars` 로 한 번만 배포하면 조용히
+ * 날아가고, 화면에는 «로그인이 안 돼 있습니다» 만 뜬다. 원인을 찾기가
+ * 아주 나쁘다. 그래서 코드가 정한다.
+ *
+ * 저장통을 쓸 때(= 서버)만 그런다. 내 노트북에서 HOME 을 바꿔 버리면
+ * 내 진짜 로그인을 못 찾는다.
+ */
+if (config.gcsStateBucket) {
+  fs.mkdirSync(config.paths.home, { recursive: true });
+  process.env.HOME = config.paths.home;
+}

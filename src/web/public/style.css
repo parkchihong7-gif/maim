@@ -1401,3 +1401,122 @@ textarea:focus {
 .engine-name { display: block; font-size: 14px; font-weight: 700; margin: 0 0 3px; }
 .engine-cost { display: block; font-size: 12.5px; line-height: 1.65; color: var(--text-dim); }
 .engine-cost strong { color: var(--gold); }
+
+/* ─── 1단계. AI 고르고 로그인 ────────────────────────────────────────
+   길이 둘로 갈린다. 검은 창에서 로그인하는 길(Claude·Codex)과, 키 한
+   줄을 받아 넣는 길(Gemini)이다. 어느 쪽이 보이든 «몇 걸음인지» 가 먼저
+   눈에 들어와야 한다 — 두 줄인 줄 알고 멈추시던 자리라서 그렇다. */
+
+.setup-warn {
+  background: var(--todo-bg);
+  border: 1px solid var(--todo-line);
+  border-left: 4px solid var(--todo);
+  color: var(--todo);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 14px 0 10px;
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+.setup-good {
+  background: var(--success-bg);
+  border: 1px solid var(--success-line);
+  border-left: 4px solid var(--success);
+  color: var(--success);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 14px 0 10px;
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+/* 번호를 크게 단다. «①부터 ④까지» 라고 적어 둬도, 번호가 눈에 안
+   보이면 읽는 눈은 명령 상자만 세고 만다. */
+.cmd-steps {
+  list-style: none;
+  counter-reset: cmd;
+  margin: 0;
+  padding: 0;
+}
+
+.cmd-steps > li {
+  counter-increment: cmd;
+  position: relative;
+  padding: 10px 0 12px 38px;
+  border-top: 1px solid var(--border);
+}
+
+.cmd-steps > li:first-child { border-top: 0; }
+
+.cmd-steps > li::before {
+  content: counter(cmd);
+  position: absolute;
+  left: 0;
+  top: 16px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: var(--gold-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 마지막 걸음이 빠뜨리기 제일 쉽고, 빠뜨리면 앞의 셋이 다 헛일이 된다. */
+.cmd-steps > li:last-child::before { background: var(--danger); }
+
+.cmd-steps .checklist-item-why {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.setup-key-input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.setup-key-input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-soft);
+}
+
+/* 긴 명령이 상자 밖으로 잘려 나가면, 사시는 분은 **잘린 줄 모르고**
+   복사 단추 대신 눈으로 읽어 옮겨 적다가 틀린다. 여기서는 접어 보인다. */
+.cmd-steps .setup-code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: visible;
+}
+
+/* <a> 라서 button 기본 모양을 못 받는다. 단추처럼 보이게 직접 준다. */
+#ai-key-link {
+  display: inline-block;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+#ai-key-link:hover {
+  background: var(--bg-sunk);
+  border-color: var(--gold);
+  color: var(--gold);
+}

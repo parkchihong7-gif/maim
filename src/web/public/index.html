@@ -201,21 +201,38 @@
             <p class="muted" style="margin-top:14px">어느 AI 로 쓰시겠습니까</p>
             <div id="ai-engines"></div>
 
-            <p class="muted" style="margin-top:14px">검은 창(Cloud Shell)에 이 두 줄을 차례로 붙여넣으세요:</p>
-            <div class="setup-code-row">
-              <pre class="setup-code" id="ai-install-cmd">npm install -g @anthropic-ai/claude-code</pre>
-              <button class="btn-secondary btn-copy-image" data-action="copy-code" data-target="ai-install-cmd">복사</button>
+            <!-- 길이 둘로 갈린다. 어느 AI 를 고르셨느냐에 따라 아래 둘 중
+                 하나만 보인다. app.js 의 엔진명령보이기() 가 정한다. -->
+
+            <!-- (가) 검은 창에서 로그인하는 길 — Claude·Codex -->
+            <div id="ai-way-login" hidden>
+              <p class="setup-warn" id="ai-login-count"></p>
+              <ol class="cmd-steps" id="ai-login-steps"></ol>
+              <p class="muted" id="ai-home-note"></p>
             </div>
-            <div class="setup-code-row">
-              <pre class="setup-code" id="claude-login-cmd">claude login</pre>
-              <button class="btn-secondary btn-copy-image" data-action="copy-code" data-target="claude-login-cmd">복사</button>
+
+            <!-- (나) 키 한 줄을 넣는 길 — Gemini -->
+            <div id="ai-way-key" hidden>
+              <p class="setup-good">✅ <strong>이 AI 는 검은 창(Cloud Shell)이 필요 없습니다.</strong>
+                키 한 줄을 아래 칸에 넣고 [저장]만 누르시면 끝입니다.</p>
+              <p class="muted" id="ai-key-how"></p>
+              <p><a id="ai-key-link" href="#" target="_blank" rel="noopener" class="btn-secondary">키 받으러 가기 ↗</a></p>
+              <div class="setup-code-row">
+                <input type="password" id="ai-key-input" class="setup-key-input" placeholder="받은 키를 여기에 붙여넣으세요" autocomplete="off">
+                <button class="btn-secondary" data-action="save-ai-key">저장</button>
+              </div>
+              <p class="muted" id="ai-key-state"></p>
             </div>
-            <p class="muted" id="ai-home-note"></p>
 
             <button class="btn-secondary" data-action="test-claude">연결 테스트</button>
             <span class="setup-step-result" data-result="claude"></span>
 
             <div class="setup-manual" data-manual-panel="claude" hidden>
+              <p class="setup-good">이 매뉴얼은 <strong>Claude 나 Codex 를 고르셨을 때</strong>만 필요합니다.
+                <strong>Gemini 를 고르셨다면 통째로 건너뛰세요</strong> — 검은 창 없이 키 한 줄이면 끝입니다.
+                (아래 예시 명령은 Claude 기준입니다. Codex 면 <code>claude</code> 를 <code>codex</code> 로,
+                <code>.claude</code> 를 <code>.codex</code> 로 바꿔 읽으시면 됩니다. 위쪽 카드에는
+                고르신 AI 에 맞게 이미 채워진 명령이 나옵니다 — 그걸 쓰시는 편이 안전합니다.)</p>
               <div class="checklist-stage" data-tone="info">
                 <p class="checklist-stage-title">🔵 준비 단계</p>
                 <div class="checklist-item">
@@ -282,11 +299,14 @@
                   <span class="checklist-item-box">☐</span>
                   <span>아래 두 줄을 순서대로 붙여넣기
                     <div class="setup-code-row">
-                      <pre class="setup-code">mkdir -p /tmp/maim-home && export HOME=/tmp/maim-home
-claude login</pre>
+                      <pre class="setup-code">mkdir -p /tmp/maim-home && HOME=/tmp/maim-home claude login</pre>
                       <button class="btn-secondary btn-copy-image" data-action="copy-code">복사</button>
                     </div>
-                    <span class="checklist-item-why">첫 줄은 로그인 정보를 저장할 임시 폴더 준비, 둘째 줄이 진짜 로그인 시작입니다.</span>
+                    <span class="checklist-item-why">앞쪽은 로그인 정보를 떨어뜨릴 임시 폴더를 만드는 것이고,
+                      <code>HOME=/tmp/maim-home</code> 뒤의 <code>claude login</code> 이 진짜 로그인입니다.
+                      <strong><code>HOME=</code> 을 지우거나 앞에 <code>export</code> 를 붙이지 마세요.</strong>
+                      <code>export</code> 를 쓰면 그 뒤로 이 검은 창의 <code>gcloud</code> 명령들이
+                      제 설정을 못 찾아 줄줄이 실패합니다 — 그런데 화면에는 그 이유가 잘 안 보입니다.</span>
                   </span>
                 </div>
                 <div class="checklist-item">
@@ -309,10 +329,13 @@ claude login</pre>
                   <span class="checklist-item-box">☐</span>
                   <span>아래 명령어도 버킷 이름을 본인 것으로 바꿔서 붙여넣기
                     <div class="setup-code-row">
-                      <pre class="setup-code">gcloud storage cp -r /tmp/maim-home/.claude gs://maim-data-YOUR_PROJECT_ID/home/.claude</pre>
+                      <pre class="setup-code">gcloud storage rsync -r /tmp/maim-home/.claude gs://maim-data-YOUR_PROJECT_ID/home/.claude</pre>
                       <button class="btn-secondary btn-copy-image" data-action="copy-code">복사</button>
                     </div>
-                    <span class="checklist-item-why">뭘 하는 명령어인가요? 방금 만든 로그인 정보를 실제 서버(Cloud Run)가 읽는 위치로 옮기는 것입니다. 이걸 빼먹으면 터미널에서는 로그인됐지만 서버는 여전히 로그인 안 된 상태로 남습니다.</span>
+                    <span class="checklist-item-why">뭘 하는 명령어인가요? 방금 만든 로그인 정보를 실제 서버(Cloud Run)가 읽는 위치로 옮기는 것입니다.
+                      이걸 빼먹으면 터미널에서는 로그인됐지만 서버는 여전히 로그인 안 된 상태로 남습니다.
+                      <br>제대로 갔는지 확인하시려면 <code>gcloud storage ls gs://maim-data-YOUR_PROJECT_ID/home/.claude/</code> —
+                      파일 이름들이 보이면 맞고, <code>.claude/</code> 가 한 번 더 보이면 잘못 들어간 것입니다.</span>
                   </span>
                 </div>
               </div>

@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { config } from "../../config.js";
 import {
   getSettings,
   setSetting,
@@ -10,13 +11,15 @@ import {
   deleteCustomPreset,
   resolvePostingDirectionInstruction,
 } from "../../db/repositories/settings.js";
-import { runAI, 지금엔진, 엔진고르기 } from "../../ai/run.js";
-import { ENGINE_IDS, ENGINES } from "../../ai/engines.js";
+import { runAI, 지금엔진, 엔진고르기, 엔진키, 준비됐나 } from "../../ai/run.js";
+import { ENGINE_IDS, ENGINES, ENGINE_KEY_SETTINGS } from "../../ai/engines.js";
 import { buildPreviewPrompt } from "../../claude/promptBuilder.js";
 import { buildBlogProfileBlock } from "../../claude/blogProfile.js";
 import { parsePreviewResponse } from "../../claude/parseResponse.js";
 
 const SETTINGS_KEYS = [
+  // AI 엔진마다의 API 키 (gemini_api_key 등). engines.ts 가 이름의 주인이다.
+  ...ENGINE_KEY_SETTINGS,
   "unsplash_access_key",
   "pexels_api_key",
   "pixabay_api_key",
@@ -63,10 +66,24 @@ export async function settingsRoutes(app: FastifyInstance) {
     const 지금 = 지금엔진();
     return {
       current: 지금.id,
+      ready: 준비됐나(지금),
+      // 안내 명령에 저장통 이름을 **미리 박아서** 내보낸다. 「YOUR_PROJECT_ID
+      // 를 본인 것으로 바꾸세요」 가 여태 제일 많이 틀리던 자리였다.
+      bucket: config.gcsStateBucket,
       engines: ENGINE_IDS.map((id) => {
         const e = ENGINES[id];
-        return { id: e.id, label: e.label, cost: e.cost,
-                 install: e.install, login: e.login, home: e.home };
+        return {
+          id: e.id, label: e.label, cost: e.cost,
+          install: e.install, login: e.login, home: e.home,
+          // 화면이 «검은 창 두 줄» 을 보일지 «키 한 칸» 을 보일지
+          // 가르는 값이다. Gemini 만 거짓이다.
+          loginWorksOnServer: e.auth.loginWorksOnServer,
+          keyUrl: e.auth.keyUrl,
+          keyHow: e.auth.keyHow,
+          settingKey: e.auth.settingKey,
+          keySet: !!엔진키(e),
+          key: maskSecret(엔진키(e) || null),
+        };
       }),
     };
   });
@@ -84,6 +101,8 @@ export async function settingsRoutes(app: FastifyInstance) {
 
   // 실제로 한 번 불러 보는 것이라 사용자가 버튼을 눌렀을 때만 실행한다.
   app.post("/api/settings/test-claude", async () => {
+    const 준비 = 준비됐나();
+    if (!준비.ok) return { ok: false, engine: 지금엔진().label, error: 준비.why };
     try {
       await runAI({
         prompt: "연결 테스트다. 다른 설명 없이 'ok'라고만 답하라.",

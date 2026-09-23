@@ -1252,21 +1252,126 @@ async function refreshEngines() {
   엔진명령보이기();
 }
 
+// 사시는 분이 제일 많이 막히던 자리다. 원인은 둘이었다.
+//
+//   ① 요약 칸에 **두 줄만** 보였다. 진짜로는 네 줄이고, 마지막
+//      「저장통에 올리기」 를 빼면 검은 창에서는 로그인됐는데 서버는
+//      모른다. 그런데 화면은 두 줄이 전부인 것처럼 보였다.
+//   ② Gemini 는 이 길 자체가 **안 된다.** 로그인 폴더를 올려도 서버가
+//      다시 브라우저 승인을 요구하며 죽는다. 그 AI 에는 키 한 줄을
+//      받는 칸을 내어야 한다.
+//
+// 그래서 고른 AI 에 따라 길을 아예 갈라 보인다.
+
+function 저장통() {
+  return (엔진목록 && 엔진목록.bucket) || "";
+}
+
+/** 로그인 방식(Claude·Codex)일 때 붙여넣으실 명령 네 줄. */
+function 로그인명령들(것) {
+  const 통 = 저장통();
+  const 주소 = 통 ? `gs://${통}` : "gs://내-저장통-이름";
+  return [
+    { 명: 것.install,
+      왜: `검은 창에 <code>${escapeHtml(것.login.split(" ")[0])}</code> 명령 자체를 설치합니다. `
+        + `<em>added N packages</em> 가 뜨면 성공입니다.` },
+    { 명: `gcloud storage buckets add-iam-policy-binding ${주소} \\
+  --member="user:$(gcloud config get-value account)" --role="roles/storage.objectAdmin"`,
+      왜: `지금 로그인한 구글 계정이 저장통에 파일을 쓸 수 있게 허락합니다. `
+        + `<em>Updated IAM policy</em> 가 뜨면 성공입니다.` },
+    { 명: `mkdir -p /tmp/maim-home && HOME=/tmp/maim-home ${것.login}`,
+      왜: `진짜 로그인입니다. 파란 링크가 뜨면 눌러서 <strong>본인 계정</strong>으로 승인하세요. `
+        + `<strong>앞의 <code>HOME=</code> 을 지우지 마세요</strong> — 로그인 정보를 `
+        + `옮길 수 있는 자리에 떨어뜨리는 부분입니다.` },
+    { 명: `gcloud storage rsync -r /tmp/maim-home/${것.home} ${주소}/home/${것.home}`,
+      왜: `<strong>이게 빠지면 헛수고입니다.</strong> 방금 만든 로그인 정보를 `
+        + `서버가 읽는 자리로 옮깁니다. 이걸 안 하면 검은 창에서는 로그인됐는데 `
+        + `서버는 여전히 «로그인 안 됨» 입니다.` },
+  ];
+}
+
 function 엔진명령보이기() {
   if (!엔진목록) return;
   const 것 = 엔진목록.engines.find((e) => e.id === 엔진목록.current);
   if (!것) return;
-  const 설치 = document.getElementById("ai-install-cmd");
-  const 로그인 = document.getElementById("claude-login-cmd");
-  const 자리 = document.getElementById("ai-home-note");
-  if (설치) 설치.textContent = 것.install;
-  if (로그인) 로그인.textContent = 것.login;
-  if (자리) {
-    자리.innerHTML = `로그인하면 <code>~/${escapeHtml(것.home)}</code> 에 남습니다. `
-      + `설치 안내서의 <strong>마무리 단계</strong>에서 이 폴더를 저장통에 올리셔야 `
-      + `서버가 그 로그인을 씁니다.`;
+
+  const 로그인길 = document.getElementById("ai-way-login");
+  const 키길 = document.getElementById("ai-way-key");
+  if (!로그인길 || !키길) return;
+
+  const 로그인방식 = !!것.loginWorksOnServer;
+  로그인길.hidden = !로그인방식;
+  키길.hidden = 로그인방식;
+
+  if (로그인방식) {
+    const 줄들 = 로그인명령들(것);
+    const 셈 = document.getElementById("ai-login-count");
+    if (셈) {
+      셈.innerHTML = `⚠️ <strong>${줄들.length}줄입니다. 두 줄이 아닙니다.</strong> `
+        + `검은 창(Cloud Shell)에 <strong>①부터 ${줄들.length}까지 차례로</strong> 붙여넣으셔야 합니다. `
+        + `특히 마지막 ${줄들.length}번을 빠뜨리면, 검은 창에서는 로그인이 됐는데 `
+        + `<strong>서버는 그걸 모릅니다.</strong>`;
+    }
+    const 자리 = document.getElementById("ai-login-steps");
+    if (자리) {
+      자리.innerHTML = 줄들.map((줄) => `
+        <li>
+          <div class="setup-code-row">
+            <pre class="setup-code">${escapeHtml(줄.명)}</pre>
+            <button class="btn-secondary btn-copy-image" data-action="copy-code">복사</button>
+          </div>
+          <span class="checklist-item-why">${줄.왜}</span>
+        </li>`).join("");
+    }
+    const 쪽지 = document.getElementById("ai-home-note");
+    if (쪽지) {
+      쪽지.innerHTML = 저장통()
+        ? `저장통 이름은 <code>${escapeHtml(저장통())}</code> 으로 이미 채워 두었습니다 — `
+          + `고치실 것 없이 그대로 복사하시면 됩니다.`
+        : `⚠️ 저장통 이름을 아직 모릅니다. 명령 속 <code>내-저장통-이름</code> 을 `
+          + `본인 것으로 바꿔 주세요. (검은 창에 <code>gcloud storage buckets list</code>)`;
+    }
+    return;
+  }
+
+  // ── 키 한 줄을 받는 길 ──
+  const 어떻게 = document.getElementById("ai-key-how");
+  if (어떻게) 어떻게.innerHTML = 굵게(것.keyHow || "");
+  const 링크 = document.getElementById("ai-key-link");
+  if (링크) 링크.href = 것.keyUrl || "#";
+  const 칸 = document.getElementById("ai-key-input");
+  if (칸) { 칸.value = ""; 칸.placeholder = 것.keySet ? "이미 넣어 두셨습니다 — 바꾸실 때만 새로 붙여넣으세요" : "받은 키를 여기에 붙여넣으세요"; }
+  const 상태 = document.getElementById("ai-key-state");
+  if (상태) {
+    상태.innerHTML = 것.keySet
+      ? `✅ 키가 들어가 있습니다 (<code>${escapeHtml(것.key || "")}</code>). 아래 [연결 테스트] 를 눌러 확인하세요.`
+      : `아직 키가 없습니다. 위 링크에서 받아 넣어 주세요.`;
   }
 }
+
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest && e.target.closest('[data-action="save-ai-key"]');
+  if (!btn) return;
+  e.preventDefault();
+  const 것 = 엔진목록 && 엔진목록.engines.find((x) => x.id === 엔진목록.current);
+  const 칸 = document.getElementById("ai-key-input");
+  if (!것 || !칸) return;
+  const 값 = 칸.value.trim();
+  if (!값) { alert("키를 붙여넣어 주세요."); return; }
+  btn.disabled = true;
+  try {
+    await api("/api/settings", { method: "PUT", body: JSON.stringify({ [것.settingKey]: 값 }) });
+    // 키가 바뀌면 이전 «연결 성공» 은 더 이상 근거가 아니다.
+    claudeTestedOk = false;
+    setStepBadge("claude", false);
+    updateSetupProgress();
+    await refreshEngines();
+  } catch (탈) {
+    alert("키를 저장하지 못했습니다: " + (탈 && 탈.message ? 탈.message : 탈));
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 document.addEventListener("change", async (e) => {
   const el = e.target;

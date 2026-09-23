@@ -10,7 +10,8 @@ import { config } from "../config.js";
 import { getSetting, setSetting } from "../db/repositories/settings.js";
 import { 엔진, type Engine, type RunAsk } from "./engines.js";
 
-const 엔진키 = "ai_engine";
+/** «어느 엔진을 골랐나» 를 적어 두는 설정 칸 이름. */
+const 엔진칸 = "ai_engine";
 
 /**
  * 지금 고른 엔진. 안 고르셨으면 Claude.
@@ -21,13 +22,41 @@ const 엔진키 = "ai_engine";
 export function 지금엔진(): Engine {
   const 밖에서 = (process.env.AI_ENGINE || "").trim();
   if (밖에서) return 엔진(밖에서);
-  return 엔진(getSetting(엔진키) ?? undefined);
+  return 엔진(getSetting(엔진칸) ?? undefined);
+}
+
+/**
+ * 이 엔진에 딸린 API 키. 대시보드에 저장된 값이 먼저고, 없으면 환경변수.
+ *
+ * 이미지 키들과 같은 규칙이다 — 화면에서 넣은 값이 배포 설정보다 세다.
+ */
+export function 엔진키(것: Engine): string {
+  const 저장된 = (getSetting(것.auth.settingKey) ?? "").trim();
+  if (저장된) return 저장된;
+  return (process.env[것.auth.envVar] ?? "").trim();
+}
+
+/**
+ * 지금 이 엔진으로 글을 쓸 수 있는 상태인가. 못 쓰면 **왜인지**를 돌려준다.
+ *
+ * 로그인 폴더가 안 먹는 엔진(Gemini)에 키가 없으면, 실행해 봐야 41 로
+ * 죽으면서 영문 스택이 나올 뿐이다. 그 전에 한국어로 잡아 준다.
+ */
+export function 준비됐나(것: Engine = 지금엔진()): { ok: boolean; why: string } {
+  if (것.auth.loginWorksOnServer) return { ok: true, why: "" };
+  if (엔진키(것)) return { ok: true, why: "" };
+  return {
+    ok: false,
+    why: `${것.label} 은(는) 서버에서 브라우저 로그인을 쓸 수 없어 `
+       + `API 키가 있어야 합니다. ${것.auth.keyUrl} 에서 키를 받아 `
+       + `설정 화면에 넣어 주세요.`,
+  };
 }
 
 export function 엔진고르기(id: string): Engine {
   const 것 = 엔진(id);
   if (것.id !== id) throw new Error(`모르는 AI 입니다: ${id}`);
-  setSetting(엔진키, 것.id);
+  setSetting(엔진칸, 것.id);
   return 것;
 }
 
@@ -52,8 +81,17 @@ export async function runAI(options: RunOptions): Promise<string> {
   const 기다림 = options.timeoutMs ?? 180_000;
   const 파일 = 실행파일(것);
 
+  const 준비 = 준비됐나(것);
+  if (!준비.ok) throw new Error(준비.why);
+
+  // 키는 **자식에게만** 넘긴다. 우리 프로세스의 환경을 바꾸면 다른 엔진을
+  // 고르셨을 때 남은 키가 따라다닌다.
+  const 환경 = { ...process.env };
+  const 키 = 엔진키(것);
+  if (키) 환경[것.auth.envVar] = 키;
+
   const stdout = await new Promise<string>((resolve, reject) => {
-    const 아이 = spawn(파일, 인자, { stdio: ["ignore", "pipe", "pipe"] });
+    const 아이 = spawn(파일, 인자, { stdio: ["ignore", "pipe", "pipe"], env: 환경 });
     let 나온것 = "";
     let 탈난것 = "";
     let 끝났나 = false;
