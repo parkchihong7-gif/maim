@@ -12,6 +12,7 @@
 import type { FastifyInstance } from "fastify";
 import { config } from "../../config.js";
 import { validateKeyPair, checkSession, keyserverEnabled } from "../../keyserver.js";
+import { purgeTenant } from "../../db/repositories/tenants.js";
 import {
   openSession,
   findSession,
@@ -154,6 +155,25 @@ export async function authRoutes(app: FastifyInstance) {
       return { ok: true, unchecked: true };
     }
     closeSession(session.token);
+
+    // **키가 죽었으면 그 자리도 지운다 — 그 자리에서.**
+    //
+    // 매일 도는 작업도 같은 일을 하지만 그건 늦어도 하루 뒤다. 주인이
+    // 지금 끊었는데 그 사람의 글이 우리 서버에 하루 더 남아 있을 이유가
+    // 없다. 브라우저가 열려 있으면 1분 안에 여기서 걸린다.
+    //
+    // `session_replaced` 는 뺀다. 그건 그 사람이 다른 기기로 옮겨 갔다는
+    // 뜻이지 키가 죽었다는 뜻이 아니다 — 지우면 휴대폰으로 갈아탄 사람의
+    // 글이 통째로 날아간다.
+    if (session.key1 && ["not_found", "suspended", "expired"].includes(answer.reason || "")) {
+      try {
+        const 결과 = purgeTenant(session.key1);
+        console.log(`[치우기] ${session.key1} — ${answer.reason} 로 끊겨 바로 지웠습니다:`, 결과);
+      } catch (탈) {
+        console.error("[치우기] 지우지 못했습니다:", (탈 as Error).message);
+      }
+    }
+
     reply.code(401);
     return { ok: false, reason: answer.reason || "revoked",
              error: answer.message || "접속이 종료되었습니다." };
