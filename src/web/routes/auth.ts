@@ -12,7 +12,7 @@
 import type { FastifyInstance } from "fastify";
 import { config } from "../../config.js";
 import { validateKeyPair, checkSession, keyserverEnabled } from "../../keyserver.js";
-import { purgeTenant } from "../../db/repositories/tenants.js";
+import { purgeTenant, 체험자리_차려주기 } from "../../db/repositories/tenants.js";
 import {
   openSession,
   findSession,
@@ -116,6 +116,16 @@ export async function authRoutes(app: FastifyInstance) {
         role: answer.role,
         deviceLabel: answer.deviceLabel,
       });
+      // 맛보러 오신 분의 화면이 텅 비어 있지 않게, 처음 한 번 카테고리를
+      // 깔아 둔다. 이미 쓰고 계신 분의 자리는 건드리지 않는다.
+      if ((answer.role || "client") !== "admin") {
+        try {
+          체험자리_차려주기(key1);
+        } catch (탈) {
+          // 자리를 못 차려도 **들어가는 것은 막지 않는다.** 비어 있을 뿐이다.
+          console.error("[체험] 자리를 못 차렸습니다:", (탈 as Error).message);
+        }
+      }
       return { token, master: false, name: answer.name || "", role: answer.role || "client" };
     } catch (err) {
       req.log.error({ err }, "[auth] 세션을 여는 데 실패했습니다");

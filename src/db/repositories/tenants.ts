@@ -107,3 +107,48 @@ export function todayPostCount(ownerKey: string): number {
   ).get(ownerKey) as { n: number };
   return row.n;
 }
+
+
+/**
+ * **체험으로 들어오신 분의 자리를 차려 둔다.**
+ *
+ * 칸막이를 친 뒤로, 체험 키로 들어가면 화면이 **텅 비어 있다.** 남의
+ * 카테고리가 안 보이는 것은 맞지만, 맛보러 오신 분 입장에서는 «아무것도
+ * 없네, 고장인가» 다. 맛보기가 아예 성립하지 않는다.
+ *
+ * 그래서 처음 들어오실 때 카테고리 셋을 깔아 둔다. 바로 [지금 생성] 을
+ * 눌러 보실 수 있다.
+ *
+ * **이미 뭔가 있으면 건드리지 않는다.** 두 번째 기기로 들어오셨거나 이미
+ * 만들어 쓰고 계신 분의 자리에 남의 카테고리를 끼워 넣으면 안 된다.
+ */
+const 맛보기_카테고리 = [
+  { name: "부동산 이야기",
+    hint: "전월세·매매·청약처럼 사람들이 실제로 검색하는 부동산 주제. "
+        + "법이나 제도를 다룰 때는 시행일과 달라진 점을 분명히 적는다." },
+  { name: "생활 절세",
+    hint: "연말정산·종합소득세·부가세처럼 때가 되면 다들 찾는 세금 주제. "
+        + "숫자는 반드시 기준 연도를 함께 적는다." },
+  { name: "일상 기록",
+    hint: "겪은 일을 담담하게 적는 글. 정보보다 사람 냄새가 앞서는 쪽." },
+];
+
+export function 체험자리_차려주기(ownerKey: string): number {
+  const 키 = (ownerKey || "").trim();
+  if (!키) return 0;   // 주인 자리에는 손대지 않는다
+
+  const db = getDb();
+  const 이미 = (db.prepare("SELECT COUNT(*) AS n FROM categories WHERE owner_key = ?")
+    .get(키) as { n: number }).n;
+  if (이미 > 0) return 0;
+
+  const 깔기 = db.transaction(() => {
+    const 넣기 = db.prepare(
+      `INSERT INTO categories (name, requires_search, prompt_hint, active, daily_count, owner_key)
+       VALUES (?, 0, ?, 1, 1, ?)`);
+    for (const c of 맛보기_카테고리) 넣기.run(c.name, c.hint, 키);
+  });
+  깔기();
+  console.log(`[체험] ${키} 의 자리에 카테고리 ${맛보기_카테고리.length}개를 깔았습니다.`);
+  return 맛보기_카테고리.length;
+}
