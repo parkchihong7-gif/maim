@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import path from "node:path";
+import fs from "node:fs";
 import { config } from "../config.js";
 import { getDb } from "../db/index.js";
 import { categoriesRoutes } from "./routes/categories.js";
@@ -14,6 +15,25 @@ import { imageDownloadsRoutes } from "./routes/imageDownloads.js";
 import { tenantsRoutes } from "./routes/tenants.js";
 import { findSession } from "../db/repositories/keyserverSessions.js";
 import { 자리에서, 주인, type 쓰는이 } from "../tenancy.js";
+
+/**
+ * 이 코드가 만들어진 때. 빌드가 `dist/BUILD_AT` 에 적어 둔다.
+ *
+ * 한 번 읽고 기억한다. 도는 동안 바뀔 값이 아니다.
+ */
+const 만든때 = (() => {
+  let 값: string | null = null;
+  return (): string => {
+    if (값 !== null) return 값;
+    try {
+      값 = fs.readFileSync(path.join(import.meta.dirname, "..", "BUILD_AT"), "utf8").trim();
+    } catch {
+      값 = "(모름 — 개발 중이거나 빌드 기록이 없습니다)";
+    }
+    return 값;
+  };
+})();
+
 
 export async function buildServer() {
   // 대시보드가 15초마다 자동 새로고침하면서 여러 API를 호출하는데, 매 요청마다
@@ -51,6 +71,12 @@ export async function buildServer() {
     }
     return {
       ok: true,
+      // **이 서버가 언제 만든 코드로 돌고 있는가.**
+      //
+      // 고쳐 놓고 배포를 안 했는데 「왜 그대로지」 하며 딴 데를 파헤친
+      // 일이 있었다. 배포가 먹었는지 아닌지를 눈으로 볼 수 있어야 한다.
+      // (깃 번호를 쓰고 싶지만 `--source .` 배포에는 .git 이 안 올라간다.)
+      builtAt: 만든때(),
       timezone: config.timezone,
       keyserver: config.keyserverUrl
         ? { set: true, program: config.keyserverProgram }
