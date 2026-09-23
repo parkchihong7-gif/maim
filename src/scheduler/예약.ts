@@ -20,11 +20,41 @@ import { getSetting, setSetting } from "../db/repositories/settings.js";
 import type { Category } from "../db/repositories/categories.js";
 import { 지금주인 } from "../tenancy.js";
 
-/** 하루에 만들 수 있는 글의 총수. */
-export const 하루상한 = 10;
+/** 하루에 만들 수 있는 글의 **최대**. 이보다 높게는 못 올린다. */
+export const 하루최대 = 10;
+
+const 상한키 = "daily_cap";
+
+/**
+ * 오늘 몇 편까지 만들 것인가. **사장님이 정하신다.**
+ *
+ * 카테고리별 편수를 다 더한 값과는 다르다. 카테고리를 늘리다 보면 합이
+ * 저절로 불어나는데, 정작 하루에 올리실 수 있는 양은 그대로다. 그래서
+ * 총수는 따로 못 박아 둔다 — 카테고리를 몇 개를 만드시든 하루에 나오는
+ * 글은 여기 적은 만큼이다.
+ */
+export function 지금상한(): number {
+  // **빈 값을 0 으로 읽으면 안 된다.**
+  //
+  // `Number(null)` 도 `Number("")` 도 0 이고, 0 은 유한한 수라 «숫자가
+  // 아니다» 검사를 그냥 통과한다. 그러면 갓 설치한 분의 상한이 0 이 되어
+  // 아침에 글이 한 편도 안 나오는데, 화면에는 아무 탈도 안 보인다.
+  // **한 번도 안 정하신 것**과 **0 으로 정하신 것**은 다르다.
+  const 글 = (getSetting(상한키) ?? "").trim();
+  if (글 === "") return 하루최대;
+  const 값 = Number(글);
+  if (!Number.isFinite(값)) return 하루최대;
+  return Math.max(0, Math.min(하루최대, Math.floor(값)));
+}
+
+export function 상한정하기(값: number): number {
+  const n = Math.max(0, Math.min(하루최대, Math.floor(Number(값))));
+  setSetting(상한키, String(n));
+  return n;
+}
 
 /** 카테고리 하나에 줄 수 있는 최대 편수. */
-export const 카테고리상한 = 10;
+export const 카테고리상한 = 하루최대;
 
 export type 차례 = "sequential" | "random" | "least_used";
 
@@ -94,6 +124,7 @@ export interface 오늘할일 {
  * 같은 주제 세 편이 잇달아 나와 서로 겹친다.
  */
 export function 오늘목록(방식: 차례 = 지금차례()): 오늘할일[] {
+  const 상한 = 지금상한();
   const 줄 = 줄세우기(방식);
   if (줄.length === 0) return [];
 
@@ -102,8 +133,8 @@ export function 오늘목록(방식: 차례 = 지금차례()): 오늘할일[] {
   const 목록: 오늘할일[] = [];
 
   // 한 바퀴씩 돌며 한 편씩 집는다. 다 떨어진 것은 건너뛴다.
-  while (목록.length < 하루상한 && 남은.some((n) => n > 0)) {
-    for (let i = 0; i < 줄.length && 목록.length < 하루상한; i++) {
+  while (목록.length < 상한 && 남은.some((n) => n > 0)) {
+    for (let i = 0; i < 줄.length && 목록.length < 상한; i++) {
       if (남은[i] <= 0) continue;
       남은[i]--;
       센것[i]++;
@@ -114,10 +145,11 @@ export function 오늘목록(방식: 차례 = 지금차례()): 오늘할일[] {
 }
 
 /** 지금 설정대로면 하루에 몇 편이 나오는가. 화면에 보여 준다. */
-export function 오늘몇편(방식: 차례 = 지금차례()): { 계획: number; 잘림: number } {
+export function 오늘몇편(방식: 차례 = 지금차례()): { 계획: number; 잘림: number; 상한: number } {
+  const 상한 = 지금상한();
   const 줄 = 줄세우기(방식);
   const 합 = 줄.reduce((a, c) => a + Math.max(0, Math.min(카테고리상한, c.daily_count ?? 1)), 0);
-  return { 계획: Math.min(합, 하루상한), 잘림: Math.max(0, 합 - 하루상한) };
+  return { 계획: Math.min(합, 상한), 잘림: Math.max(0, 합 - 상한), 상한 };
 }
 
 export function 차례정하기(방식: 차례): void {

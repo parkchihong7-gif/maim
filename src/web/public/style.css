@@ -1259,3 +1259,47 @@ textarea:focus {
 }
 .schedule-alarm strong { display: block; margin: 0 0 4px; font-size: 13.5px; }
 .schedule-alarm p { margin: 0; font-size: 13px; line-height: 1.7; color: var(--text-dim); }
+
+.schedule-cap-row { align-items: center; gap: 10px; }
+.schedule-cap-row input { max-width: 110px; text-align: center; font-weight: 700; font-size: 16px; }
+.schedule-cap-unit { font-size: 14px; font-weight: 600; color: var(--text-dim); }
+
+/* ── 설치 안내의 화면 캡처 ─────────────────────────────────────
+   «어디를 누르나» 는 글로 못 적는다. 실물을 보여 주는 편이 빠르다.
+   대신 캡처는 **한 곳만** 담는다. 화면 전체를 넣으면 어디를 봐야 할지
+   또 찾아야 한다. */
+.shot {
+  margin: 12px 0 14px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-sunk);
+}
+.shot img {
+  display: block;
+  /* **작은 그림을 억지로 늘리지 않는다.** width:100% 로 두면 600px 짜리
+     캡처가 1100px 로 늘어나 글자가 뭉개진다. 제 크기까지만 키운다. */
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  margin: 0 auto;
+  /* 밝은 화면을 찍은 것이라, 어두운 화면에서 눈이 부시지 않게 살짝 죽인다 */
+  background: #fff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .shot img { filter: brightness(.92); }
+}
+.shot figcaption {
+  padding: 9px 12px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+}
+.shot figcaption strong { color: var(--text); }
+
+/* 복사 단추가 붙은 명령칸 */
+.setup-code-row { display: flex; align-items: stretch; gap: 8px; margin: 8px 0; }
+.setup-code-row .setup-code { flex: 1; margin: 0; overflow-x: auto; }
+.setup-code-row .btn-copy-image { flex: 0 0 auto; white-space: nowrap; }

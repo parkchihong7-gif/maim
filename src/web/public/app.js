@@ -867,6 +867,23 @@ document.addEventListener("click", async (e) => {
       await switchView(btn.dataset.view);
     } else if (action === "show-error") {
       alert(btn.dataset.error || "오류 메시지가 없습니다.");
+    } else if (action === "save-daily-cap") {
+      const 칸 = document.getElementById("schedule-cap-input");
+      const 값 = Number(칸.value);
+      if (!Number.isFinite(값)) {
+        alert("숫자를 넣어 주세요.");
+        return;
+      }
+      const 답 = await api("/api/schedule", {
+        method: "PUT", body: JSON.stringify({ dailyCap: 값 }),
+      });
+      await refreshSchedule();
+      const 말 = document.getElementById("schedule-cap-note");
+      if (말) {
+        말.textContent = 답 && 답.notice
+          ? 답.notice
+          : `하루 ${답 && 답.dailyCap !== undefined ? 답.dailyCap : 값}건으로 저장했습니다.`;
+      }
     } else if (action === "save-setting") {
       const key = btn.dataset.key;
       const input = document.getElementById(btn.dataset.input);
@@ -949,8 +966,27 @@ document.addEventListener("click", async (e) => {
       panel.hidden = !panel.hidden;
       btn.textContent = panel.hidden ? "[매뉴얼 보기]" : "[매뉴얼 닫기]";
     } else if (action === "copy-code") {
-      const target = document.getElementById(btn.dataset.target);
-      await navigator.clipboard.writeText(target.textContent);
+      // `data-target` 으로 짚어 둔 것이 있으면 그것을, 없으면 **바로 위
+      // 명령칸**을 집는다. 명령마다 id 를 붙여 두면 하나 빠뜨릴 때 그
+      // 버튼만 조용히 안 먹는다.
+      const target = btn.dataset.target
+        ? document.getElementById(btn.dataset.target)
+        : btn.closest(".setup-code-row")?.querySelector(".setup-code");
+      if (!target) return;
+      const 글 = target.textContent.trim();
+      try {
+        await navigator.clipboard.writeText(글);
+      } catch {
+        // 브라우저가 클립보드를 막는 경우가 있다(오래된 판, 보안 설정).
+        // 그때는 글자를 잡아 두기만 해도 Ctrl+C 로 복사하실 수 있다.
+        const 범위 = document.createRange();
+        범위.selectNodeContents(target);
+        const 고른것 = window.getSelection();
+        고른것.removeAllRanges(); 고른것.addRange(범위);
+        btn.textContent = "Ctrl+C 를 누르세요";
+        setTimeout(() => { btn.textContent = "복사"; }, 2500);
+        return;
+      }
       const original = btn.textContent;
       btn.textContent = "복사됨!";
       setTimeout(() => {
@@ -1066,6 +1102,14 @@ async function refreshSchedule() {
       <input type="radio" name="schedule_order" value="${o.id}" ${o.id === s.order ? "checked" : ""} />
       <span>${escapeHtml(o.label)}</span>
     </label>`).join("");
+
+  // 하루 건수 칸. **사람이 고치는 중일 때는 덮어쓰지 않는다.**
+  // 8 을 지우고 3 을 넣으려는 찰나에 다시 그리면 손에서 숫자가 사라진다.
+  const 칸수 = document.getElementById("schedule-cap-input");
+  if (칸수 && document.activeElement !== 칸수) {
+    칸수.value = String(s.dailyCap);
+    칸수.max = String(s.dailyCapMax ?? 10);
+  }
 
   const 수 = document.getElementById("schedule-planned");
   const 말 = document.getElementById("schedule-note");

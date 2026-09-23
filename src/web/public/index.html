@@ -214,7 +214,25 @@
                 </div>
                 <div class="checklist-item">
                   <span class="checklist-item-box">☐</span>
-                  <span>화면 우측 상단 터미널 모양 아이콘(Cloud Shell 활성화) 클릭 → 화면 하단에 검은 터미널 창이 열릴 때까지 기다리기 (처음 켤 땐 10~30초 정도 걸릴 수 있음)</span>
+                  <span>화면 <strong>오른쪽 위</strong>의 터미널 모양 아이콘(<code>&gt;_</code>)을 누르면, 화면 아래에 검은 창이 열립니다. 처음 켤 땐 10~30초 걸립니다.</span>
+                </div>
+                <figure class="shot">
+                  <img src="/img/console_top.png" alt="Google Cloud 콘솔 맨 윗줄. 오른쪽에 터미널 모양 아이콘이 있다" loading="lazy">
+                  <figcaption><strong>①</strong> 화면 <strong>맨 윗줄 오른쪽 끝</strong>입니다. 파란 테두리를 두른 <code>&gt;_</code> 아이콘을 누르세요.</figcaption>
+                </figure>
+                <figure class="shot">
+                  <img src="/img/cloudshell1.png" alt="Cloud Shell 소개 대화상자. 오른쪽 아래에 계속 버튼이 있다" loading="lazy">
+                  <figcaption><strong>②</strong> 이 안내가 뜨면 <strong>[계속]</strong>을 누르세요. <em>모든 사용자가 Cloud Shell을 무료로 사용할 수 있습니다</em>라고 적힌 그 화면입니다.</figcaption>
+                </figure>
+                <figure class="shot">
+                  <img src="/img/cloudshell2.png" alt="화면 아래쪽에 열린 검은 터미널 창" loading="lazy">
+                  <figcaption><strong>③</strong> 화면 <strong>아래쪽에 검은 창</strong>이 열리고 <code>~$</code> 뒤에 커서가 깜빡이면 준비 끝입니다. 여기에 아래 명령들을 붙여넣습니다.</figcaption>
+                </figure>
+                <div class="checklist-item">
+                  <span class="checklist-item-box">⚠️</span>
+                  <span><strong>중간에 「Cloud Shell 승인」이 뜨면 [승인]을 누르세요.</strong>
+                    <span class="checklist-item-why"><code>gcloud</code> 명령을 처음 쓸 때 한 번 물어봅니다.
+                      [거부]를 누르면 그 명령이 그냥 실패하는데, 무엇 때문인지 화면에 잘 안 보입니다.</span></span>
                 </div>
               </div>
 
@@ -223,7 +241,10 @@
                 <div class="checklist-item">
                   <span class="checklist-item-box">☐</span>
                   <span>아래 명령어를 통째로 복사해서 터미널에 붙여넣고 Enter
-                    <pre class="setup-code">npm install -g @anthropic-ai/claude-code</pre>
+                    <div class="setup-code-row">
+                      <pre class="setup-code">npm install -g @anthropic-ai/claude-code</pre>
+                      <button class="btn-secondary btn-copy-image" data-action="copy-code">복사</button>
+                    </div>
                     <span class="checklist-item-why">뭘 하는 명령어인가요? <code>claude</code> 명령어 자체를 이 터미널에 설치하는 것입니다. "added N packages" 같은 문구가 뜨면 성공.</span>
                   </span>
                 </div>
@@ -235,8 +256,11 @@
                   <span class="checklist-item-box">☐</span>
                   <span>아래 명령어에서 <code>maim-data-YOUR_PROJECT_ID</code> 부분을 본인 버킷 이름으로 바꿔서 붙여넣기
                     (버킷 이름이 기억 안 나면 먼저 터미널에 <code>gcloud storage buckets list</code> 입력해서 <code>gs://</code>로 시작하는 이름 확인)
-                    <pre class="setup-code">gcloud storage buckets add-iam-policy-binding gs://maim-data-YOUR_PROJECT_ID \
+                    <div class="setup-code-row">
+                      <pre class="setup-code">gcloud storage buckets add-iam-policy-binding gs://maim-data-YOUR_PROJECT_ID \
   --member="user:$(gcloud config get-value account)" --role="roles/storage.objectAdmin"</pre>
+                      <button class="btn-secondary btn-copy-image" data-action="copy-code">복사</button>
+                    </div>
                     <span class="checklist-item-why">뭘 하는 명령어인가요? 지금 로그인한 내 구글 계정이 이 버킷에 파일을 쓸 수 있게 허락하는 것입니다. "Updated IAM policy" 문구가 뜨면 성공.</span>
                   </span>
                 </div>
@@ -247,8 +271,11 @@
                 <div class="checklist-item">
                   <span class="checklist-item-box">☐</span>
                   <span>아래 두 줄을 순서대로 붙여넣기
-                    <pre class="setup-code">mkdir -p /tmp/maim-home && export HOME=/tmp/maim-home
+                    <div class="setup-code-row">
+                      <pre class="setup-code">mkdir -p /tmp/maim-home && export HOME=/tmp/maim-home
 claude login</pre>
+                      <button class="btn-secondary btn-copy-image" data-action="copy-code">복사</button>
+                    </div>
                     <span class="checklist-item-why">첫 줄은 로그인 정보를 저장할 임시 폴더 준비, 둘째 줄이 진짜 로그인 시작입니다.</span>
                   </span>
                 </div>
@@ -271,7 +298,10 @@ claude login</pre>
                 <div class="checklist-item">
                   <span class="checklist-item-box">☐</span>
                   <span>아래 명령어도 버킷 이름을 본인 것으로 바꿔서 붙여넣기
-                    <pre class="setup-code">gcloud storage cp -r /tmp/maim-home/.claude gs://maim-data-YOUR_PROJECT_ID/home/.claude</pre>
+                    <div class="setup-code-row">
+                      <pre class="setup-code">gcloud storage cp -r /tmp/maim-home/.claude gs://maim-data-YOUR_PROJECT_ID/home/.claude</pre>
+                      <button class="btn-secondary btn-copy-image" data-action="copy-code">복사</button>
+                    </div>
                     <span class="checklist-item-why">뭘 하는 명령어인가요? 방금 만든 로그인 정보를 실제 서버(Cloud Run)가 읽는 위치로 옮기는 것입니다. 이걸 빼먹으면 터미널에서는 로그인됐지만 서버는 여전히 로그인 안 된 상태로 남습니다.</span>
                   </span>
                 </div>
@@ -303,6 +333,10 @@ claude login</pre>
             <p class="muted setup-current-value" data-current="unsplash_access_key"></p>
 
             <div class="setup-manual" data-manual-panel="unsplash" hidden>
+              <figure class="shot">
+                <img src="/img/unsplash.png" alt="unsplash 키 화면" loading="lazy">
+                <figcaption><strong>Access Key</strong> 한 줄만 복사하시면 됩니다. 파란 테두리 친 칸입니다. <strong>Secret key 는 쓰지 않습니다.</strong></figcaption>
+              </figure>
               <ol>
                 <li><a href="https://unsplash.com/developers" target="_blank" rel="noopener">unsplash.com/developers</a> 접속</li>
                 <li>우측 상단 <strong>"Register as a developer"</strong> 클릭(구글 계정으로 바로 가입 가능, 무료)</li>
@@ -334,6 +368,10 @@ claude login</pre>
             <p class="muted setup-current-value" data-current="pexels_api_key"></p>
 
             <div class="setup-manual" data-manual-panel="pexels" hidden>
+              <figure class="shot">
+                <img src="/img/pexels.png" alt="pexels 키 화면" loading="lazy">
+                <figcaption>로그인하면 <strong>API 키</strong>가 이 화면에 바로 보입니다. 오른쪽 복사 단추를 누르셔도 됩니다.</figcaption>
+              </figure>
               <ol>
                 <li><a href="https://www.pexels.com/api/" target="_blank" rel="noopener">pexels.com/api</a> 접속</li>
                 <li><strong>"Get Started"</strong> 클릭 → 이메일 또는 구글 계정으로 무료 가입</li>
@@ -362,6 +400,10 @@ claude login</pre>
             <p class="muted setup-current-value" data-current="pixabay_api_key"></p>
 
             <div class="setup-manual" data-manual-panel="pixabay" hidden>
+              <figure class="shot">
+                <img src="/img/pixabay.png" alt="pixabay 키 화면" loading="lazy">
+                <figcaption>문서 페이지 <strong>「매개변수」 표 맨 윗줄</strong>에 초록색으로 본인 키가 보입니다. 앱을 따로 만들지 않으셔도 됩니다.</figcaption>
+              </figure>
               <ol>
                 <li><a href="https://pixabay.com/api/docs/" target="_blank" rel="noopener">pixabay.com/api/docs</a> 접속</li>
                 <li>우측 상단에서 <strong>회원가입</strong>(이메일 또는 구글 계정, 무료)</li>
@@ -479,7 +521,15 @@ claude login</pre>
               설치 안내서 <strong>3-6</strong>을 따라 한 번만 걸어 두십시오.</p>
           </div>
 
-          <p class="muted" style="margin-top:14px">차례 — 하루 상한에 걸려 뒤가 잘릴 때 <strong>무엇이 잘리는지</strong>가 달라집니다</p>
+          <p class="muted" style="margin-top:16px">하루에 몇 건까지 준비할까요 <strong>(최대 10건)</strong></p>
+          <div class="setup-input-row schedule-cap-row">
+            <input type="number" id="schedule-cap-input" min="0" max="10" step="1" />
+            <span class="schedule-cap-unit">건 / 하루</span>
+            <button class="btn-primary" data-action="save-daily-cap">저장</button>
+          </div>
+          <p class="muted" id="schedule-cap-note">카테고리를 몇 개 만드시든, 하루에 나오는 글은 여기 적은 만큼입니다.</p>
+
+          <p class="muted" style="margin-top:18px">차례 — 하루 건수에 걸려 뒤가 잘릴 때 <strong>무엇이 잘리는지</strong>가 달라집니다</p>
           <div id="schedule-orders"></div>
 
           <div class="schedule-sum">
