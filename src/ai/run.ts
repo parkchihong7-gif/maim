@@ -121,6 +121,7 @@ export async function runAI(options: RunOptions): Promise<string> {
   const 키 = 엔진키(것);
   if (키) 환경[것.auth.envVar] = 키;
   if (!것.auth.loginWorksOnServer) 환경.HOME = 집차리기(것);
+  Object.assign(환경, 것.headlessEnv ?? {});
 
   const stdout = await new Promise<string>((resolve, reject) => {
     const 아이 = spawn(파일, 인자, { stdio: ["ignore", "pipe", "pipe"], env: 환경 });

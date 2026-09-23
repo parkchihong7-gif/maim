@@ -104,6 +104,17 @@ export interface Engine {
    * 써라» 라는 약속이 분명하다. 모양을 짐작하는 것보다 낫다.
    */
   wantsOutFile?: boolean;
+  /**
+   * **사람 없는 자리에서 돌리려면 있어야 하는 환경변수들.**
+   *
+   * 이 도구들은 원래 사람 앞에서 도는 물건이라, 물어보고 답을 기다리는
+   * 관문이 곳곳에 있다. 서버에는 답할 사람이 없으니 그 관문마다 멈춘다.
+   *
+   * 깃발(`--skip-…`)로도 되지만 환경변수 쪽을 쓴다. 다음 판에서 깃발이
+   * 사라지면 **모르는 깃발이라며 그 자리에서 죽는데**, 모르는 환경변수는
+   * 그냥 무시될 뿐이다. 조용히 무시되는 쪽이 갑자기 죽는 쪽보다 낫다.
+   */
+  headlessEnv?: Record<string, string>;
   /** 명령줄 인자를 짠다. */
   args(ask: RunAsk): string[];
   /**
@@ -173,6 +184,12 @@ export const ENGINES: Record<EngineId, Engine> = {
     install: "npm install -g @google/gemini-cli",
     login: "gemini",
     home: ".gemini",
+    headlessEnv: {
+      // 이게 없으면 「믿을 만한 폴더가 아니다」 며 55 로 멈춘다. 사람이
+      // 있으면 «이 폴더를 믿겠습니까» 를 물어보는데, 서버에는 답할 사람이
+      // 없다. 우리 서버의 일터는 우리가 만든 자리니 믿어도 된다.
+      GEMINI_CLI_TRUST_WORKSPACE: "true",
+    },
     auth: {
       // 구글 공식 문서: 사람 없는 자리에서는 캐시된 로그인이 없는 한
       // `GEMINI_API_KEY` 를 요구한다. 로그인 폴더를 올려 봐도 서버에서
