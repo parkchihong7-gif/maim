@@ -12,7 +12,7 @@ import {
   resolvePostingDirectionInstruction,
 } from "../../db/repositories/settings.js";
 import { runAI, 지금엔진, 엔진고르기, 엔진키, 준비됐나 } from "../../ai/run.js";
-import { ENGINE_IDS, ENGINES, ENGINE_KEY_SETTINGS } from "../../ai/engines.js";
+import { ENGINE_IDS, ENGINES, ENGINE_KEY_SETTINGS, 키검사 } from "../../ai/engines.js";
 import { buildPreviewPrompt } from "../../claude/promptBuilder.js";
 import { buildBlogProfileBlock } from "../../claude/blogProfile.js";
 import { parsePreviewResponse } from "../../claude/parseResponse.js";
@@ -53,8 +53,18 @@ export async function settingsRoutes(app: FastifyInstance) {
     };
   });
 
-  app.put("/api/settings", async (req) => {
+  app.put("/api/settings", async (req, reply) => {
     const body = req.body as Record<string, string | null>;
+
+    // AI 키는 **저장하기 전에** 본다. 잘못된 것이 들어가면 나중에
+    // 「연결 테스트」 에서 알아보기 어려운 영문 오류로만 나타난다.
+    for (const key of ENGINE_KEY_SETTINGS) {
+      const 값 = body[key];
+      if (!(key in body) || 값 === null || 값 === "") continue;
+      const 탈 = 키검사(String(값));
+      if (탈) { reply.code(400); return { error: 탈 }; }
+    }
+
     for (const key of SETTINGS_KEYS) {
       if (key in body) setSetting(key, body[key]);
     }

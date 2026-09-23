@@ -337,6 +337,34 @@ export const ENGINES: Record<EngineId, Engine> = {
   },
 };
 
+/**
+ * 넣으신 것이 **키처럼 생겼는지** 본다. 아니면 까닭을 한국어로 돌려준다.
+ *
+ * 왜 필요한가
+ *   키는 HTTP 머리글에 실려 나간다. 거기에는 **아스키 글자만** 들어간다.
+ *   한글이 섞이면 이런 말이 나온다.
+ *
+ *     Cannot convert argument to a ByteString because the character at
+ *     index 0 has a value of 51652 which is greater than 255
+ *
+ *   51652 는 «진» 이다. 안내 글자를 지우지 않고 그대로 넣으셨다는 뜻인데,
+ *   저 영문만 보고 그걸 알아내는 것은 사실상 불가능하다. 실제로 그렇게
+ *   한 번 헤맸다. 그러니 **넣는 자리에서** 잡는다.
+ */
+export function 키검사(값: string): string {
+  const 글 = (값 ?? "").trim();
+  if (!글) return "키가 비어 있습니다.";
+  if (/[\s]/.test(글)) return "키에 빈칸이나 줄바꿈이 섞여 있습니다. 앞뒤가 잘리지 않았는지 보시고 다시 붙여넣어 주세요.";
+  // 아스키(32~126) 밖의 글자 — 한글·따옴표 기호 따위.
+  const 딴글자 = [...글].find((c) => c.charCodeAt(0) < 32 || c.charCodeAt(0) > 126);
+  if (딴글자) {
+    return `키에 «${딴글자}» 같은 글자가 들어 있습니다. API 키는 영문·숫자·기호로만 되어 있습니다. `
+         + `안내 글자를 지우지 않고 넣으셨거나, 다른 것을 붙여넣으신 것 같습니다.`;
+  }
+  if (글.length < 20) return `키가 너무 짧습니다 (${글.length}자). 앞부분만 복사되지 않았는지 보아 주세요.`;
+  return "";
+}
+
 export const ENGINE_IDS = Object.keys(ENGINES) as EngineId[];
 
 export function 엔진(id: string | undefined): Engine {

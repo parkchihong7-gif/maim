@@ -1356,8 +1356,15 @@ document.addEventListener("click", async (e) => {
   const 것 = 엔진목록 && 엔진목록.engines.find((x) => x.id === 엔진목록.current);
   const 칸 = document.getElementById("ai-key-input");
   if (!것 || !칸) return;
+  const 상태 = document.getElementById("ai-key-state");
+  const 말하기 = (글, 탈났나) => {
+    if (!상태) return;
+    상태.innerHTML = 글;
+    상태.className = 탈났나 ? "setup-warn" : "muted";
+  };
+
   const 값 = 칸.value.trim();
-  if (!값) { alert("키를 붙여넣어 주세요."); return; }
+  if (!값) { 말하기("키를 붙여넣어 주세요.", true); return; }
   btn.disabled = true;
   try {
     await api("/api/settings", { method: "PUT", body: JSON.stringify({ [것.settingKey]: 값 }) });
@@ -1367,7 +1374,9 @@ document.addEventListener("click", async (e) => {
     updateSetupProgress();
     await refreshEngines();
   } catch (탈) {
-    alert("키를 저장하지 못했습니다: " + (탈 && 탈.message ? 탈.message : 탈));
+    // 창을 띄우지 않는다. 창은 닫으면 사라져서, 무엇이 잘못됐는지
+    // 다시 볼 수가 없다. 칸 바로 아래에 남겨 둔다.
+    말하기(escapeHtml(탈 && 탈.message ? 탈.message : String(탈)), true);
   } finally {
     btn.disabled = false;
   }
