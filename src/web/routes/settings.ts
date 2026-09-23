@@ -10,7 +10,8 @@ import {
   deleteCustomPreset,
   resolvePostingDirectionInstruction,
 } from "../../db/repositories/settings.js";
-import { runClaude } from "../../claude/runClaude.js";
+import { runAI, 지금엔진, 엔진고르기 } from "../../ai/run.js";
+import { ENGINE_IDS, ENGINES } from "../../ai/engines.js";
 import { buildPreviewPrompt } from "../../claude/promptBuilder.js";
 import { buildBlogProfileBlock } from "../../claude/blogProfile.js";
 import { parsePreviewResponse } from "../../claude/parseResponse.js";
@@ -57,20 +58,40 @@ export async function settingsRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  // 실제 비용이 발생하는 claude -p 호출이므로 사용자가 버튼을 눌렀을 때만 실행한다.
+  // 어느 AI 를 쓰는지, 고를 수 있는 것은 무엇인지.
+  app.get("/api/settings/ai", async () => {
+    const 지금 = 지금엔진();
+    return {
+      current: 지금.id,
+      engines: ENGINE_IDS.map((id) => {
+        const e = ENGINES[id];
+        return { id: e.id, label: e.label, cost: e.cost,
+                 install: e.install, login: e.login, home: e.home };
+      }),
+    };
+  });
+
+  app.put("/api/settings/ai", async (req, reply) => {
+    const { engine } = (req.body ?? {}) as { engine?: string };
+    try {
+      const 것 = 엔진고르기(String(engine));
+      return { ok: true, current: 것.id };
+    } catch (탈) {
+      reply.code(400);
+      return { error: (탈 as Error).message };
+    }
+  });
+
+  // 실제로 한 번 불러 보는 것이라 사용자가 버튼을 눌렀을 때만 실행한다.
   app.post("/api/settings/test-claude", async () => {
     try {
-      const envelope = await runClaude({
+      await runAI({
         prompt: "연결 테스트다. 다른 설명 없이 'ok'라고만 답하라.",
-        noTools: true,
         timeoutMs: 30_000,
       });
-      if (envelope.is_error) {
-        return { ok: false, error: envelope.result };
-      }
-      return { ok: true };
+      return { ok: true, engine: 지금엔진().label };
     } catch (err) {
-      return { ok: false, error: (err as Error).message };
+      return { ok: false, engine: 지금엔진().label, error: (err as Error).message };
     }
   });
 
@@ -92,12 +113,8 @@ export async function settingsRoutes(app: FastifyInstance) {
     const prompt = buildPreviewPrompt(directive, blogProfileBlock);
 
     try {
-      const envelope = await runClaude({ prompt, noTools: true, timeoutMs: 120_000 });
-      if (envelope.is_error) {
-        reply.code(502);
-        return { error: `미리보기 생성 실패: ${envelope.result}` };
-      }
-      const preview = parsePreviewResponse(envelope.result);
+      const 답 = await runAI({ prompt, timeoutMs: 120_000 });
+      const preview = parsePreviewResponse(답);
       return preview;
     } catch (err) {
       reply.code(502);

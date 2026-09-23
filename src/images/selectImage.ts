@@ -1,5 +1,5 @@
 import path from "node:path";
-import { runClaude } from "../claude/runClaude.js";
+import { runAI } from "../ai/run.js";
 import { parseImageSelectResponse } from "../claude/parseResponse.js";
 import { buildImageSelectPrompt } from "../claude/promptBuilder.js";
 import type { DownloadedCandidate } from "./searchImages.js";
@@ -49,16 +49,8 @@ export async function selectBestImages(
   try {
     const dir = path.dirname(candidateFiles[0]);
     const prompt = buildImageSelectPrompt(candidateFiles, postSummary, count);
-    const envelope = await runClaude({
-      prompt,
-      allowedTools: ["Read"],
-      addDir: dir,
-      timeoutMs: 150_000,
-    });
-    if (envelope.is_error) {
-      throw new Error(envelope.result);
-    }
-    const parsed = parseImageSelectResponse(envelope.result);
+    const 답 = await runAI({ prompt, readDir: dir, timeoutMs: 150_000 });
+    const parsed = parseImageSelectResponse(답);
     selectedIndices = parsed.selected_indices;
     altTexts = parsed.alt_texts;
     console.log(`이미지 선택: indices=${selectedIndices.join(",")}, reason=${parsed.reason}`);

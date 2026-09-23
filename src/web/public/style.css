@@ -1379,3 +1379,25 @@ textarea:focus {
   margin-right: 2px; border-radius: 50%; text-align: center;
   background: var(--gold); color: #fff; font-size: 11px;
 }
+
+/* ── 글 쓸 AI 고르기 ──────────────────────────────────────────
+   «Claude Pro 를 구독하셔야 합니다» 가 판매 저항 1순위였다. 셋 중에
+   고르시게 하고, 요금이 어떻게 되는지를 이름 바로 아래 적는다 —
+   Gemini 가 무료라는 것이 한눈에 보여야 고르실 수 있다. */
+.engine {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 13px 15px; margin: 0 0 8px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg-sunk); cursor: pointer;
+  transition: border-color .12s, background .12s;
+}
+.engine:hover { border-color: var(--gold); }
+.engine.on {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 8%, transparent);
+}
+.engine input { margin: 3px 0 0; accent-color: var(--gold); flex: 0 0 auto; }
+.engine-body { display: block; }
+.engine-name { display: block; font-size: 14px; font-weight: 700; margin: 0 0 3px; }
+.engine-cost { display: block; font-size: 12.5px; line-height: 1.65; color: var(--text-dim); }
+.engine-cost strong { color: var(--gold); }

@@ -4,7 +4,7 @@ import { insertDraftPost, listRecentTitles, type Post } from "../db/repositories
 import { markCategoryUsed } from "../db/repositories/categories.js";
 import { buildPostPrompt } from "../claude/promptBuilder.js";
 import { buildBlogProfileBlock } from "../claude/blogProfile.js";
-import { runClaude } from "../claude/runClaude.js";
+import { runAI } from "../ai/run.js";
 import { parsePostResponse } from "../claude/parseResponse.js";
 import { getSettings, resolvePostingDirectionInstruction } from "../db/repositories/settings.js";
 import type { PostDirective } from "./directives.js";
@@ -32,15 +32,10 @@ export async function generatePost(category: Category, directive: PostDirective)
   const prompt = buildPostPrompt(category, directive, today, recentTitles, blogProfileBlock);
 
   const requiresSearch = category.requires_search === 1;
-  const allowedTools = requiresSearch ? ["WebSearch"] : undefined;
-  const noTools = !requiresSearch;
 
   const attempt = async (p: string) => {
-    const envelope = await runClaude({ prompt: p, allowedTools, noTools, timeoutMs: 240_000 });
-    if (envelope.is_error) {
-      throw new Error(`claude -p 응답 오류: ${envelope.result}`);
-    }
-    return parsePostResponse(envelope.result);
+    const 답 = await runAI({ prompt: p, needsSearch: requiresSearch, timeoutMs: 240_000 });
+    return parsePostResponse(답);
   };
 
   let parsed: Awaited<ReturnType<typeof attempt>>;

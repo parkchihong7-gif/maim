@@ -718,7 +718,7 @@ async function switchView(view) {
   document.querySelectorAll(".sidebar-nav-item").forEach((navBtn) => {
     navBtn.classList.toggle("active", navBtn.dataset.view === view);
   });
-  if (view === "settings") { await refreshSettings(); await refreshSchedule(); }
+  if (view === "settings") { await refreshSettings(); await refreshSchedule(); await refreshEngines(); }
   if (view === "home") renderHome();
 }
 
@@ -1213,4 +1213,76 @@ document.addEventListener("change", async (e) => {
   } catch (err) {
     alert("차례를 바꾸지 못했습니다: " + (err && err.message ? err.message : err));
   }
+});
+
+
+// ─────────────────────────────────────────── 글 쓸 AI 고르기
+//
+// 한동안 Claude 하나였다. 파는 입장에서 이게 제일 큰 걸림돌이다 —
+// «Claude Pro 를 구독하셔야 합니다» 에서 사시려던 분이 멈춘다. 이미 쓰는
+// AI 가 있는데 하나 더 들라는 말이기 때문이다.
+//
+// 셋 중에 고르시게 한다. **Gemini 는 개인 구글 계정이면 무료**라, 돈 한 푼
+// 안 들이고 쓰실 수 있다는 것을 화면에서 바로 보이게 둔다.
+
+let 엔진목록 = null;
+
+function 굵게(글) {
+  // 설명에 쓰인 **굵게** 를 진짜 굵은 글씨로. 화면에 별표가 그대로
+  // 보이면 지저분하고, «무료» 가 눈에 안 들어온다.
+  return escapeHtml(글).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+}
+
+async function refreshEngines() {
+  const 칸 = document.getElementById("ai-engines");
+  if (!칸) return;
+  try {
+    엔진목록 = await api("/api/settings/ai");
+  } catch {
+    return;   // 로그인 전이거나 잠깐 못 닿은 것
+  }
+  칸.innerHTML = 엔진목록.engines.map((e) => `
+    <label class="engine ${e.id === 엔진목록.current ? "on" : ""}">
+      <input type="radio" name="ai_engine" value="${e.id}" ${e.id === 엔진목록.current ? "checked" : ""} />
+      <span class="engine-body">
+        <span class="engine-name">${escapeHtml(e.label)}</span>
+        <span class="engine-cost">${굵게(e.cost)}</span>
+      </span>
+    </label>`).join("");
+  엔진명령보이기();
+}
+
+function 엔진명령보이기() {
+  if (!엔진목록) return;
+  const 것 = 엔진목록.engines.find((e) => e.id === 엔진목록.current);
+  if (!것) return;
+  const 설치 = document.getElementById("ai-install-cmd");
+  const 로그인 = document.getElementById("claude-login-cmd");
+  const 자리 = document.getElementById("ai-home-note");
+  if (설치) 설치.textContent = 것.install;
+  if (로그인) 로그인.textContent = 것.login;
+  if (자리) {
+    자리.innerHTML = `로그인하면 <code>~/${escapeHtml(것.home)}</code> 에 남습니다. `
+      + `설치 안내서의 <strong>마무리 단계</strong>에서 이 폴더를 저장통에 올리셔야 `
+      + `서버가 그 로그인을 씁니다.`;
+  }
+}
+
+document.addEventListener("change", async (e) => {
+  const el = e.target;
+  if (!(el instanceof HTMLInputElement) || el.name !== "ai_engine") return;
+  try {
+    await api("/api/settings/ai", { method: "PUT", body: JSON.stringify({ engine: el.value }) });
+  } catch (탈) {
+    alert("AI 를 바꾸지 못했습니다: " + (탈 && 탈.message ? 탈.message : 탈));
+    return;
+  }
+  // 바꾸면 로그인 상태가 달라진다. 초록 표시를 지워, 다시 [연결 테스트] 를
+  // 누르게 한다 — 안 그러면 «Claude 는 됐으니 Gemini 도 되겠지» 로 넘어간다.
+  claudeTestedOk = false;
+  setStepBadge("claude", false);
+  updateSetupProgress();
+  const 결과 = document.querySelector('[data-result="claude"]');
+  if (결과) { 결과.textContent = ""; 결과.className = "setup-step-result"; }
+  await refreshEngines();
 });

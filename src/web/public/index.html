@@ -191,17 +191,27 @@
           <div class="setup-step" data-step="claude">
             <div class="setup-step-header">
               <span class="setup-step-badge" data-badge="claude">○</span>
-              <strong>1단계. Claude CLI 로그인</strong>
+              <strong>1단계. 글 쓸 AI 고르고 로그인</strong>
               <a href="#" class="manual-toggle" data-action="toggle-manual" data-manual="claude">[매뉴얼 보기]</a>
             </div>
             <p class="muted">⚠️ 이 단계는 프로그램을 만들거나 고치는 것과 전혀 상관없습니다. 이 프로그램이 글을 쓸 때
-              내부적으로 <code>claude</code>라는 명령어를 실행하는데, "누구의 Claude 구독으로 실행할지" 딱 한 번
-              등록해두는 로그인 절차일 뿐입니다. 코드를 건드리거나 재배포할 필요가 전혀 없어요.</p>
-            <p class="muted">터미널에 붙여넣을 명령어:</p>
+              AI 명령 도구를 실행하는데, <strong>"누구의 계정으로 실행할지"</strong> 딱 한 번 등록해두는
+              로그인 절차일 뿐입니다. 코드를 건드리거나 재배포할 필요가 전혀 없어요.</p>
+
+            <p class="muted" style="margin-top:14px">어느 AI 로 쓰시겠습니까</p>
+            <div id="ai-engines"></div>
+
+            <p class="muted" style="margin-top:14px">검은 창(Cloud Shell)에 이 두 줄을 차례로 붙여넣으세요:</p>
+            <div class="setup-code-row">
+              <pre class="setup-code" id="ai-install-cmd">npm install -g @anthropic-ai/claude-code</pre>
+              <button class="btn-secondary btn-copy-image" data-action="copy-code" data-target="ai-install-cmd">복사</button>
+            </div>
             <div class="setup-code-row">
               <pre class="setup-code" id="claude-login-cmd">claude login</pre>
               <button class="btn-secondary btn-copy-image" data-action="copy-code" data-target="claude-login-cmd">복사</button>
             </div>
+            <p class="muted" id="ai-home-note"></p>
+
             <button class="btn-secondary" data-action="test-claude">연결 테스트</button>
             <span class="setup-step-result" data-result="claude"></span>
 
