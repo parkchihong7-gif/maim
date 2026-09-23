@@ -1238,8 +1238,15 @@ async function refreshEngines() {
   if (!칸) return;
   try {
     엔진목록 = await api("/api/settings/ai");
-  } catch {
-    return;   // 로그인 전이거나 잠깐 못 닿은 것
+  } catch (탈) {
+    // 여기서 그냥 돌아가면 **칸이 텅 빈 채로** 화면이 뜬다. 고르실 것이
+    // 하나도 안 보이는데 왜인지도 안 나와서, 쓰시는 분은 프로그램이
+    // 망가진 줄 아신다. 무엇 때문에 못 불러왔는지 그 자리에 적는다.
+    const 말 = 탈 && 탈.message ? 탈.message : String(탈);
+    칸.innerHTML = `<p class="setup-warn">설정을 불러오지 못했습니다 — ${escapeHtml(말)}<br>`
+      + `<strong>새로고침(F5)</strong> 을 한 번 해 보시고, 그래도 같으면 `
+      + `방금 글을 만드는 중일 수 있습니다. 1~2분 뒤 다시 열어 보세요.</p>`;
+    return;
   }
   칸.innerHTML = 엔진목록.engines.map((e) => `
     <label class="engine ${e.id === 엔진목록.current ? "on" : ""}">
