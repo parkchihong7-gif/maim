@@ -12,8 +12,8 @@ import {
   deleteCustomPreset,
   resolvePostingDirectionInstruction,
 } from "../../db/repositories/settings.js";
-import { runAI, 지금엔진, 엔진고르기, 엔진키, 준비됐나 } from "../../ai/run.js";
-import { ENGINE_IDS, ENGINES, ENGINE_KEY_SETTINGS, 키검사 } from "../../ai/engines.js";
+import { runAI, 지금엔진, 엔진고르기, 엔진키, 엔진모델, 준비됐나 } from "../../ai/run.js";
+import { ENGINE_IDS, ENGINES, ENGINE_KEY_SETTINGS, ENGINE_MODEL_SETTINGS, 키검사 } from "../../ai/engines.js";
 import { buildPreviewPrompt } from "../../claude/promptBuilder.js";
 import { buildBlogProfileBlock } from "../../claude/blogProfile.js";
 import { parsePreviewResponse } from "../../claude/parseResponse.js";
@@ -21,6 +21,8 @@ import { parsePreviewResponse } from "../../claude/parseResponse.js";
 const SETTINGS_KEYS = [
   // AI 엔진마다의 API 키 (gemini_api_key 등). engines.ts 가 이름의 주인이다.
   ...ENGINE_KEY_SETTINGS,
+  // 어느 모델로 쓸지 (gemini_model 등). 비워 두면 도구 기본값.
+  ...ENGINE_MODEL_SETTINGS,
   "unsplash_access_key",
   "pexels_api_key",
   "pixabay_api_key",
@@ -100,6 +102,10 @@ export async function settingsRoutes(app: FastifyInstance) {
           keyHow: e.auth.keyHow,
           settingKey: e.auth.settingKey,
           keySet: !!엔진키(e),
+          modelSetting: e.modelSetting,
+          canChangeModel: 주인,
+          modelHint: e.modelHint,
+          model: 엔진모델(e),
           key: 주인 ? maskSecret(엔진키(e) || null) : null,
         };
       }),

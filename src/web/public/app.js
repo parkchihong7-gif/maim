@@ -1334,6 +1334,8 @@ function 엔진명령보이기() {
     return;
   }
 
+  모델칸보이기(것);
+
   // ── 키 한 줄을 받는 길 ──
   const 어떻게 = document.getElementById("ai-key-how");
   if (어떻게) 어떻게.innerHTML = 굵게(것.keyHow || "");
@@ -1349,7 +1351,49 @@ function 엔진명령보이기() {
   }
 }
 
+// 같은 프롬프트를 줘도 **어느 모델이 쓰느냐**에 따라 글의 결이 달라진다.
+// 도구마다 기본값의 급이 달라서(예: Gemini CLI 는 빠른 쪽인 flash 로 붙는다)
+// 「Claude 로 뽑은 것과 왜 다르지」 가 생긴다. 고르실 수 있게 둔다.
+function 모델칸보이기(것) {
+  const 줄 = document.getElementById("ai-model-row");
+  if (!줄 || !것.modelSetting) { if (줄) 줄.hidden = true; return; }
+  줄.hidden = !것.canChangeModel;
+  const 힌트 = document.getElementById("ai-model-hint");
+  if (힌트) 힌트.textContent = 것.modelHint || "";
+  const 칸 = document.getElementById("ai-model-input");
+  if (칸) 칸.value = 것.model || "";
+  const 상태 = document.getElementById("ai-model-state");
+  if (상태) {
+    상태.className = "muted";
+    상태.textContent = 것.model
+      ? `지금 «${것.model}» 로 씁니다.`
+      : "지금은 도구 기본값으로 씁니다.";
+  }
+}
+
 document.addEventListener("click", async (e) => {
+  const 모델단추 = e.target.closest && e.target.closest('[data-action="save-ai-model"]');
+  if (모델단추) {
+    e.preventDefault();
+    const 것 = 엔진목록 && 엔진목록.engines.find((x) => x.id === 엔진목록.current);
+    const 칸 = document.getElementById("ai-model-input");
+    const 상태 = document.getElementById("ai-model-state");
+    if (!것 || !칸) return;
+    모델단추.disabled = true;
+    try {
+      await api("/api/settings", { method: "PUT", body: JSON.stringify({ [것.modelSetting]: 칸.value.trim() }) });
+      claudeTestedOk = false;
+      setStepBadge("claude", false);
+      updateSetupProgress();
+      await refreshEngines();
+    } catch (탈) {
+      if (상태) { 상태.className = "setup-warn"; 상태.textContent = 탈 && 탈.message ? 탈.message : String(탈); }
+    } finally {
+      모델단추.disabled = false;
+    }
+    return;
+  }
+
   const btn = e.target.closest && e.target.closest('[data-action="save-ai-key"]');
   if (!btn) return;
   e.preventDefault();

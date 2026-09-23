@@ -224,6 +224,19 @@
               <p class="muted" id="ai-key-state"></p>
             </div>
 
+            <div id="ai-model-row" hidden>
+              <p class="muted" style="margin-top:16px">
+                <strong>어느 모델로 쓸까요</strong> — 글의 품질이 여기서 갈립니다.
+                <span id="ai-model-hint"></span>
+              </p>
+              <div class="setup-code-row">
+                <input type="text" id="ai-model-input" class="setup-key-input"
+                       placeholder="비워 두면 기본값" autocomplete="off">
+                <button class="btn-secondary" data-action="save-ai-model">저장</button>
+              </div>
+              <p class="muted" id="ai-model-state"></p>
+            </div>
+
             <button class="btn-secondary" data-action="test-claude">연결 테스트</button>
             <span class="setup-step-result" data-result="claude"></span>
 

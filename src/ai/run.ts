@@ -45,6 +45,13 @@ export function 엔진키(것: Engine): string {
  * 로그인 폴더가 안 먹는 엔진(Gemini)에 키가 없으면, 실행해 봐야 41 로
  * 죽으면서 영문 스택이 나올 뿐이다. 그 전에 한국어로 잡아 준다.
  */
+/** 고르신 모델. 비어 있으면 도구 기본값을 쓴다. */
+export function 엔진모델(것: Engine): string {
+  const 저장된 = (getSetting(것.modelSetting) ?? "").trim();
+  if (저장된) return 저장된;
+  return (process.env[`${것.id.toUpperCase()}_MODEL`] ?? "").trim();
+}
+
 export function 준비됐나(것: Engine = 지금엔진()): { ok: boolean; why: string } {
   if (것.auth.loginWorksOnServer) return { ok: true, why: "" };
   if (엔진키(것)) return { ok: true, why: "" };
@@ -110,7 +117,9 @@ export async function runAI(options: RunOptions): Promise<string> {
   const 답자리 = 것.wantsOutFile
     ? path.join(fs.mkdtempSync(path.join(os.tmpdir(), "ai-")), "answer.txt")
     : "";
-  const 인자 = 것.args(답자리 ? { ...options, outFile: 답자리 } : options);
+  const 물음: RunAsk = { ...options, model: 엔진모델(것) || undefined };
+  if (답자리) 물음.outFile = 답자리;
+  const 인자 = 것.args(물음);
 
   const 준비 = 준비됐나(것);
   if (!준비.ok) throw new Error(준비.why);

@@ -45,6 +45,8 @@ export interface RunAsk {
    * 부르는 쪽에서 넣을 것이 아니다.
    */
   outFile?: string;
+  /** 고르신 모델. 비어 있으면 도구 기본값. runAI 가 채워 준다. */
+  model?: string;
 }
 
 /** 사람이 없는 서버에서 이 엔진을 어떻게 인증시키나. */
@@ -115,6 +117,22 @@ export interface Engine {
    * 그냥 무시될 뿐이다. 조용히 무시되는 쪽이 갑자기 죽는 쪽보다 낫다.
    */
   headlessEnv?: Record<string, string>;
+  /**
+   * 어느 **모델**로 쓸지 적어 두는 설정 칸 이름.
+   *
+   * 지금까지는 도구의 기본값을 그대로 썼다. 그런데 그 기본값이 회사마다
+   * 급이 다르다 — Gemini CLI 는 `gemini-3-flash-preview` 로 붙는데,
+   * flash 는 **빠르고 싼 쪽**이다. Claude Code 의 기본은 그보다 윗급이다.
+   * 같은 프롬프트를 줘도 글의 결이 달라질 수밖에 없다.
+   *
+   * 그렇다고 우리가 윗급 모델을 기본으로 박아 두면 안 된다. 무료 등급
+   * 키로는 그 모델이 아예 안 열려서, **지금 잘 되던 분이 갑자기 안 되게**
+   * 된다. 그래서 «비워 두면 도구 기본값» 으로 두고, 바꾸고 싶은 분만
+   * 적으시게 한다.
+   */
+  modelSetting: string;
+  /** 모델 칸에 적을 만한 것들. 화면에 보기로 보인다. */
+  modelHint: string;
   /** 명령줄 인자를 짠다. */
   args(ask: RunAsk): string[];
   /**
@@ -192,6 +210,8 @@ export const ENGINES: Record<EngineId, Engine> = {
     install: "npm install -g @anthropic-ai/claude-code",
     login: "claude login",
     home: ".claude",
+    modelSetting: "claude_model",
+    modelHint: "비워 두면 Claude Code 기본값. 예: opus · sonnet",
     auth: {
       loginWorksOnServer: true,
       envVar: "ANTHROPIC_API_KEY",
@@ -203,6 +223,7 @@ export const ENGINES: Record<EngineId, Engine> = {
     args(ask) {
       const a = ["-p", ask.prompt, "--output-format", "json",
                  "--permission-mode", "acceptEdits"];
+      if (ask.model) a.push("--model", ask.model);
       if (ask.readDir) { a.push("--allowedTools", "Read", "--add-dir", ask.readDir); }
       else if (ask.needsSearch) { a.push("--allowedTools", "WebSearch"); }
       else { a.push("--tools", ""); }
@@ -225,6 +246,9 @@ export const ENGINES: Record<EngineId, Engine> = {
     install: "npm install -g @google/gemini-cli",
     login: "gemini",
     home: ".gemini",
+    modelSetting: "gemini_model",
+    modelHint: "비워 두면 Gemini CLI 기본값(빠른 쪽인 flash 로 붙습니다). "
+             + "윗급을 쓰시려면 모델 이름을 적으세요 — 키 등급에 따라 안 열릴 수 있습니다.",
     headlessEnv: {
       // 이게 없으면 「믿을 만한 폴더가 아니다」 며 55 로 멈춘다. 사람이
       // 있으면 «이 폴더를 믿겠습니까» 를 물어보는데, 서버에는 답할 사람이
@@ -251,6 +275,7 @@ export const ENGINES: Record<EngineId, Engine> = {
       // `--approval-mode yolo` 로 도구를 자동 승인한다. 사람이 없는 자리라
       // 물어보면 거기서 멈춘다. (`--yolo` 와 같은 뜻인데 이쪽이 새 이름이다.)
       const a = ["-p", ask.prompt, "--output-format", "json"];
+      if (ask.model) a.push("-m", ask.model);
       if (ask.readDir || ask.needsSearch) a.push("--approval-mode", "yolo");
       return a;
     },
@@ -269,6 +294,8 @@ export const ENGINES: Record<EngineId, Engine> = {
     install: "npm install -g @openai/codex",
     login: "codex login",
     home: ".codex",
+    modelSetting: "codex_model",
+    modelHint: "비워 두면 Codex 기본값.",
     auth: {
       loginWorksOnServer: true,
       envVar: "OPENAI_API_KEY",
@@ -280,6 +307,7 @@ export const ENGINES: Record<EngineId, Engine> = {
     wantsOutFile: true,
     args(ask) {
       const a = ["exec", ask.prompt, "--json"];
+      if (ask.model) a.push("-m", ask.model);
       // 우리 서버의 일터는 깃 저장소가 아니다. 이게 없으면 Codex 는
       // «Not inside a trusted directory» 한 줄만 남기고 **언제나** 멈춘다.
       // 그런데 그 줄은 JSON 이 아니라서, 없으면 「로그인이 안 됐나 봅니다」
@@ -374,3 +402,6 @@ export function 엔진(id: string | undefined): Engine {
 
 /** 대시보드가 키를 저장해 둘 수 있는 이름 전부. 설정 화면이 이걸 쓴다. */
 export const ENGINE_KEY_SETTINGS = ENGINE_IDS.map((id) => ENGINES[id].auth.settingKey);
+
+/** 모델을 적어 두는 칸 이름 전부. */
+export const ENGINE_MODEL_SETTINGS = ENGINE_IDS.map((id) => ENGINES[id].modelSetting);
