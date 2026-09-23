@@ -7,7 +7,7 @@ import {
 } from "../../db/repositories/categories.js";
 import {
   오늘목록, 오늘몇편, 지금차례, 차례정하기, 차례이름, 하루최대, 지금상한, 상한정하기, 카테고리상한,
-  지금시각, 시각정하기, 크론식,
+  지금시각, 시각정하기, 크론식, 맞춘시각, 맞췄다고적기, 반만바뀌었나,
   마지막으로돈때,
   type 차례,
 } from "../../scheduler/예약.js";
@@ -40,6 +40,8 @@ export async function categoriesRoutes(app: FastifyInstance) {
       lastRun: 마지막으로돈때(),
       time: 지금시각(),
       cron: 크론식(),
+      syncedTime: 맞춘시각(),
+      needsSync: 반만바뀌었나(),
       // Cloud Run 은 아무도 안 쓸 때 잠들고, 잠든 프로세스의 시계는 멈춘다.
       // 그래서 **시각을 여기서 바꿔도 그것만으로는 안 바뀐다.** 밖에서
       // 두드려 주는 Cloud Scheduler 가 진짜 자명종이고, 그건 이 프로그램이
@@ -52,8 +54,14 @@ export async function categoriesRoutes(app: FastifyInstance) {
   });
 
   app.put("/api/schedule", async (req, reply) => {
-    const { order, dailyCap, time } =
-      (req.body ?? {}) as { order?: string; dailyCap?: number; time?: string };
+    const { order, dailyCap, time, synced } = (req.body ?? {}) as
+      { order?: string; dailyCap?: number; time?: string; synced?: boolean };
+
+    // 사람이 «명령을 넣었습니다» 를 눌러 주셨다. 밖의 자명종이 이제 같은
+    // 시각을 본다는 뜻이다.
+    if (synced === true) {
+      맞췄다고적기();
+    }
 
     if (order !== undefined) {
       if (order !== "sequential" && order !== "random" && order !== "least_used") {
@@ -91,7 +99,8 @@ export async function categoriesRoutes(app: FastifyInstance) {
       상한정하기(n);
     }
 
-    return { ok: true, dailyCap: 지금상한(), time: 지금시각(), cron: 크론식() };
+    return { ok: true, dailyCap: 지금상한(), time: 지금시각(), cron: 크론식(),
+             syncedTime: 맞춘시각(), needsSync: 반만바뀌었나() };
   });
 
   app.post("/api/categories", async (req, reply) => {

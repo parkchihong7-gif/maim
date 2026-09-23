@@ -67,6 +67,7 @@ export const 차례이름: Record<차례, string> = {
 const 차례키 = "schedule_order";
 const 마지막키 = "last_daily_run";
 const 시각키 = "daily_time";
+const 맞춘시각키 = "daily_time_synced";
 
 /** 아침에 글이 준비되는 시각. `HH:MM`. */
 export function 지금시각(): string {
@@ -76,11 +77,42 @@ export function 지금시각(): string {
 
 export function 시각정하기(글: string): string {
   const 값 = (글 ?? "").trim();
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(값)) {
+  if (/^([01]\d|2[0-3]):[0-5]\d$/.test(값) === false) {
     throw new Error("시각은 00:00 ~ 23:59 사이여야 합니다.");
   }
   setSetting(시각키, 값);
   return 값;
+}
+
+/**
+ * **밖의 자명종에 맞춰 둔 시각.**
+ *
+ * 잠들었다 깨는 판에서는 시각이 두 군데에 있다 — 프로그램 안과, 밖에서
+ * 깨워 주는 Cloud Scheduler. 뒤쪽은 이 프로그램이 손댈 수 없는 자리라,
+ * 사람이 명령 한 줄을 붙여넣어 주셔야 한다.
+ *
+ * 그 사이가 **반만 바뀐 상태**다. 프로그램은 08:30 으로 아는데 구글은
+ * 아직 06:00 에 깨운다. 이걸 화면이 모르면, 바꿔 놓고 «왜 그 시각에
+ * 안 나오지» 하다가 고장인 줄 아신다.
+ *
+ * 그래서 **맞춰 둔 시각을 따로 적어 둔다.** 둘이 다르면 아직 반만 바뀐 것이다.
+ */
+export function 맞춘시각(): string {
+  const 글 = (getSetting(맞춘시각키) ?? "").trim();
+  // 한 번도 안 적혔으면 설치 안내서의 06:00 이 들어가 있다고 본다.
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(글) ? 글 : "06:00";
+}
+
+/** 사람이 «명령을 넣었습니다» 라고 알려 주셨다. */
+export function 맞췄다고적기(): string {
+  const 값 = 지금시각();
+  setSetting(맞춘시각키, 값);
+  return 값;
+}
+
+/** 아직 밖의 자명종이 옛 시각인가. */
+export function 반만바뀌었나(): boolean {
+  return 지금시각() !== 맞춘시각();
 }
 
 /** 자명종에게 줄 말. `분 시 * * *` 꼴이다. */

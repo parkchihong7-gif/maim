@@ -47,6 +47,11 @@
   --info-line: #c3d5ff;
   --violet: #6b3fb5;
   --violet-bg: #f1ebfb;
+  /* «아직 안 끝났습니다» 를 말하는 색. 빨강(--danger)은 고장으로 읽혀서
+     따로 둔다 — 이건 탈이 난 게 아니라 **손이 한 번 더 가는 일**이다. */
+  --todo: #a8660a;
+  --todo-bg: #fdf3e3;
+  --todo-line: #f0d5a8;
 
   --sidebar-bg: #ffffff;
   --sidebar-width: 250px;
@@ -1289,9 +1294,6 @@ textarea:focus {
   /* 밝은 화면을 찍은 것이라, 어두운 화면에서 눈이 부시지 않게 살짝 죽인다 */
   background: #fff;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .shot img { filter: brightness(.92); }
-}
 .shot figcaption {
   padding: 9px 12px;
   font-size: 12.5px;
@@ -1305,3 +1307,75 @@ textarea:focus {
 .setup-code-row { display: flex; align-items: stretch; gap: 8px; margin: 8px 0; }
 .setup-code-row .setup-code { flex: 1; margin: 0; overflow-x: auto; }
 .setup-code-row .btn-copy-image { flex: 0 0 auto; white-space: nowrap; }
+
+/* ── 준비 시각 ────────────────────────────────────────────────
+   이 화면에서 제일 먼저 눈에 들어와야 하는 값이다. «몇 시에 준비되나» 를
+   한 번에 답해 주고, 바꾸는 칸은 평소엔 접어 둔다 — 자주 바꿀 것이 아니다. */
+.timecard {
+  margin: 12px 0 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--gold) 7%, var(--bg-sunk));
+  overflow: hidden;
+}
+.timecard-main {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap; padding: 16px 18px;
+}
+/* 이 상자는 바탕에 옅은 색이 깔려 있어, 흰 바탕을 믿는 기본 단추가 글자만
+   덩그러니 놓인 것처럼 보인다. 여기서만 바탕과 테두리를 다시 준다. */
+.timecard-main .btn-secondary {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+.timecard-main .btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
+.timecard-label {
+  display: block; font-size: 12.5px; font-weight: 600;
+  color: var(--text-dim); margin: 0 0 2px;
+}
+.timecard-clock {
+  display: block; font-size: 34px; font-weight: 700; line-height: 1.05;
+  color: var(--gold); letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.timecard-edit {
+  padding: 14px 18px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.timecard-chore {
+  margin: 0 0 12px; font-size: 13px; line-height: 1.75; color: var(--text-dim);
+}
+.timecard-chore strong { color: var(--text); }
+.timecard-chore em { color: var(--text-dim); font-style: normal; font-weight: 600; }
+
+/* ── 반만 바뀐 상태 ───────────────────────────────────────────
+   프로그램은 새 시각을 아는데 구글은 아직 옛 시각인 사이. 이걸 화면이
+   말해 주지 않으면 «왜 그 시각에 안 나오지» 하다가 고장인 줄 아신다. */
+.halfway {
+  margin: 12px 0 0; padding: 16px 18px;
+  border: 1px solid var(--todo-line);
+  border-left: 4px solid var(--todo);
+  border-radius: 12px;
+  background: var(--todo-bg);
+}
+.halfway-head { margin: 0 0 12px; }
+.halfway-badge {
+  display: inline-block; font-size: 12.5px; font-weight: 700;
+  color: var(--todo);
+}
+.halfway-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.halfway-table td { padding: 5px 0; vertical-align: top; }
+.halfway-table td:first-child { width: 96px; color: var(--text-dim); }
+.halfway-table td:last-child { text-align: right; white-space: nowrap; font-size: 12.5px; }
+.halfway-ok { color: var(--success); font-weight: 600; }
+.halfway-todo { color: var(--todo); font-weight: 600; }
+.halfway-how {
+  margin: 12px 0 10px; padding: 9px 12px; border-radius: 8px;
+  background: var(--bg-sunk); font-size: 12.5px; line-height: 1.7; color: var(--text-dim);
+}
+.halfway-how strong {
+  display: inline-block; min-width: 18px; height: 18px; line-height: 18px;
+  margin-right: 2px; border-radius: 50%; text-align: center;
+  background: var(--gold); color: #fff; font-size: 11px;
+}
