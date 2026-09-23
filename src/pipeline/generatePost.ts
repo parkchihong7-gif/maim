@@ -4,7 +4,7 @@ import { insertDraftPost, listRecentTitles, type Post } from "../db/repositories
 import { markCategoryUsed } from "../db/repositories/categories.js";
 import { buildPostPrompt } from "../claude/promptBuilder.js";
 import { buildBlogProfileBlock } from "../claude/blogProfile.js";
-import { runAI, 지금엔진 } from "../ai/run.js";
+import { runAI, 지금엔진, 시간초과인가 } from "../ai/run.js";
 import { parsePostResponse } from "../claude/parseResponse.js";
 import { getSettings, resolvePostingDirectionInstruction } from "../db/repositories/settings.js";
 import type { PostDirective } from "./directives.js";
@@ -34,7 +34,7 @@ export async function generatePost(category: Category, directive: PostDirective)
   const requiresSearch = category.requires_search === 1;
 
   const attempt = async (p: string) => {
-    const 답 = await runAI({ prompt: p, needsSearch: requiresSearch, timeoutMs: 240_000 });
+    const 답 = await runAI({ prompt: p, needsSearch: requiresSearch });
     return parsePostResponse(답);
   };
 
@@ -42,6 +42,17 @@ export async function generatePost(category: Category, directive: PostDirective)
   try {
     parsed = await attempt(prompt);
   } catch (firstErr) {
+    // **시간이 다 된 것은 다시 부르지 않는다.**
+    //
+    // 아래 재시도는 「네 답이 JSON 이 아니었다」 고 타이르는 것인데,
+    // 시간 초과에는 그 말이 아무 뜻이 없다. 답이 틀린 게 아니라 아직
+    // 안 온 것이기 때문이다. 그런데도 한 번 더 부르니 기다림이 곱으로
+    // 늘어, 쓰시는 분은 8분을 보고 나서야 실패를 들었다.
+    if (시간초과인가(firstErr)) {
+      throw new Error(`[${category.name}] ${(firstErr as Error).message} `
+                    + `— 뉴스형이 아닌 카테고리로 먼저 해 보시거나, `
+                    + `[관리자 설정] 1단계에서 다른 모델을 적어 보십시오.`);
+    }
     const retryPrompt = `${prompt}\n\n(주의: 이전 응답이 올바른 JSON 형식이 아니었다. 반드시 다른 텍스트 없이 순수 JSON 객체 하나만 출력하라.)`;
     try {
       parsed = await attempt(retryPrompt);

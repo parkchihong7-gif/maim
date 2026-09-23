@@ -86,6 +86,26 @@ export interface RunOptions extends RunAsk {
 }
 
 /**
+ * 한 번 부를 때 기다려 줄 시간.
+ *
+ * 240초로 잡아 두었다가 데었다. 뉴스형 카테고리는 웹 검색을 먼저 돌고
+ * 그다음에 긴 글을 쓰기 때문에 4분으로는 모자란다. Cloud Run 쪽은
+ * 1800초까지 기다리게 해 두었으니 거기가 병목이 아니었다.
+ *
+ * 환경변수로 조절할 수 있게 둔다 — 느린 모델을 쓰시는 분이 코드를
+ * 고치지 않고도 늘릴 수 있어야 한다.
+ */
+export const 기본기다림 = (() => {
+  const 밖 = Number(process.env.AI_TIMEOUT_MS);
+  return Number.isFinite(밖) && 밖 > 0 ? 밖 : 600_000;
+})();
+
+/** 이 탈이 «시간이 다 된 것» 인가. */
+export function 시간초과인가(탈: unknown): boolean {
+  return !!(탈 as { 시간초과?: boolean })?.시간초과;
+}
+
+/**
  * 키로 도는 엔진에는 **깨끗한 집(HOME)을 따로 차려 준다.**
  *
  * 저장통에서 내려온 집에는 예전에 검은 창에서 로그인하며 남긴 설정이
@@ -110,7 +130,7 @@ function 집차리기(것: Engine): string {
 
 export async function runAI(options: RunOptions): Promise<string> {
   const 것 = 지금엔진();
-  const 기다림 = options.timeoutMs ?? 180_000;
+  const 기다림 = options.timeoutMs ?? 기본기다림;
   const 파일 = 실행파일(것);
 
   // 답을 파일로 받는 엔진(Codex)에는 받을 자리를 만들어 준다.
@@ -142,7 +162,14 @@ export async function runAI(options: RunOptions): Promise<string> {
       if (끝났나) return;
       끝났나 = true;
       아이.kill("SIGKILL");
-      reject(new Error(`${것.label} 이 ${Math.round(기다림 / 1000)}초 안에 답하지 않았습니다.`));
+      // «시간이 다 됐다» 는 다른 실패와 성격이 다르다. 답이 틀린 게 아니라
+      // 아직 안 온 것이다. 부르는 쪽이 그걸 알아야 **다시 부르지 않는다.**
+      const 탈 = new Error(
+        `${것.label} 이 ${Math.round(기다림 / 1000)}초 안에 답하지 않았습니다. `
+        + `글이 길거나 웹 검색이 필요한 카테고리면 오래 걸립니다.`,
+      ) as Error & { 시간초과?: boolean };
+      탈.시간초과 = true;
+      reject(탈);
     }, 기다림);
 
     아이.stdout.on("data", (c) => { 나온것 += c; });
