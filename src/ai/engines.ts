@@ -40,6 +40,11 @@ export interface RunAsk {
   needsSearch?: boolean;
   /** 이 폴더의 파일을 읽어야 한다 (이미지 고르기). */
   readDir?: string;
+  /**
+   * 답을 파일로 받는 엔진(`wantsOutFile`)에 한해 **runAI 가 채워 준다.**
+   * 부르는 쪽에서 넣을 것이 아니다.
+   */
+  outFile?: string;
 }
 
 /** 사람이 없는 서버에서 이 엔진을 어떻게 인증시키나. */
@@ -75,10 +80,21 @@ export interface Engine {
   /** 로그인이 남는 폴더. 이 폴더가 통째로 저장통에 올라간다. */
   home: string;
   auth: EngineAuth;
+  /**
+   * 답을 **표준출력이 아니라 파일**로 받는가.
+   *
+   * Codex 가 그렇다. 표준출력은 줄마다 JSON 인 사건 흐름이라 봉투 모양이
+   * 판마다 바뀌는데, `--output-last-message` 는 «마지막 답을 이 파일에
+   * 써라» 라는 약속이 분명하다. 모양을 짐작하는 것보다 낫다.
+   */
+  wantsOutFile?: boolean;
   /** 명령줄 인자를 짠다. */
   args(ask: RunAsk): string[];
-  /** 돌려받은 글에서 **답 글자**를 꺼낸다. 못 꺼내면 던진다. */
-  answer(stdout: string): string;
+  /**
+   * 돌려받은 것에서 **답 글자**를 꺼낸다. 못 꺼내면 던진다.
+   * `파일글` 은 `wantsOutFile` 인 엔진에만 들어온다.
+   */
+  answer(stdout: string, 파일글?: string): string;
 }
 
 /** 답이 비면 그건 성공이 아니다. 빈 글로 포스팅이 만들어지면 더 나쁘다. */
@@ -183,21 +199,59 @@ export const ENGINES: Record<EngineId, Engine> = {
       keyHow: "구독 대신 API 키로도 돌릴 수 있지만, 그때는 **글 한 편마다 요금이 나갑니다.** "
             + "ChatGPT Plus 를 이미 쓰고 계시면 위의 로그인 방식이 낫습니다.",
     },
+    wantsOutFile: true,
     args(ask) {
-      // `codex exec` 가 사람 없이 도는 자리다. `--json` 은 **한 덩어리가
-      // 아니라 줄마다 하나씩** 나오는 꼴이라, 아래 answer() 에서 마지막
-      // 답 줄을 골라낸다.
-      return ["exec", ask.prompt, "--json"];
+      const a = ["exec", ask.prompt, "--json"];
+      // 우리 서버의 일터는 깃 저장소가 아니다. 이게 없으면 Codex 는
+      // «Not inside a trusted directory» 한 줄만 남기고 **언제나** 멈춘다.
+      // 그런데 그 줄은 JSON 이 아니라서, 없으면 「로그인이 안 됐나 봅니다」
+      // 라는 엉뚱한 안내가 나갔다.
+      a.push("--skip-git-repo-check");
+      // 답은 파일로 받는다. 아래 answer() 설명을 보라.
+      if (ask.outFile) a.push("--output-last-message", ask.outFile);
+      return a;
     },
-    answer(stdout) {
-      // 줄 단위 JSON. 뒤에서부터 읽으며 글이 담긴 첫 줄을 쓴다.
+    answer(stdout, 파일글) {
+      const 답 = (파일글 ?? "").trim();
+      if (답) return 답;
+
+      // 파일이 비면 사건 흐름에서 찾아본다. 봉투가 판마다 달라서
+      // 겉만 보지 않고 **속까지 뒤진다** — agent_message 의 글을 쓴다.
+      const 찾기 = (것: unknown): string => {
+        if (typeof 것 === "string") return "";
+        if (Array.isArray(것)) {
+          for (let i = 것.length - 1; i >= 0; i--) {
+            const 하나 = 찾기(것[i]);
+            if (하나) return 하나;
+          }
+          return "";
+        }
+        if (!것 || typeof 것 !== "object") return "";
+        const 칸 = 것 as Record<string, unknown>;
+        if (칸.type === "agent_message" || 칸.type === "output_text") {
+          const 글 = 칸.text ?? 칸.content;
+          if (typeof 글 === "string" && 글.trim()) return 글.trim();
+        }
+        for (const 값 of Object.values(칸)) {
+          const 하나 = 찾기(값);
+          if (하나) return 하나;
+        }
+        return "";
+      };
+
       const 줄들 = stdout.split("\n").map((s) => s.trim()).filter(Boolean);
       for (let i = 줄들.length - 1; i >= 0; i--) {
-        let 칸: Record<string, unknown>;
-        try { 칸 = JSON.parse(줄들[i]) as Record<string, unknown>; } catch { continue; }
-        if (칸.error) throw new Error(String(칸.error));
-        const 글 = 칸.text ?? 칸.message ?? 칸.content ?? 칸.result ?? 칸.response;
-        if (typeof 글 === "string" && 글.trim()) return 글.trim();
+        let 칸: unknown;
+        try { 칸 = JSON.parse(줄들[i]); } catch { continue; }
+        const 글 = 찾기(칸);
+        if (글) return 글;
+      }
+
+      // JSON 이 아예 아니면, 그건 Codex 가 무엇 때문에 멈췄는지 알려 주는
+      // 줄이다. 짐작해서 「로그인이 안 됐나 봅니다」 하지 말고 그대로 보인다.
+      const 맨글 = stdout.trim();
+      if (맨글 && !맨글.startsWith("{")) {
+        throw new Error(`Codex 가 멈췄습니다: ${맨글.slice(0, 600)}`);
       }
       throw new Error("Codex 의 답에서 글을 찾지 못했습니다. "
                     + `로그인이 안 돼 있을 수 있습니다.\n${stdout.slice(0, 600)}`);

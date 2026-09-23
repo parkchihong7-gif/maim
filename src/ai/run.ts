@@ -6,6 +6,9 @@
  */
 
 import { spawn } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { config } from "../config.js";
 import { getSetting, setSetting } from "../db/repositories/settings.js";
 import { 엔진, type Engine, type RunAsk } from "./engines.js";
@@ -77,9 +80,14 @@ export interface RunOptions extends RunAsk {
 
 export async function runAI(options: RunOptions): Promise<string> {
   const 것 = 지금엔진();
-  const 인자 = 것.args(options);
   const 기다림 = options.timeoutMs ?? 180_000;
   const 파일 = 실행파일(것);
+
+  // 답을 파일로 받는 엔진(Codex)에는 받을 자리를 만들어 준다.
+  const 답자리 = 것.wantsOutFile
+    ? path.join(fs.mkdtempSync(path.join(os.tmpdir(), "ai-")), "answer.txt")
+    : "";
+  const 인자 = 것.args(답자리 ? { ...options, outFile: 답자리 } : options);
 
   const 준비 = 준비됐나(것);
   if (!준비.ok) throw new Error(준비.why);
@@ -128,5 +136,10 @@ export async function runAI(options: RunOptions): Promise<string> {
     });
   });
 
-  return 것.answer(stdout);
+  let 파일글 = "";
+  if (답자리) {
+    try { 파일글 = fs.readFileSync(답자리, "utf8"); } catch { /* 비어 있을 수 있다 */ }
+    try { fs.rmSync(path.dirname(답자리), { recursive: true, force: true }); } catch { /* 치우다 실패해도 답은 답이다 */ }
+  }
+  return 것.answer(stdout, 파일글);
 }
