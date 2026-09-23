@@ -78,6 +78,29 @@ export interface RunOptions extends RunAsk {
   timeoutMs?: number;
 }
 
+/**
+ * 키로 도는 엔진에는 **깨끗한 집(HOME)을 따로 차려 준다.**
+ *
+ * 저장통에서 내려온 집에는 예전에 검은 창에서 로그인하며 남긴 설정이
+ * 들어 있을 수 있다. 그 설정이 환경변수를 이기기 때문에, 키를 아무리
+ * 잘 넘겨도 무시당한다. 그래서 그 집을 쓰지 않고 우리 집을 쓴다.
+ *
+ * 매번 새로 쓴다. 한 번 잘못 들어간 값이 남아 계속 말썽을 부리는 쪽이
+ * 훨씬 나쁘다.
+ */
+function 집차리기(것: Engine): string {
+  const 집 = path.join(config.paths.dataDir, "ai-home", 것.id);
+  const 설정 = 것.auth.settings;
+  if (설정) {
+    const 자리 = path.join(집, 설정.path);
+    fs.mkdirSync(path.dirname(자리), { recursive: true });
+    fs.writeFileSync(자리, JSON.stringify(설정.body, null, 2));
+  } else {
+    fs.mkdirSync(집, { recursive: true });
+  }
+  return 집;
+}
+
 export async function runAI(options: RunOptions): Promise<string> {
   const 것 = 지금엔진();
   const 기다림 = options.timeoutMs ?? 180_000;
@@ -97,6 +120,7 @@ export async function runAI(options: RunOptions): Promise<string> {
   const 환경 = { ...process.env };
   const 키 = 엔진키(것);
   if (키) 환경[것.auth.envVar] = 키;
+  if (!것.auth.loginWorksOnServer) 환경.HOME = 집차리기(것);
 
   const stdout = await new Promise<string>((resolve, reject) => {
     const 아이 = spawn(파일, 인자, { stdio: ["ignore", "pipe", "pipe"], env: 환경 });

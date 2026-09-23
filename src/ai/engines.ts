@@ -64,6 +64,22 @@ export interface EngineAuth {
   keyUrl: string;
   /** 키 받는 길을 한 줄로. 화면에 그대로 보인다. */
   keyHow: string;
+  /**
+   * 키로 돌 때 **HOME 아래에 새로 써 줄 설정 파일.**
+   *
+   * Gemini 때문에 생긴 자리다. 이 도구는 인증 방식을 고를 때
+   *
+   *     설정 파일에 적힌 것  ||  환경변수를 보고 짐작한 것
+   *
+   * 순서로 본다. **설정 파일이 환경변수를 이긴다.** 그래서 예전에
+   * 검은 창에서 로그인해 저장통에 올려 둔 `.gemini/settings.json` 이
+   * 남아 있으면, `GEMINI_API_KEY` 를 아무리 잘 넘겨도 그걸 무시하고
+   * OAuth 로 가다가 41 로 죽는다. 실제로 그렇게 죽었다.
+   *
+   * 그러니 짐작에 기대지 말고 **우리가 그 파일을 써서 못 박는다.**
+   * 사시는 분이 저장통을 청소하실 일이 없어진다.
+   */
+  settings?: { path: string; body: unknown };
 }
 
 export interface Engine {
@@ -168,6 +184,10 @@ export const ENGINES: Record<EngineId, Engine> = {
       keyHow: "구글 계정으로 들어가 [Create API key] 를 누르면 키가 바로 나옵니다. "
             + "그 한 줄을 복사해 아래 칸에 붙여넣고 저장하세요. "
             + "검은 창(Cloud Shell)도, 파일 올리기도 필요 없습니다.",
+      settings: {
+        path: ".gemini/settings.json",
+        body: { security: { auth: { selectedType: "gemini-api-key" } } },
+      },
     },
     args(ask) {
       // `--approval-mode yolo` 로 도구를 자동 승인한다. 사람이 없는 자리라
