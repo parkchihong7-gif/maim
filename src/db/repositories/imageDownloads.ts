@@ -1,4 +1,5 @@
 import { getDb } from "../index.js";
+import { 지금주인 } from "../../tenancy.js";
 
 export interface ImageDownloadInput {
   postId: number;
@@ -37,8 +38,9 @@ export function listImageDownloads(): ImageDownloadRow[] {
       `SELECT d.id, d.post_id, p.title AS post_title, d.image_index, d.source_site,
               d.source_id, d.source_url, d.license, d.downloaded_at
        FROM image_downloads d
-       LEFT JOIN posts p ON p.id = d.post_id
+       JOIN posts p ON p.id = d.post_id
+       WHERE p.owner_key = ?
        ORDER BY d.downloaded_at DESC, d.id DESC`,
     )
-    .all() as ImageDownloadRow[];
+    .all(지금주인()) as ImageDownloadRow[];
 }

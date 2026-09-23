@@ -15,6 +15,25 @@ function 표가다있나(database: Database.Database, sql: string): boolean {
     .get(이름));
 }
 
+/**
+ * **없을 때만** 칸을 붙인다.
+ *
+ * `.sql` 로 두지 않는 이유가 있다. 위 실행기는 "적혀 있어도 표가 없으면 다시
+ * 돌린다" 로 짜여 있고, 그게 성립하는 건 마이그레이션이 전부
+ * `CREATE TABLE IF NOT EXISTS` 라 두 번 돌려도 해롭지 않기 때문이다.
+ * `ALTER TABLE ... ADD COLUMN` 에는 `IF NOT EXISTS` 가 없어서 두 번째에
+ * "duplicate column name" 으로 죽는다. 그러면 서버가 아예 안 뜬다.
+ *
+ * 그래서 칸은 SQL 이 아니라 여기서 붙인다. 먼저 있는지 보고 없을 때만 붙이니
+ * 몇 번을 돌려도 같다.
+ */
+function 칸붙이기(database: Database.Database, 표: string, 칸: string, 정의: string) {
+  const 있나 = (database.prepare(`PRAGMA table_info(${표})`).all() as { name: string }[])
+    .some((c) => c.name === 칸);
+  if (있나) return;
+  database.exec(`ALTER TABLE ${표} ADD COLUMN ${칸} ${정의}`);
+}
+
 function runMigrations(database: Database.Database) {
   database.exec(`
     CREATE TABLE IF NOT EXISTS _migrations (
@@ -56,6 +75,28 @@ function runMigrations(database: Database.Database) {
     });
     applyMigration();
   }
+
+  // ── 자리 나누기 ────────────────────────────────────────────────
+  //
+  // 이 프로그램은 한 사람이 쓰는 전제로 만들어졌다. 접속키를 두 사람에게
+  // 주면 서로의 카테고리와 초안이 다 보였고, 한 사람 몫만 지울 수도 없었다.
+  //
+  //   owner_key = ''      주인(관리자). **원래 있던 글은 전부 여기로 간다**
+  //   owner_key = 1차키   기간을 두고 맛보러 온 체험 회원
+  //
+  // 기본값을 빈 값으로 두는 것이 중요하다. 이미 쌓여 있던 줄들이 그대로
+  // 주인 것이 되어, 이 칸이 생겨도 주인 화면은 어제와 똑같이 보인다.
+  칸붙이기(database, "categories", "owner_key", "TEXT NOT NULL DEFAULT ''");
+  칸붙이기(database, "posts", "owner_key", "TEXT NOT NULL DEFAULT ''");
+  // 세션에 1차키를 적어 둔다. 지울 때 "누구 것" 을 이것으로 안다.
+  // 2차키가 아닌 이유는 tenancy.ts 에 적어 두었다 — 2차키는 기기마다 달라서
+  // 한 사람의 글이 세 자리로 흩어진다.
+  칸붙이기(database, "keyserver_sessions", "key1", "TEXT NOT NULL DEFAULT ''");
+
+  database.exec(`
+    CREATE INDEX IF NOT EXISTS idx_categories_owner ON categories (owner_key);
+    CREATE INDEX IF NOT EXISTS idx_posts_owner ON posts (owner_key);
+  `);
 }
 
 export function getDb(): Database.Database {

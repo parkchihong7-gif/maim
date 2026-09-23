@@ -106,6 +106,9 @@ export async function authRoutes(app: FastifyInstance) {
     // 키가 틀린 것인지, 서버가 못 닿은 것인지, 이쪽 탈인지 갈라 줘야 한다.
     try {
       const token = openSession({
+        // 자리의 주인은 1차키다. 2차키는 기기마다 달라서 한 사람의 글이
+        // 세 자리로 흩어진다 — tenancy.ts 참고.
+        key1,
         key2,
         remoteToken: answer.sessionToken,
         holderName: answer.name,

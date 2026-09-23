@@ -1,4 +1,5 @@
 import { getDb } from "../index.js";
+import { 지금주인 } from "../../tenancy.js";
 
 export type PostStatus = "draft" | "ready" | "published" | "failed";
 
@@ -18,6 +19,8 @@ export interface Post {
   published_at: string | null;
   created_at: string;
   error_message: string | null;
+  /** 누구의 자리인가. 빈 값이면 주인 것. tenancy.ts 참고 */
+  owner_key: string;
 }
 
 export function insertDraftPost(input: {
@@ -30,8 +33,8 @@ export function insertDraftPost(input: {
 }): Post {
   const result = getDb()
     .prepare(
-      `INSERT INTO posts (category_id, status, title, content, image_query, tags_json, title_variants_json)
-       VALUES (?, 'draft', ?, ?, ?, ?, ?)`,
+      `INSERT INTO posts (category_id, status, title, content, image_query, tags_json, title_variants_json, owner_key)
+       VALUES (?, 'draft', ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       input.categoryId,
@@ -40,6 +43,7 @@ export function insertDraftPost(input: {
       input.imageQuery,
       JSON.stringify(input.tags),
       input.titleVariants && input.titleVariants.length > 0 ? JSON.stringify(input.titleVariants) : null,
+      지금주인(),
     );
   return getPost(Number(result.lastInsertRowid))!;
 }
@@ -55,7 +59,7 @@ export function getTitleVariants(post: Post): string[] {
 }
 
 export function getPost(id: number): Post | undefined {
-  return getDb().prepare("SELECT * FROM posts WHERE id = ?").get(id) as Post | undefined;
+  return getDb().prepare("SELECT * FROM posts WHERE id = ? AND owner_key = ?").get(id, 지금주인()) as Post | undefined;
 }
 
 export function getImagePaths(post: Post): string[] {
@@ -90,32 +94,32 @@ export function addPostImages(id: number, newPaths: string[], newAlts: string[],
   const mergedPaths = [...currentPaths, ...newPaths];
   const mergedAlts = [...currentAlts, ...newAlts];
   getDb()
-    .prepare("UPDATE posts SET image_paths_json = ?, image_alts_json = ?, image_path = ? WHERE id = ?")
-    .run(JSON.stringify(mergedPaths), JSON.stringify(mergedAlts), mergedPaths[0] ?? null, id);
+    .prepare("UPDATE posts SET image_paths_json = ?, image_alts_json = ?, image_path = ? WHERE id = ? AND owner_key = ?")
+    .run(JSON.stringify(mergedPaths), JSON.stringify(mergedAlts), mergedPaths[0] ?? null, id, 지금주인());
 }
 
 /** 콘텐츠(+가능하면 이미지)가 준비되어 사용자가 대시보드에서 복사해갈 수 있는 상태. */
 export function markReady(id: number): void {
-  getDb().prepare("UPDATE posts SET status = 'ready' WHERE id = ?").run(id);
+  getDb().prepare("UPDATE posts SET status = 'ready' WHERE id = ? AND owner_key = ?").run(id, 지금주인());
 }
 
 /** 실제 네이버 발행은 사람이 수동으로 하므로, 이건 사용자가 "발행 완료로 표시"를 누른 기록일 뿐이다. */
 export function markPublished(id: number): void {
   getDb()
-    .prepare("UPDATE posts SET status = 'published', published_at = datetime('now') WHERE id = ?")
-    .run(id);
+    .prepare("UPDATE posts SET status = 'published', published_at = datetime('now') WHERE id = ? AND owner_key = ?")
+    .run(id, 지금주인());
 }
 
 export function markFailed(id: number, errorMessage: string): void {
   getDb()
-    .prepare("UPDATE posts SET status = 'failed', error_message = ? WHERE id = ?")
-    .run(errorMessage, id);
+    .prepare("UPDATE posts SET status = 'failed', error_message = ? WHERE id = ? AND owner_key = ?")
+    .run(errorMessage, id, 지금주인());
 }
 
 export function listHistory(limit = 50): Post[] {
   return getDb()
-    .prepare("SELECT * FROM posts ORDER BY created_at DESC LIMIT ?")
-    .all(limit) as Post[];
+    .prepare("SELECT * FROM posts WHERE owner_key = ? ORDER BY created_at DESC LIMIT ?")
+    .all(지금주인(), limit) as Post[];
 }
 
 /** 새 글이 최근 작성 완료(ready/published)된 글과 주제가 겹치지 않도록, 프롬프트에
@@ -124,9 +128,9 @@ export function listRecentTitles(limit = 20): string[] {
   const rows = getDb()
     .prepare(
       `SELECT title FROM posts
-       WHERE status IN ('ready', 'published') AND title IS NOT NULL
+       WHERE owner_key = ? AND status IN ('ready', 'published') AND title IS NOT NULL
        ORDER BY created_at DESC LIMIT ?`,
     )
-    .all(limit) as { title: string }[];
+    .all(지금주인(), limit) as { title: string }[];
   return rows.map((r) => r.title);
 }

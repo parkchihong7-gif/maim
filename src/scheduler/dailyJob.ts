@@ -3,6 +3,7 @@ import { markReady } from "../db/repositories/posts.js";
 import { assignDirectives } from "../pipeline/directives.js";
 import { generatePost } from "../pipeline/generatePost.js";
 import { attachImage } from "../pipeline/attachImage.js";
+import { 죽은자리치우기 } from "./죽은자리치우기.js";
 
 /**
  * 하루 1회 실행: 활성화된 모든 카테고리에 대해 콘텐츠+이미지를 생성해
@@ -10,6 +11,14 @@ import { attachImage } from "../pipeline/attachImage.js";
  * 사용자가 대시보드에서 내용을 복사해 직접 수행한다 (자동 발행 없음, 개수 제한 없음).
  */
 export async function runDailyJob(): Promise<void> {
+  // 기간이 끝난 체험 자리를 먼저 치운다. 글을 만들기 전에 해야 지울 것이
+  // 늘지 않는다. 여기서 탈이 나도 오늘 글은 나와야 하므로 따로 감싼다.
+  try {
+    await 죽은자리치우기();
+  } catch (err) {
+    console.error("[dailyJob] 죽은 자리를 치우다 탈이 났습니다:", (err as Error).message);
+  }
+
   const categories = pickCategoriesForToday();
   const n = categories.length;
   if (n === 0) {

@@ -16,6 +16,8 @@ import { getDb } from "../index.js";
 
 export interface KeyserverSession {
   token: string;
+  /** 1차키. **누구의 자리인가**를 이것으로 안다. tenancy.ts 참고 */
+  key1: string;
   key2: string;
   remote_token: string;
   holder_name: string;
@@ -31,6 +33,7 @@ export interface KeyserverSession {
  * 계속 돌아다닌다.
  */
 export function openSession(input: {
+  key1: string;
   key2: string;
   remoteToken: string;
   holderName?: string;
@@ -43,9 +46,9 @@ export function openSession(input: {
     db.prepare("DELETE FROM keyserver_sessions WHERE key2 = ?").run(input.key2);
     db.prepare(
       `INSERT INTO keyserver_sessions
-         (token, key2, remote_token, holder_name, role, device_label)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run(token, input.key2, input.remoteToken,
+         (token, key1, key2, remote_token, holder_name, role, device_label)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run(token, input.key1, input.key2, input.remoteToken,
           input.holderName ?? "", input.role ?? "client", input.deviceLabel ?? "");
   });
   열기();
