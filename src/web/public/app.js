@@ -1248,6 +1248,17 @@ async function refreshEngines() {
       + `방금 글을 만드는 중일 수 있습니다. 1~2분 뒤 다시 열어 보세요.</p>`;
     return;
   }
+  const 누구 = document.getElementById("ai-who");
+  if (누구) {
+    const 주인 = 엔진목록.role === "admin";
+    누구.innerHTML = 주인
+      ? `지금 <strong>${escapeHtml(엔진목록.roleLabel || "판매용 (주인)")}</strong> 자격으로 들어와 계십니다. 아래 설정을 바꾸실 수 있습니다.`
+      : `지금 <strong>${escapeHtml(엔진목록.roleLabel || "체험용")}</strong> 자격입니다 — 보여 드리기용 자리라 설정은 못 바꾸십니다.<br>`
+        + `<strong>사장님이신데 이렇게 보인다면</strong>, 접속키가 체험용으로 발급된 것입니다. `
+        + `설치 때 정하신 <strong>대시보드 암호</strong>로 들어오시면 주인 자격이 됩니다.`;
+    누구.className = 주인 ? "muted" : "setup-warn";
+  }
+
   칸.innerHTML = 엔진목록.engines.map((e) => `
     <label class="engine ${e.id === 엔진목록.current ? "on" : ""}">
       <input type="radio" name="ai_engine" value="${e.id}" ${e.id === 엔진목록.current ? "checked" : ""} />

@@ -49,7 +49,17 @@ export function openSession(input: {
          (token, key1, key2, remote_token, holder_name, role, device_label)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ).run(token, input.key1, input.key2, input.remoteToken,
-          input.holderName ?? "", input.role ?? "client", input.deviceLabel ?? "");
+          input.holderName ?? "",
+          // **«모른다» 를 «체험이다» 로 적으면 안 된다.**
+          //
+          // 키 서버가 역할을 안 돌려주는 경우가 있다. 그때 여기서 "client"
+          // 로 적어 버리면, **이 서버를 세운 주인이 제 설정 화면에서
+          // 쫓겨난다.** 실제로 그랬다 — 「체험 키로는 이 설정을 바꿀 수
+          // 없습니다」 가 주인에게 떴다.
+          //
+          // 빈 값으로 둔다. 체험은 서버가 «client» 라고 똑똑히 말한
+          // 경우에만 체험이다.
+          input.role ?? "", input.deviceLabel ?? "");
   });
   열기();
   return token;

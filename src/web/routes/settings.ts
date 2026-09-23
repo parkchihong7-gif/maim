@@ -87,6 +87,13 @@ export async function settingsRoutes(app: FastifyInstance) {
       ready: 준비됐나(지금),
       // 화면이 «바꿀 수 있는 자리인가» 를 알아야 단추를 감춘다.
       canChange: 주인,
+      // **지금 어느 자격으로 들어와 계신지 화면에 보인다.**
+      //
+      // 주인이 체험으로 몰려 제 설정에서 쫓겨난 적이 있다. 그때 화면에는
+      // 「체험 키로는 바꿀 수 없습니다」 만 떴고, 왜 내가 체험인지는
+      // 어디에도 없었다. 보이면 그 자리에서 알아차린다.
+      role: 주인 ? "admin" : "client",
+      roleLabel: 주인 ? "판매용 (주인)" : "체험용",
       // 안내 명령에 저장통 이름을 **미리 박아서** 내보낸다. 「YOUR_PROJECT_ID
       // 를 본인 것으로 바꾸세요」 가 여태 제일 많이 틀리던 자리였다.
       bucket: 주인 ? config.gcsStateBucket : "",

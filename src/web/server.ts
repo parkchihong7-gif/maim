@@ -16,7 +16,7 @@ import { authRoutes } from "./routes/auth.js";
 import { imageDownloadsRoutes } from "./routes/imageDownloads.js";
 import { tenantsRoutes } from "./routes/tenants.js";
 import { findSession } from "../db/repositories/keyserverSessions.js";
-import { 자리에서, 주인, type 쓰는이 } from "../tenancy.js";
+import { 자리에서, 주인, 체험역할, type 쓰는이 } from "../tenancy.js";
 /** 지금 서버가 들고 있는 비밀값들. 설정에 저장된 것과 환경변수 양쪽. */
 function 비밀들(): string[] {
   const 것들: string[] = [];
@@ -170,7 +170,9 @@ export async function buildServer() {
       }
       // 키 서버가 admin 으로 준 키(= 이 서버를 산 분)는 주인과 같은 자리를
       // 쓴다. 자기 서버에 설치해 쓰는 사람이라 나눌 상대가 없다.
-      const 누구: 쓰는이 = 세션.role === "admin"
+      // 체험이라고 **똑똑히 적힌** 것만 체험 자리로 보낸다. 역할을 모르면
+      // 주인이다 — tenancy.ts 의 체험인가() 설명을 보라.
+      const 누구: 쓰는이 = 세션.role !== 체험역할
         ? 주인
         : { ownerKey: 세션.key1, role: 세션.role };
       자리에서(누구, done);
