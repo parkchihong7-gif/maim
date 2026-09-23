@@ -106,6 +106,32 @@ export function 시간초과인가(탈: unknown): boolean {
 }
 
 /**
+ * **AI 를 빈 폴더에서 돌린다.**
+ *
+ * 이 명령 도구들은 「지금 있는 폴더」 를 제 작업 폴더로 삼는다. 거기 있는
+ * 파일을 훑고, 목차를 만들고, 필요하면 읽는다. 원래 코드를 고치라고 만든
+ * 물건이니 당연한 동작이다.
+ *
+ * 그런데 우리 서버가 도는 자리는 `/app` — **소스 코드와 node_modules 가
+ * 통째로 있는 곳**이다. 폴더를 안 정해 주었더니 그걸 다 제 작업 폴더로
+ * 삼고 있었다. 파일이 수만 개다.
+ *
+ * 탈이 셋이다.
+ *
+ *   느리다   글 하나 쓰자고 남의 폴더를 훑는다. 「ok 라고만 답해」
+ *            여덟 글자에 들어간 입력이 9,252 토큰이었다.
+ *   샌다     우리 소스 코드가 남의 서버로 올라간다. 팔 물건이다.
+ *   막힌다   「믿을 만한 폴더가 아니다」 관문이 여기서 나왔다.
+ *
+ * 글을 쓰는 데 파일은 필요 없다. 빈 방을 하나 내어 주고 거기서 돌린다.
+ */
+function 일터(것: Engine): string {
+  const 방 = path.join(config.paths.dataDir, "ai-work", 것.id);
+  fs.mkdirSync(방, { recursive: true });
+  return 방;
+}
+
+/**
  * 키로 도는 엔진에는 **깨끗한 집(HOME)을 따로 차려 준다.**
  *
  * 저장통에서 내려온 집에는 예전에 검은 창에서 로그인하며 남긴 설정이
@@ -153,7 +179,11 @@ export async function runAI(options: RunOptions): Promise<string> {
   Object.assign(환경, 것.headlessEnv ?? {});
 
   const stdout = await new Promise<string>((resolve, reject) => {
-    const 아이 = spawn(파일, 인자, { stdio: ["ignore", "pipe", "pipe"], env: 환경 });
+    const 아이 = spawn(파일, 인자, {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: 환경,
+      cwd: 일터(것),
+    });
     let 나온것 = "";
     let 탈난것 = "";
     let 끝났나 = false;
