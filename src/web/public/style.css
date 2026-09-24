@@ -1551,3 +1551,10 @@ textarea:focus {
   background: var(--danger-bg);
   color: var(--danger);
 }
+
+/* 예약 켜는 명령도 잘리면 안 된다. 잘린 줄 모르고 눈으로 옮겨 적다가 틀린다. */
+.schedule-alarm .setup-code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: visible;
+}

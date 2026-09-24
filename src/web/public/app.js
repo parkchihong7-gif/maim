@@ -1188,6 +1188,18 @@ async function refreshSchedule() {
     const 마지막 = s.lastRun ? Date.parse(s.lastRun) : NaN;
     const 잠잠 = Number.isNaN(마지막) || (Date.now() - 마지막) > 36 * 60 * 60 * 1000;
     종.hidden = !잠잠;
+    // 「꺼져 있습니다」 만으로는 못 고치신다. 켜는 명령을 그 자리에 둔다.
+    const 명령칸 = document.getElementById("schedule-setup-cmd");
+    if (명령칸) 명령칸.textContent = s.setupCommand || "";
+    if (s.setupCommand) {
+      const 이름 = (s.setupCommand.match(/jobs create http (\S+)/) || [])[1];
+      const 지역 = (s.setupCommand.match(/--location=(\S+)/) || [])[1];
+      const ㄱ = document.getElementById("schedule-job-name");
+      const ㄴ = document.getElementById("schedule-job-loc");
+      if (ㄱ && 이름) ㄱ.textContent = 이름;
+      if (ㄴ && 지역) ㄴ.textContent = 지역;
+    }
+
     const 말 = 종.querySelector("strong");
     if (말) {
       말.textContent = Number.isNaN(마지막)

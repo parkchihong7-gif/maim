@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import {
   listAllCategories,
   createCategory,
@@ -15,6 +15,41 @@ import { 다시걸기 } from "../../scheduler/cron.js";
 import { config } from "../../config.js";
 import { 주인자리인가, 체험은못함 } from "../../tenancy.js";
 
+/**
+ * **지금 이 서버를 깨울 예약 작업을 만드는 명령**을 통째로 만들어 준다.
+ *
+ * 화면에는 「자동 준비가 꺼져 있습니다 — 설치 안내서 3-6 을 따라 걸어
+ * 두십시오」 라고만 적혀 있었다. 경보는 맞는데, 거기서 고치기까지
+ * **다섯 걸음**이 남는다 — 안내서를 찾고, 3-6 을 찾고, 주소와 암호를
+ * 손으로 채우고, 지역을 맞추고, 붙여넣는다. 그래서 안 하게 된다.
+ * 실제로 그렇게 아침에 글이 안 나왔다.
+ *
+ * 주소·지역·서비스 이름·시각은 **이 서버가 이미 안다.** 들어온 요청의
+ * 호스트에서 꺼내 쓰면 된다. 모르는 것은 암호 하나뿐이라, 그것만
+ * 물어보게 하고 나머지는 다 채운다.
+ *
+ * 암호는 **명령 글에 넣지 않는다.** 화면은 여러 사람이 보고, 명령은
+ * 기록에 남는다.
+ */
+function 예약만들기명령(req: FastifyRequest, 시각: string): string {
+  const host = String(req.headers["x-forwarded-host"] ?? req.headers.host ?? "");
+  const proto = String(req.headers["x-forwarded-proto"] ?? "https");
+  const 주소 = host ? `${proto}://${host}` : "https://사장님-서비스-URL";
+  // maim-1048530680370.us-central1.run.app → us-central1
+  const 맞은것 = host.match(/\.([a-z]+-[a-z]+\d+)\.run\.app$/);
+  const 지역 = 맞은것 ? 맞은것[1] : "us-central1";
+  const 이름 = `${process.env.K_SERVICE || "maim"}-daily`;
+  return `read -rsp "대시보드 암호를 붙여넣고 Enter: " T; echo; `
+       + `gcloud scheduler jobs create http ${이름} `
+       + `--location=${지역} `
+       + `--schedule="${크론식(시각)}" `
+       + `--time-zone="${config.timezone}" `
+       + `--uri="${주소}/api/run/daily" `
+       + `--http-method=POST `
+       + `--attempt-deadline=1800s `
+       + `--headers="x-dashboard-token=$T"`;
+}
+
 export async function categoriesRoutes(app: FastifyInstance) {
   app.get("/api/categories", async () => listAllCategories());
 
@@ -23,7 +58,7 @@ export async function categoriesRoutes(app: FastifyInstance) {
   // 화면이 «지금 이대로면 내일 아침에 무엇이 몇 편 나오는가» 를 그대로
   // 보여 줄 수 있어야 한다. 설정만 있고 결과가 안 보이면, 맞게 넣었는지
   // 다음 날 아침까지 알 수가 없다.
-  app.get("/api/schedule", async () => {
+  app.get("/api/schedule", async (req) => {
     const 방식 = 지금차례();
     const { 계획, 잘림, 상한 } = 오늘몇편(방식);
     return {
@@ -39,6 +74,8 @@ export async function categoriesRoutes(app: FastifyInstance) {
       // 대신 **마지막으로 돈 때**를 돌려준다. 한 번도 안 돌았거나 하루하고
       // 반나절이 넘었으면 화면이 «꺼져 있습니다» 라고 말한다.
       lastRun: 마지막으로돈때(),
+      // 「꺼져 있습니다」 만 말하지 말고, 켜는 명령을 같이 준다.
+      setupCommand: 주인자리인가() ? 예약만들기명령(req, 지금시각()) : "",
       time: 지금시각(),
       cron: 크론식(),
       syncedTime: 맞춘시각(),

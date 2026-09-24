@@ -571,8 +571,17 @@
           <div class="schedule-alarm" id="schedule-alarm" hidden>
             <strong>⏰ 자동 준비가 꺼져 있습니다</strong>
             <p>이 설정은 <strong>Cloud Scheduler</strong>가 매일 서버를 깨워 줄 때만 돕니다.
-              서버는 아무도 안 쓸 때 잠들기 때문에 스스로 일어나지 못합니다.
-              설치 안내서 <strong>3-6</strong>을 따라 한 번만 걸어 두십시오.</p>
+              서버는 아무도 안 쓸 때 잠들기 때문에 <strong>스스로 일어나지 못합니다.</strong>
+              위에서 시각을 아무리 바꾸셔도, 깨워 줄 사람이 없으면 아무 일도 안 일어납니다.</p>
+            <p><strong>검은 창(Cloud Shell)에 아래를 붙여넣으시면 끝납니다.</strong>
+              주소·지역·시각은 이미 채워 두었습니다. 암호만 물어봅니다.</p>
+            <div class="setup-code-row">
+              <pre class="setup-code" id="schedule-setup-cmd"></pre>
+              <button class="btn-secondary btn-copy-image" data-action="copy-code" data-target="schedule-setup-cmd">복사</button>
+            </div>
+            <p class="checklist-item-why">넣으신 뒤 바로 한 번 돌려 보시려면
+              <code>gcloud scheduler jobs run <span id="schedule-job-name">maim-daily</span> --location=<span id="schedule-job-loc">us-central1</span></code>
+              — 10분쯤 뒤 [포스팅] 에 글이 쌓이면 내일 아침도 됩니다.</p>
           </div>
 
           <!-- 준비 시각 — 이 화면에서 제일 먼저 눈에 들어와야 하는 값 -->
