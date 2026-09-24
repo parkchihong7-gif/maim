@@ -520,6 +520,19 @@
               <option value="education">교육·학문</option>
             </optgroup>
           </select>
+
+          <p class="muted" style="margin-top:18px">3단계 — <strong>본문 최소 글자수</strong></p>
+          <div class="setup-input-row schedule-cap-row">
+            <input type="number" id="min-length-input" min="800" max="6000" step="100" />
+            <span class="schedule-cap-unit">자 이상</span>
+            <button class="btn-primary" data-action="save-min-length">저장</button>
+          </div>
+          <p class="muted" id="min-length-state"></p>
+          <p class="checklist-item-why">여기 적으신 수를 <strong>못 넘기면 AI 에게 한 번 더 쓰게 합니다.</strong>
+            겨냥하는 길이는 이보다 30~60% 위로 잡습니다 — 모델은 「3,000자로 써라」 하면
+            대개 그보다 적게 쓰기 때문입니다.<br>
+            <strong>다만 매번 꼭 넘긴다고 약속드릴 수는 없습니다.</strong> 글을 쓰는 것은 AI 라
+            길이를 정확히 맞추지는 못합니다. 높게 잡으실수록 한 편에 걸리는 시간도 늘어납니다.</p>
         </div>
 
         <div class="card">

@@ -103,3 +103,32 @@ export function getPexelsKey(): string | null {
 export function getPixabayKey(): string | null {
   return getSetting("pixabay_api_key") || config.pixabayApiKey || null;
 }
+
+/**
+ * **본문 최소 글자수.**
+ *
+ * 예전에는 2,000자로 코드에 박혀 있었다. 그런데 목표 길이는 2,500~4,500
+ * 사이 무작위여서, 2,100자짜리 글이 「기준은 넘었다」 며 그냥 통과했다.
+ * 그래서 어떤 날은 2,000자 초반, 어떤 날은 3,000자가 나왔다.
+ *
+ * 이제 사장님이 정하신다. 기준을 3,000으로 두시면 **3,000자가 안 되는 글은
+ * 한 번 더 쓰게 한다.**
+ */
+const 최소분량키 = "min_length";
+export const 최소분량기본 = 3000;
+export const 최소분량최저 = 800;
+export const 최소분량최고 = 6000;
+
+export function 최소분량(): number {
+  const 글 = (getSetting(최소분량키) ?? "").trim();
+  if (글 === "") return 최소분량기본;
+  const 값 = Number(글);
+  if (!Number.isFinite(값)) return 최소분량기본;
+  return Math.max(최소분량최저, Math.min(최소분량최고, Math.floor(값)));
+}
+
+export function 최소분량정하기(값: number): number {
+  const n = Math.max(최소분량최저, Math.min(최소분량최고, Math.floor(Number(값))));
+  setSetting(최소분량키, String(n));
+  return n;
+}

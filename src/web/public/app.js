@@ -698,6 +698,19 @@ async function refreshSettings() {
   if (typeRadio) typeRadio.checked = true;
   document.getElementById("blog-topic-select").value = s.blog_topic || "all";
 
+  const 분량칸 = document.getElementById("min-length-input");
+  if (분량칸 && document.activeElement !== 분량칸) {
+    분량칸.value = s.min_length;
+    if (s.min_length_min) 분량칸.min = s.min_length_min;
+    if (s.min_length_max) 분량칸.max = s.min_length_max;
+  }
+  const 분량말 = document.getElementById("min-length-state");
+  if (분량말) {
+    분량말.className = "muted";
+    분량말.textContent = `지금은 ${s.min_length}자가 기준입니다 `
+      + `(${s.min_length_min}~${s.min_length_max} 사이로 정하실 수 있습니다).`;
+  }
+
   selectedPreset = s.posting_direction_preset || "balanced";
   document.getElementById("posting-direction-refinement").value = s.posting_direction_refinement || "";
   await loadPresetsIfNeeded();
@@ -867,6 +880,26 @@ document.addEventListener("click", async (e) => {
       await switchView(btn.dataset.view);
     } else if (action === "show-error") {
       alert(btn.dataset.error || "오류 메시지가 없습니다.");
+    } else if (action === "save-min-length") {
+      const 칸 = document.getElementById("min-length-input");
+      const 상태 = document.getElementById("min-length-state");
+      const 값 = Number(칸.value);
+      if (!Number.isFinite(값)) {
+        if (상태) { 상태.className = "setup-warn"; 상태.textContent = "숫자를 넣어 주세요."; }
+        return;
+      }
+      try {
+        const 답 = await api("/api/settings", { method: "PUT", body: JSON.stringify({ min_length: 값 }) });
+        칸.value = 답.min_length;
+        if (상태) {
+          상태.className = "muted";
+          상태.textContent = 답.notice
+            ? 답.notice
+            : `저장했습니다. 이제 ${답.min_length}자가 안 되는 글은 한 번 더 쓰게 합니다.`;
+        }
+      } catch (탈) {
+        if (상태) { 상태.className = "setup-warn"; 상태.textContent = 탈 && 탈.message ? 탈.message : String(탈); }
+      }
     } else if (action === "save-daily-cap") {
       const 칸 = document.getElementById("schedule-cap-input");
       const 값 = Number(칸.value);

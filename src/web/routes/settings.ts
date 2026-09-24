@@ -7,6 +7,7 @@ import {
   getUnsplashKey,
   getPexelsKey,
   getPixabayKey,
+  최소분량, 최소분량정하기, 최소분량최저, 최소분량최고,
   getAllPostingDirectionPresets,
   addCustomPreset,
   deleteCustomPreset,
@@ -52,6 +53,9 @@ export async function settingsRoutes(app: FastifyInstance) {
       pexels_api_key_set: !!getPexelsKey(),
       pixabay_api_key: 가림(getPixabayKey()),
       pixabay_api_key_set: !!getPixabayKey(),
+      min_length: 최소분량(),
+      min_length_min: 최소분량최저,
+      min_length_max: 최소분량최고,
       blog_type: raw.blog_type,
       blog_topic: raw.blog_topic,
       posting_direction_preset: raw.posting_direction_preset ?? "balanced",
@@ -72,10 +76,23 @@ export async function settingsRoutes(app: FastifyInstance) {
       if (탈) { reply.code(400); return { error: 탈 }; }
     }
 
+    // 글자수는 숫자이고 범위가 있어서 따로 받는다.
+    let 분량알림 = "";
+    if ("min_length" in body && body.min_length !== null) {
+      if (!주인자리인가()) { reply.code(403); return { error: 체험은못함 }; }
+      const 넣은것 = Number(body.min_length);
+      if (!Number.isFinite(넣은것)) { reply.code(400); return { error: "최소 글자수는 숫자여야 합니다." }; }
+      const 맞춘 = 최소분량정하기(넣은것);
+      if (맞춘 !== Math.floor(넣은것)) {
+        분량알림 = `최소 글자수는 ${최소분량최저}~${최소분량최고} 사이라 ${맞춘}자로 맞췄습니다.`;
+      }
+    }
+
     for (const key of SETTINGS_KEYS) {
       if (key in body) setSetting(key, body[key]);
     }
-    return { ok: true };
+    return 분량알림 ? { ok: true, notice: 분량알림, min_length: 최소분량() }
+                   : { ok: true, min_length: 최소분량() };
   });
 
   // 어느 AI 를 쓰는지, 고를 수 있는 것은 무엇인지.

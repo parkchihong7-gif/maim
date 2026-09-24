@@ -1,3 +1,4 @@
+import { 최소분량 } from "../db/repositories/settings.js";
 export type OpeningStyle = "greeting" | "question" | "anecdote" | "headline" | "monologue";
 export type Tension = "calm" | "excited" | "casual";
 
@@ -42,6 +43,7 @@ export function assignDirectives(n: number): PostDirective[] {
   const shuffledPersonas = shuffle(PERSONAS);
 
   const directives: PostDirective[] = [];
+  const 최소 = 최소분량();
   let nonGreetingCursor = 0;
   for (let i = 0; i < n; i++) {
     const openingStyle: OpeningStyle =
@@ -52,7 +54,12 @@ export function assignDirectives(n: number): PostDirective[] {
       openingStyle,
       tension: shuffledTensions[i % shuffledTensions.length],
       persona: shuffledPersonas[i % shuffledPersonas.length],
-      targetLength: 2500 + Math.floor(Math.random() * 2000),
+      // **목표는 최소 기준보다 넉넉히 위에 둔다.**
+      //
+      // 모델은 「3,000자로 써라」 하면 대개 그보다 적게 쓴다. 목표를 최소와
+      // 같게 두면 거의 매번 모자라서 다시 쓰게 되고, 그만큼 시간이 곱으로
+      // 든다. 처음부터 30~60% 위를 겨누면 대개 한 번에 기준을 넘는다.
+      targetLength: 최소 + Math.floor(최소 * (0.3 + Math.random() * 0.3)),
       sectionCount: 3 + Math.floor(Math.random() * 3),
     });
   }

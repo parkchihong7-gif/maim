@@ -9,9 +9,12 @@ import { parsePostResponse } from "../claude/parseResponse.js";
 import { getSettings, resolvePostingDirectionInstruction } from "../db/repositories/settings.js";
 import type { PostDirective } from "./directives.js";
 import { config } from "../config.js";
+import { 최소분량 } from "../db/repositories/settings.js";
 
 // 목표 분량(2500~4500자)에 못 미치더라도 최소한 이 정도는 되어야 재시도 없이 통과시킨다.
-const MIN_ACCEPTABLE_LENGTH = 2000;
+// 최소 분량은 **화면에서 정하신다.** 예전에는 2000 이 코드에 박혀 있어서,
+// 목표가 4,000자여도 2,100자만 나오면 「기준은 넘었다」 며 통과했다.
+// settings.ts 의 최소분량() 설명을 보라.
 
 /** 카테고리 1개에 대해 claude -p를 호출해 draft 포스팅 1건을 생성한다. */
 export async function generatePost(category: Category, directive: PostDirective): Promise<Post> {
@@ -64,9 +67,14 @@ export async function generatePost(category: Category, directive: PostDirective)
     }
   }
 
-  if (parsed.post.content.length < MIN_ACCEPTABLE_LENGTH) {
+  const 최소 = 최소분량();
+  if (parsed.post.content.length < 최소) {
     const shortLength = parsed.post.content.length;
-    const lengthRetryPrompt = `${prompt}\n\n(주의: 방금 ${shortLength}자로 너무 짧게 작성했다. 각 섹션의 설명과 구체적인 사례를 더 풍부하게 확장해서 반드시 ${directive.targetLength}자 안팎 분량으로 다시 작성하라.)`;
+    // 모자란 까닭을 숫자로 못 박아 준다. 「더 길게」 만으로는 잘 안 는다.
+    const lengthRetryPrompt = `${prompt}\n\n(주의: 방금 ${shortLength}자로 썼는데 `
+      + `**${최소}자에 ${최소 - shortLength}자 모자란다.** 본문은 반드시 ${최소}자를 넘겨야 하며 `
+      + `${directive.targetLength}자 안팎을 겨냥하라. 문단을 더 만들지 말고, 이미 쓴 각 문단에 `
+      + `구체적인 사례·숫자·상황 묘사를 덧붙여 늘려라.)`;
     try {
       const retryParsed = await attempt(lengthRetryPrompt);
       console.warn(
@@ -80,7 +88,7 @@ export async function generatePost(category: Category, directive: PostDirective)
         `[${category.name}] 분량 보강 재시도 실패(${(retryErr as Error).message}), 원본(${shortLength}자) 그대로 사용`,
       );
     }
-    if (parsed.post.content.length < MIN_ACCEPTABLE_LENGTH) {
+    if (parsed.post.content.length < 최소) {
       console.warn(
         `[${category.name}] 재시도 후에도 목표 분량 미달: ${parsed.post.content.length}자 (목표 ${directive.targetLength}자)`,
       );
