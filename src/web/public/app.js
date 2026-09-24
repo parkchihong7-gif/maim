@@ -867,32 +867,6 @@ document.addEventListener("click", async (e) => {
       await switchView(btn.dataset.view);
     } else if (action === "show-error") {
       alert(btn.dataset.error || "오류 메시지가 없습니다.");
-    } else if (action === "toggle-time-edit") {
-      const 칸 = document.getElementById("time-edit");
-      칸.hidden = !칸.hidden;
-      btn.textContent = 칸.hidden ? "시각 바꾸기" : "그만두기";
-    } else if (action === "mark-time-synced") {
-      await api("/api/schedule", { method: "PUT", body: JSON.stringify({ synced: true }) });
-      await refreshSchedule();
-    } else if (action === "save-daily-time") {
-      const 칸 = document.getElementById("schedule-time-input");
-      if (!칸.value) {
-        alert("시각을 골라 주세요.");
-        return;
-      }
-      try {
-        await api("/api/schedule", { method: "PUT", body: JSON.stringify({ time: 칸.value }) });
-      } catch (탈) {
-        alert("시각을 바꾸지 못했습니다: " + (탈 && 탈.message ? 탈.message : 탈));
-        return;
-      }
-      // 저장하면 «반만 바뀌었습니다» 가 뜬다. 고치는 칸은 접어 둔다 —
-      // 이제 봐야 할 것은 그 아래 한 줄이다.
-      const 고치는칸 = document.getElementById("time-edit");
-      const 고치기단추 = document.getElementById("time-edit-btn");
-      if (고치는칸) 고치는칸.hidden = true;
-      if (고치기단추) 고치기단추.textContent = "시각 바꾸기";
-      await refreshSchedule();
     } else if (action === "save-daily-cap") {
       const 칸 = document.getElementById("schedule-cap-input");
       const 값 = Number(칸.value);
@@ -1141,33 +1115,6 @@ async function refreshSchedule() {
   const 시계 = document.getElementById("schedule-time-now");
   if (시계) 시계.textContent = s.time;
 
-  const 칸시각 = document.getElementById("schedule-time-input");
-  if (칸시각 && document.activeElement !== 칸시각) 칸시각.value = s.time;
-
-  // **반만 바뀐 상태**를 화면이 알고 있어야 한다.
-  //
-  // 잠들었다 깨는 판에서는 시각이 두 군데에 있다. 프로그램은 08:30 으로
-  // 아는데 구글은 아직 06:00 에 깨우는 사이가 생긴다. 이걸 화면이 모르면,
-  // 바꿔 놓고 «왜 그 시각에 안 나오지» 하다가 고장인 줄 아신다.
-  const 절반 = document.getElementById("schedule-cloudrun");
-  if (절반) {
-    const 보여야하나 = !!s.cloudRun && !!s.needsSync;
-    절반.hidden = !보여야하나;
-    if (보여야하나) {
-      const 새것 = document.getElementById("halfway-new");
-      const 옛것 = document.getElementById("halfway-old");
-      if (새것) 새것.textContent = s.time;
-      if (옛것) 옛것.textContent = s.syncedTime;
-      const 칸명령 = document.getElementById("schedule-gcloud-cmd");
-      if (칸명령) {
-        칸명령.textContent =
-          `gcloud scheduler jobs update http maim-daily \\\n` +
-          `  --location=us-central1 \\\n` +
-          `  --schedule="${s.cron}" \\\n` +
-          `  --time-zone="Asia/Seoul"`;
-      }
-    }
-  }
 
   const 수 = document.getElementById("schedule-planned");
   const 말 = document.getElementById("schedule-note");

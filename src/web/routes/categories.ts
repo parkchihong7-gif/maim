@@ -7,7 +7,7 @@ import {
 } from "../../db/repositories/categories.js";
 import {
   오늘목록, 오늘몇편, 지금차례, 차례정하기, 차례이름, 하루최대, 지금상한, 상한정하기, 카테고리상한,
-  지금시각, 시각정하기, 크론식, 맞춘시각, 맞췄다고적기, 반만바뀌었나,
+  지금시각, 크론식,
   마지막으로돈때,
   type 차례,
 } from "../../scheduler/예약.js";
@@ -31,7 +31,7 @@ import { 주인자리인가, 체험은못함 } from "../../tenancy.js";
  * 암호는 **명령 글에 넣지 않는다.** 화면은 여러 사람이 보고, 명령은
  * 기록에 남는다.
  */
-function 예약만들기명령(req: FastifyRequest, 시각: string): string {
+function 예약만들기명령(req: FastifyRequest): string {
   const host = String(req.headers["x-forwarded-host"] ?? req.headers.host ?? "");
   const proto = String(req.headers["x-forwarded-proto"] ?? "https");
   const 주소 = host ? `${proto}://${host}` : "https://사장님-서비스-URL";
@@ -42,7 +42,7 @@ function 예약만들기명령(req: FastifyRequest, 시각: string): string {
   return `read -rsp "대시보드 암호를 붙여넣고 Enter: " T; echo; `
        + `gcloud scheduler jobs create http ${이름} `
        + `--location=${지역} `
-       + `--schedule="${크론식(시각)}" `
+       + `--schedule="${크론식()}" `
        + `--time-zone="${config.timezone}" `
        + `--uri="${주소}/api/run/daily" `
        + `--http-method=POST `
@@ -75,16 +75,10 @@ export async function categoriesRoutes(app: FastifyInstance) {
       // 반나절이 넘었으면 화면이 «꺼져 있습니다» 라고 말한다.
       lastRun: 마지막으로돈때(),
       // 「꺼져 있습니다」 만 말하지 말고, 켜는 명령을 같이 준다.
-      setupCommand: 주인자리인가() ? 예약만들기명령(req, 지금시각()) : "",
+      setupCommand: 주인자리인가() ? 예약만들기명령(req) : "",
+      // 시각은 **못 박혀 있다.** 화면은 보여 주기만 한다 — 예약.ts 참고.
       time: 지금시각(),
       cron: 크론식(),
-      syncedTime: 맞춘시각(),
-      needsSync: 반만바뀌었나(),
-      // Cloud Run 은 아무도 안 쓸 때 잠들고, 잠든 프로세스의 시계는 멈춘다.
-      // 그래서 **시각을 여기서 바꿔도 그것만으로는 안 바뀐다.** 밖에서
-      // 두드려 주는 Cloud Scheduler 가 진짜 자명종이고, 그건 이 프로그램이
-      // 손댈 수 없는 자리다. 대신 붙여넣을 명령을 만들어 준다.
-      cloudRun: !!config.gcsStateBucket,
       preview: 오늘목록(방식).map((h) => ({
         categoryId: h.category.id, name: h.category.name, nth: h.nth,
       })),
@@ -95,14 +89,10 @@ export async function categoriesRoutes(app: FastifyInstance) {
     // 이건 **서버 한 대의 시간표**다. 자리마다 갈라져 있지 않아서,
     // 체험 회원이 고치면 사장님 아침 글의 시각이 바뀐다.
     if (!주인자리인가()) { reply.code(403); return { error: 체험은못함 }; }
-    const { order, dailyCap, time, synced } = (req.body ?? {}) as
-      { order?: string; dailyCap?: number; time?: string; synced?: boolean };
-
-    // 사람이 «명령을 넣었습니다» 를 눌러 주셨다. 밖의 자명종이 이제 같은
-    // 시각을 본다는 뜻이다.
-    if (synced === true) {
-      맞췄다고적기();
-    }
+    // 시각은 여기서 안 받는다. 06:00 으로 못 박혀 있고, 바꿀 수 없으면
+    // 밖의 자명종과 어긋날 수도 없다 — 예약.ts 의 발행시각 설명을 보라.
+    const { order, dailyCap } = (req.body ?? {}) as
+      { order?: string; dailyCap?: number };
 
     if (order !== undefined) {
       if (order !== "sequential" && order !== "random" && order !== "least_used") {
@@ -110,18 +100,6 @@ export async function categoriesRoutes(app: FastifyInstance) {
         return { error: "차례는 sequential · random · least_used 중 하나여야 합니다." };
       }
       차례정하기(order);
-    }
-
-    if (time !== undefined) {
-      try {
-        시각정하기(String(time));
-        // 늘 켜 두고 쓰는 판에서는 이쪽이 진짜 자명종이다. 다시 걸지 않으면
-        // 서버를 껐다 켤 때까지 옛 시각으로 돈다.
-        다시걸기();
-      } catch (탈) {
-        reply.code(400);
-        return { error: (탈 as Error).message };
-      }
     }
 
     if (dailyCap !== undefined) {
@@ -140,8 +118,7 @@ export async function categoriesRoutes(app: FastifyInstance) {
       상한정하기(n);
     }
 
-    return { ok: true, dailyCap: 지금상한(), time: 지금시각(), cron: 크론식(),
-             syncedTime: 맞춘시각(), needsSync: 반만바뀌었나() };
+    return { ok: true, dailyCap: 지금상한(), time: 지금시각(), cron: 크론식() };
   });
 
   app.post("/api/categories", async (req, reply) => {

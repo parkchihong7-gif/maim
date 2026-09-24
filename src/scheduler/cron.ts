@@ -33,7 +33,7 @@ function 걸기(): void {
   }
   const 시각 = 지금시각();
   일감 = cron.schedule(
-    크론식(시각),
+    크론식(),
     () => {
       runDailyJob().catch((err) => console.error("[cron] dailyJob 실행 중 오류:", err));
     },

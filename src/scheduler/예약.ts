@@ -26,6 +26,15 @@ export const 하루최대 = 10;
 const 상한키 = "daily_cap";
 
 /**
+ * 안 정하셨을 때의 하루 편수.
+ *
+ * 예전엔 최대치(10)였다. 그런데 글 한 편에 3분쯤 걸리고 Cloud Scheduler
+ * 가 기다려 주는 시간은 30분이라, 10편이면 **시간을 넘겨 실패한다.**
+ * 그리고 하루 열 편을 올리실 분도 없다. 셋이면 충분하고 안전하다.
+ */
+export const 기본상한 = 3;
+
+/**
  * 오늘 몇 편까지 만들 것인가. **사장님이 정하신다.**
  *
  * 카테고리별 편수를 다 더한 값과는 다르다. 카테고리를 늘리다 보면 합이
@@ -41,9 +50,9 @@ export function 지금상한(): number {
   // 아침에 글이 한 편도 안 나오는데, 화면에는 아무 탈도 안 보인다.
   // **한 번도 안 정하신 것**과 **0 으로 정하신 것**은 다르다.
   const 글 = (getSetting(상한키) ?? "").trim();
-  if (글 === "") return 하루최대;
+  if (글 === "") return 기본상한;
   const 값 = Number(글);
-  if (!Number.isFinite(값)) return 하루최대;
+  if (!Number.isFinite(값)) return 기본상한;
   return Math.max(0, Math.min(하루최대, Math.floor(값)));
 }
 
@@ -66,58 +75,36 @@ export const 차례이름: Record<차례, string> = {
 
 const 차례키 = "schedule_order";
 const 마지막키 = "last_daily_run";
-const 시각키 = "daily_time";
-const 맞춘시각키 = "daily_time_synced";
-
-/** 아침에 글이 준비되는 시각. `HH:MM`. */
-export function 지금시각(): string {
-  const 글 = (getSetting(시각키) ?? "").trim();
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(글) ? 글 : "06:00";
-}
-
-export function 시각정하기(글: string): string {
-  const 값 = (글 ?? "").trim();
-  if (/^([01]\d|2[0-3]):[0-5]\d$/.test(값) === false) {
-    throw new Error("시각은 00:00 ~ 23:59 사이여야 합니다.");
-  }
-  setSetting(시각키, 값);
-  return 값;
-}
 
 /**
- * **밖의 자명종에 맞춰 둔 시각.**
+ * **아침에 글이 준비되는 시각. 06:00 고정이다.**
  *
- * 잠들었다 깨는 판에서는 시각이 두 군데에 있다 — 프로그램 안과, 밖에서
- * 깨워 주는 Cloud Scheduler. 뒤쪽은 이 프로그램이 손댈 수 없는 자리라,
- * 사람이 명령 한 줄을 붙여넣어 주셔야 한다.
+ * 예전에는 화면에서 시각을 바꿀 수 있었다. 그런데 잠들었다 깨는 판에서는
+ * 시각이 **두 군데**에 있다 — 프로그램 안과, 밖에서 깨워 주는 Cloud
+ * Scheduler. 뒤쪽은 프로그램이 손댈 수 없어서, 바꿀 때마다 사람이 명령
+ * 한 줄을 검은 창에 붙여넣어야 했다.
  *
- * 그 사이가 **반만 바뀐 상태**다. 프로그램은 08:30 으로 아는데 구글은
- * 아직 06:00 에 깨운다. 이걸 화면이 모르면, 바꿔 놓고 «왜 그 시각에
- * 안 나오지» 하다가 고장인 줄 아신다.
+ * 그 한 줄이 늘 문제였다. 지역이 안 맞거나, 이름이 틀리거나, 붙여넣다
+ * 깨지거나 한다. 그러면 화면에는 «08:30» 이라고 적혀 있는데 실제로는
+ * 아무 일도 안 일어나는, **제일 알아차리기 어려운 고장**이 된다. 실제로
+ * 그래서 아침에 글이 하나도 안 나온 적이 있다.
  *
- * 그래서 **맞춰 둔 시각을 따로 적어 둔다.** 둘이 다르면 아직 반만 바뀐 것이다.
+ * 그래서 시각은 못 박는다. 바꿀 수 없으면 어긋날 수도 없다. Cloud
+ * Scheduler 는 설치할 때 한 번 걸어 두고 **다시는 건드리지 않는다.**
+ *
+ * **하루 몇 편**은 화면에서 얼마든지 바꾸셔도 된다. 그건 여기 시각과
+ * 달리 프로그램이 돌 때 설정에서 읽어 가는 값이라, 밖의 자명종과
+ * 아무 상관이 없다.
  */
-export function 맞춘시각(): string {
-  const 글 = (getSetting(맞춘시각키) ?? "").trim();
-  // 한 번도 안 적혔으면 설치 안내서의 06:00 이 들어가 있다고 본다.
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(글) ? 글 : "06:00";
-}
+export const 발행시각 = "06:00";
 
-/** 사람이 «명령을 넣었습니다» 라고 알려 주셨다. */
-export function 맞췄다고적기(): string {
-  const 값 = 지금시각();
-  setSetting(맞춘시각키, 값);
-  return 값;
-}
-
-/** 아직 밖의 자명종이 옛 시각인가. */
-export function 반만바뀌었나(): boolean {
-  return 지금시각() !== 맞춘시각();
+export function 지금시각(): string {
+  return 발행시각;
 }
 
 /** 자명종에게 줄 말. `분 시 * * *` 꼴이다. */
-export function 크론식(시각: string = 지금시각()): string {
-  const [시, 분] = 시각.split(":");
+export function 크론식(): string {
+  const [시, 분] = 발행시각.split(":");
   return `${Number(분)} ${Number(시)} * * *`;
 }
 
@@ -133,7 +120,9 @@ export function 마지막으로돈때(): string {
 
 export function 지금차례(): 차례 {
   const 값 = (getSetting(차례키) || "").trim();
-  return 값 === "sequential" || 값 === "random" || 값 === "least_used" ? 값 : "least_used";
+  // 안 정하셨으면 **랜덤**. 순차로 두면 하루 상한에 걸려 뒤쪽 카테고리가
+  // 늘 같은 자리에서 잘려서, 어떤 주제는 영영 안 나온다.
+  return 값 === "sequential" || 값 === "random" || 값 === "least_used" ? 값 : "random";
 }
 
 function 섞기<T>(arr: T[]): T[] {

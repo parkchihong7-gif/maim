@@ -1558,3 +1558,21 @@ textarea:focus {
   overflow-wrap: anywhere;
   overflow-x: visible;
 }
+
+/* 시각은 고정이다. 「고정」 표를 달아 두어, 바꾸려고 찾다가 헤매지 않게 한다. */
+.timecard-fixed {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: var(--bg-sunk);
+  white-space: nowrap;
+}
+
+.timecard-why {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
