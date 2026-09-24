@@ -178,6 +178,23 @@ async function api(path, options = {}) {
   return data;
 }
 
+/**
+ * 「이 설정이면 아침에 몇 분 걸리는지」 를 그 자리에 칠한다.
+ *
+ * 「너무 크면 실패할 수 있습니다」 같은 고정된 경고문은 아무도 안 읽는다.
+ * 지금 넣으신 값으로 «18분 / 30분» 이라고 보여 주면 읽힌다.
+ */
+function 시간경고칠하기(어디, t) {
+  const 칸 = document.getElementById(어디);
+  if (!칸) return;
+  if (!t || !t.message) { 칸.hidden = true; return; }
+  칸.hidden = false;
+  칸.className = t.level === "over" ? "setup-warn"
+               : t.level === "tight" ? "setup-warn"
+               : "setup-good";
+  칸.innerHTML = 굵게(t.message);
+}
+
 function escapeHtml(text) {
   const div = document.createElement("div");
   div.textContent = text ?? "";
@@ -704,6 +721,8 @@ async function refreshSettings() {
     if (s.min_length_min) 분량칸.min = s.min_length_min;
     if (s.min_length_max) 분량칸.max = s.min_length_max;
   }
+  시간경고칠하기("timing-warn-length", s.timing);
+
   const 분량말 = document.getElementById("min-length-state");
   if (분량말) {
     분량말.className = "muted";
@@ -891,6 +910,7 @@ document.addEventListener("click", async (e) => {
       try {
         const 답 = await api("/api/settings", { method: "PUT", body: JSON.stringify({ min_length: 값 }) });
         칸.value = 답.min_length;
+        시간경고칠하기("timing-warn-length", 답.timing);
         if (상태) {
           상태.className = "muted";
           상태.textContent = 답.notice
@@ -1143,6 +1163,8 @@ async function refreshSchedule() {
     칸수.value = String(s.dailyCap);
     칸수.max = String(s.dailyCapMax ?? 10);
   }
+
+  시간경고칠하기("timing-warn-cap", s.timing);
 
   // 큰 시계. 이 화면에서 제일 먼저 눈에 들어와야 하는 값이다.
   const 시계 = document.getElementById("schedule-time-now");

@@ -528,6 +528,7 @@
             <button class="btn-primary" data-action="save-min-length">저장</button>
           </div>
           <p class="muted" id="min-length-state"></p>
+          <p id="timing-warn-length" class="setup-good" hidden></p>
           <p class="checklist-item-why">여기 적으신 수를 <strong>못 넘기면 AI 에게 한 번 더 쓰게 합니다.</strong>
             겨냥하는 길이는 이보다 30~60% 위로 잡습니다 — 모델은 「3,000자로 써라」 하면
             대개 그보다 적게 쓰기 때문입니다.<br>
@@ -617,6 +618,8 @@
               상태가 되기 때문입니다. <strong>하루 몇 건</strong>은 아래에서 얼마든지 바꾸셔도 되고,
               그건 구글 쪽과 아무 상관이 없습니다.</p>
           </div>
+
+          <p id="timing-warn-cap" class="setup-good" hidden></p>
 
           <p class="muted" style="margin-top:18px">하루에 몇 건까지 준비할까요 <strong>(최대 10건)</strong></p>
           <div class="setup-input-row schedule-cap-row">

@@ -14,6 +14,8 @@ import {
 import { 다시걸기 } from "../../scheduler/cron.js";
 import { config } from "../../config.js";
 import { 주인자리인가, 체험은못함 } from "../../tenancy.js";
+import { 시간재보기 } from "../../scheduler/시간예상.js";
+import { 최소분량 } from "../../db/repositories/settings.js";
 
 /**
  * **지금 이 서버를 깨울 예약 작업을 만드는 명령**을 통째로 만들어 준다.
@@ -66,6 +68,7 @@ export async function categoriesRoutes(app: FastifyInstance) {
       orderLabel: 차례이름[방식],
       orders: (Object.keys(차례이름) as 차례[]).map((k) => ({ id: k, label: 차례이름[k] })),
       dailyCap: 상한,
+      timing: 시간재보기(최소분량(), 상한),
       dailyCapMax: 하루최대,
       perCategoryCap: 카테고리상한,
       planned: 계획,
@@ -118,7 +121,8 @@ export async function categoriesRoutes(app: FastifyInstance) {
       상한정하기(n);
     }
 
-    return { ok: true, dailyCap: 지금상한(), time: 지금시각(), cron: 크론식() };
+    return { ok: true, dailyCap: 지금상한(), time: 지금시각(), cron: 크론식(),
+             timing: 시간재보기(최소분량(), 지금상한()) };
   });
 
   app.post("/api/categories", async (req, reply) => {

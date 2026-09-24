@@ -18,6 +18,8 @@ import { ENGINE_IDS, ENGINES, ENGINE_KEY_SETTINGS, ENGINE_MODEL_SETTINGS, 키검
 import { buildPreviewPrompt } from "../../claude/promptBuilder.js";
 import { buildBlogProfileBlock } from "../../claude/blogProfile.js";
 import { parsePreviewResponse } from "../../claude/parseResponse.js";
+import { 시간재보기 } from "../../scheduler/시간예상.js";
+import { 지금상한 } from "../../scheduler/예약.js";
 
 const SETTINGS_KEYS = [
   // AI 엔진마다의 API 키 (gemini_api_key 등). engines.ts 가 이름의 주인이다.
@@ -54,6 +56,8 @@ export async function settingsRoutes(app: FastifyInstance) {
       pixabay_api_key: 가림(getPixabayKey()),
       pixabay_api_key_set: !!getPixabayKey(),
       min_length: 최소분량(),
+      // 지금 값으로 아침에 몇 분 걸릴지. 화면이 그 자리에서 경고한다.
+      timing: 시간재보기(최소분량(), 지금상한()),
       min_length_min: 최소분량최저,
       min_length_max: 최소분량최고,
       blog_type: raw.blog_type,
@@ -91,8 +95,9 @@ export async function settingsRoutes(app: FastifyInstance) {
     for (const key of SETTINGS_KEYS) {
       if (key in body) setSetting(key, body[key]);
     }
-    return 분량알림 ? { ok: true, notice: 분량알림, min_length: 최소분량() }
-                   : { ok: true, min_length: 최소분량() };
+    const 어림 = 시간재보기(최소분량(), 지금상한());
+    return 분량알림 ? { ok: true, notice: 분량알림, min_length: 최소분량(), timing: 어림 }
+                   : { ok: true, min_length: 최소분량(), timing: 어림 };
   });
 
   // 어느 AI 를 쓰는지, 고를 수 있는 것은 무엇인지.
