@@ -1576,3 +1576,14 @@ textarea:focus {
   line-height: 1.7;
   color: var(--text-muted);
 }
+
+/* 지금 하루치 만들기 — 한 편씩 끝날 때마다 줄이 늘어난다. */
+.batch-log {
+  margin: 10px 0 0;
+  padding-left: 22px;
+  font-size: 0.86rem;
+  line-height: 1.9;
+  color: var(--text-muted);
+}
+
+.batch-log:empty { display: none; }

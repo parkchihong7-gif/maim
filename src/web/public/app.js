@@ -195,6 +195,83 @@ function 시간경고칠하기(어디, t) {
   칸.innerHTML = 굵게(t.message);
 }
 
+/**
+ * **지금 하루치를 만든다.**
+ *
+ * 서버에 새 길을 내지 않고, 이미 있는 [지금 생성] 을 예약 설정이 정한
+ * 목록대로 차례차례 부른다. 그래야 하는 까닭이 있다.
+ *
+ *   한 편씩 저장된다   중간에 멈춰도 그때까지 만든 것은 남는다
+ *   진행이 보인다      «2/3 만드는 중» 을 그대로 보여 줄 수 있다
+ *   한 편이 실패해도   거기서 끝내지 않고 다음 편으로 넘어간다
+ *
+ * 왜 서버에 「하루치 한 번에」 를 안 맡기나
+ *   이 서버는 요청을 처리하는 동안에만 일을 한다(Cloud Run). 답을 먼저
+ *   돌려주고 뒤에서 계속 만들게 해도 그 일은 곧 멈춘다. 그래서 어차피
+ *   누군가 기다려 줘야 하는데, 그럴 바에는 한 편씩 끊어 부르는 쪽이
+ *   중간에 끊겨도 덜 잃는다.
+ */
+async function 하루치만들기(단추) {
+  const 상태 = document.getElementById("batch-state");
+  const 기록 = document.getElementById("batch-log");
+  const 말 = (글, 탈났나) => {
+    if (!상태) return;
+    상태.className = 탈났나 ? "setup-warn" : "muted";
+    상태.textContent = 글;
+  };
+
+  let 계획;
+  try {
+    계획 = (await api("/api/schedule")).preview || [];
+  } catch (탈) {
+    말("예약 설정을 못 읽었습니다: " + (탈 && 탈.message ? 탈.message : 탈), true);
+    return;
+  }
+  if (계획.length === 0) {
+    말("오늘 만들 것이 없습니다 — 쓸 카테고리가 없거나 하루 편수가 전부 0 입니다.", true);
+    return;
+  }
+
+  단추.disabled = true;
+  if (기록) 기록.innerHTML = "";
+  let 된것 = 0, 안된것 = 0;
+
+  // 창을 닫으면 여기서 멈춘다. 그걸 모르고 닫으시지 않게 한 번 잡는다.
+  const 막기 = (e) => { e.preventDefault(); e.returnValue = ""; };
+  window.addEventListener("beforeunload", 막기);
+
+  try {
+    for (let i = 0; i < 계획.length; i++) {
+      const 것 = 계획[i];
+      말(`${i + 1}/${계획.length} 만드는 중 — ${것.name} … (한 편에 3~6분)`);
+      const 줄 = document.createElement("li");
+      줄.textContent = `${것.name} — 만드는 중…`;
+      기록 && 기록.appendChild(줄);
+      try {
+        const 답 = await api("/api/run/generate", {
+          method: "POST",
+          body: JSON.stringify({ categoryId: 것.categoryId }),
+        });
+        const 글 = (답 && (답.post || 답)) || {};
+        const 길이 = 글.content ? 글.content.length : null;
+        줄.textContent = `${것.name} — ✅ ${글.title || "완료"}${길이 ? ` (${길이}자)` : ""}`;
+        된것++;
+      } catch (탈) {
+        줄.textContent = `${것.name} — ❌ ${탈 && 탈.message ? 탈.message : 탈}`;
+        안된것++;
+      }
+    }
+    말(안된것 === 0
+      ? `끝났습니다 — ${된것}편을 만들었습니다. [포스팅] 에서 보실 수 있습니다.`
+      : `끝났습니다 — ${된것}편 성공, ${안된것}편 실패. 위 목록에서 까닭을 보십시오.`,
+      안된것 > 0);
+  } finally {
+    window.removeEventListener("beforeunload", 막기);
+    단추.disabled = false;
+    await refreshCategories();
+  }
+}
+
 function escapeHtml(text) {
   const div = document.createElement("div");
   div.textContent = text ?? "";
@@ -262,6 +339,26 @@ async function refreshCategories() {
   const categories = await api("/api/categories");
   categoriesCache = categories;
   renderCategories(categories);
+  await 하루치예고();
+}
+
+/** 단추를 누르기 전에 «무엇이 몇 편 나오는지» 를 보여 준다. */
+async function 하루치예고() {
+  const 칸 = document.getElementById("batch-plan");
+  if (!칸) return;
+  try {
+    const s = await api("/api/schedule");
+    const 목록 = s.preview || [];
+    if (목록.length === 0) { 칸.textContent = "지금은 만들 것이 없습니다"; return; }
+    // **랜덤일 때는 이름을 적으면 안 된다.**
+    // 그 목록은 부를 때마다 다시 뽑히므로, 여기 적어 둔 이름과 실제로
+    // 만들어지는 것이 달라진다. 「예고와 다르네」 가 고장으로 읽힌다.
+    칸.textContent = s.order === "random"
+      ? `${목록.length}편 (카테고리는 만들 때 무작위로 고릅니다)`
+      : `${목록.length}편 (${목록.map((h) => h.name).join(" · ")})`;
+  } catch {
+    칸.textContent = "…";
+  }
 }
 
 let readyPosts = [];
@@ -899,6 +996,8 @@ document.addEventListener("click", async (e) => {
       await switchView(btn.dataset.view);
     } else if (action === "show-error") {
       alert(btn.dataset.error || "오류 메시지가 없습니다.");
+    } else if (action === "run-batch") {
+      await 하루치만들기(btn);
     } else if (action === "save-min-length") {
       const 칸 = document.getElementById("min-length-input");
       const 상태 = document.getElementById("min-length-state");

@@ -133,6 +133,23 @@
             </thead>
             <tbody></tbody>
           </table>
+          <!-- 아침을 기다리지 않고 지금 하루치를 만드는 자리.
+               서버에 새 길을 내지 않고, 이미 있는 [지금 생성] 을 예약
+               설정이 정한 목록대로 차례차례 부른다. 한 편씩 저장되므로
+               중간에 멈춰도 그때까지 만든 것은 남는다. -->
+          <div class="subsection" id="batch-box">
+            <h3>지금 하루치 만들기</h3>
+            <p class="muted">아침 6시에 저절로 만들어지지만, <strong>지금 당장 필요하실 때</strong> 쓰십시오.
+              예약 설정과 똑같은 차례·편수로 만듭니다 — <strong id="batch-plan">…</strong></p>
+            <button class="btn-primary" data-action="run-batch">지금 하루치 만들기</button>
+            <p class="muted" id="batch-state"></p>
+            <ol class="batch-log" id="batch-log"></ol>
+            <p class="checklist-item-why">한 편에 <strong>3~6분</strong> 걸립니다.
+              <strong>이 창을 닫거나 다른 화면으로 옮기시면 거기서 멈춥니다</strong> —
+              만들던 글까지는 남고, 나머지는 안 만들어집니다. 켜 두고 기다리셔야 합니다.<br>
+              아침 6시 자동 준비는 이것과 상관없이 그대로 돕니다.</p>
+          </div>
+
           <div class="subsection">
             <h3>새 카테고리 추가</h3>
             <form id="category-form">
