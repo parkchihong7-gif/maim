@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import type { FastifyRequest } from "fastify";
 import fastifyStatic from "@fastify/static";
 import path from "node:path";
 import fs from "node:fs";
@@ -17,6 +18,38 @@ import { imageDownloadsRoutes } from "./routes/imageDownloads.js";
 import { tenantsRoutes } from "./routes/tenants.js";
 import { findSession } from "../db/repositories/keyserverSessions.js";
 import { 자리에서, 주인, 체험역할, type 쓰는이 } from "../tenancy.js";
+/**
+ * 요청이 들고 온 접속 토큰. **세 가지 모양을 다 받는다.**
+ *
+ *   x-dashboard-token: <토큰>      우리 화면이 쓰는 것
+ *   Authorization: Bearer <토큰>   웹에서 제일 흔한 표준
+ *   ?token=<토큰>                  링크에 붙여 보낼 때
+ *
+ * 표준 쪽을 왜 받나
+ *   바깥 도구들은 대개 «Bearer» 만 안다. 우리만 쓰는 이름을 고집하면
+ *   그런 도구를 붙일 수가 없다. 실제로 그래서 한 번 막혔다 — 연결 설정
+ *   화면에 고를 수 있는 것이 Bearer·Basic·OAuth 뿐인데, 우리 서버가
+ *   Bearer 를 안 받아서 이어지지 않았다.
+ *
+ * 같은 비밀값을 이름만 달리 받는 것이라, 무르게 만드는 것이 아니다.
+ */
+function 들고온토큰(req: FastifyRequest): string | undefined {
+  const 하나 = (값: string | string[] | undefined): string | undefined =>
+    Array.isArray(값) ? 값[0] : 값;
+
+  const 우리것 = 하나(req.headers["x-dashboard-token"]);
+  if (우리것) return 우리것;
+
+  const 표준 = 하나(req.headers.authorization);
+  if (표준) {
+    // «Bearer abc» 와 «abc» 를 다 받는다. 접두사를 빼먹는 도구가 있다.
+    const 맞은것 = 표준.match(/^\s*Bearer\s+(.+)$/i);
+    return (맞은것 ? 맞은것[1] : 표준).trim();
+  }
+
+  return (req.query as { token?: string } | undefined)?.token;
+}
+
 /** 지금 서버가 들고 있는 비밀값들. 설정에 저장된 것과 환경변수 양쪽. */
 function 비밀들(): string[] {
   const 것들: string[] = [];
@@ -155,9 +188,7 @@ export async function buildServer() {
       // 하나를 받아 살았는지만 답한다 — 막지 않아도 새는 것이 없다.
       if (req.url.startsWith("/api/auth/heartbeat")) { done(); return; }
 
-      const header = req.headers["x-dashboard-token"];
-      const query = (req.query as { token?: string } | undefined)?.token;
-      const provided = (Array.isArray(header) ? header[0] : header) ?? query;
+      const provided = 들고온토큰(req);
 
       // 주인은 마스터 토큰으로 들어온다. 주인의 자리는 owner_key = '' 다.
       if (provided === config.dashboardToken) { 자리에서(주인, done); return; }
