@@ -23,6 +23,7 @@ export async function selectBestImages(
   candidates: DownloadedCandidate[],
   postSummary: string,
   count: number,
+  postTitle = "",
 ): Promise<SelectedImage[]> {
   if (candidates.length === 0) {
     throw new Error("이미지 후보가 없습니다.");
@@ -48,7 +49,7 @@ export async function selectBestImages(
   let altTexts: string[];
   try {
     const dir = path.dirname(candidateFiles[0]);
-    const prompt = buildImageSelectPrompt(candidateFiles, postSummary, count);
+    const prompt = buildImageSelectPrompt(candidateFiles, postSummary, count, postTitle);
     const 답 = await runAI({ prompt, readDir: dir, timeoutMs: 150_000 });
     const parsed = parseImageSelectResponse(답);
     selectedIndices = parsed.selected_indices;

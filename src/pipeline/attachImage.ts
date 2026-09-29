@@ -40,7 +40,7 @@ export async function attachImage(post: Post, options: AttachImageOptions = {}):
     options.page ?? 1,
   );
   const summary = (post.content ?? "").slice(0, 500);
-  const selected = await selectBestImages(candidates, summary, count);
+  const selected = await selectBestImages(candidates, summary, count, post.title ?? "");
 
   fs.mkdirSync(postDir, { recursive: true });
   const existingCount = append ? getImagePaths(post).length : 0;

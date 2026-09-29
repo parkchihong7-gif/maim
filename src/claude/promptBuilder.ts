@@ -2,6 +2,7 @@ import type { Category } from "../db/repositories/categories.js";
 import type { PostDirective } from "../pipeline/directives.js";
 import { buildStyleRulesBlock } from "./styleRules.js";
 import { buildTitleRuleBlock } from "./제목규칙.js";
+import { buildSeoRuleBlock } from "./검색노출규칙.js";
 
 export function buildPostPrompt(
   category: Category,
@@ -58,6 +59,7 @@ ${topicKeywordBlock}
 ${recentTitlesBlock}
 ${buildStyleRulesBlock(directive)}
 ${buildTitleRuleBlock()}
+${buildSeoRuleBlock(directive)}
 ${titleVariantsInstruction}
 
 최종 답변은 마크다운 코드블록이나 다른 설명 없이 오직 순수 JSON 데이터 형식으로만 출력하라:
@@ -86,7 +88,13 @@ export function buildImageSelectPrompt(
   candidateFiles: string[],
   postSummary: string,
   count: number,
+  postTitle = "",
 ): string {
+  // 네이버 이미지검색이 이 블로그 유입의 24.6% 다 — 통합검색 다음으로 큰 길.
+  // 그림 설명글에 글 키워드가 없으면 그 몫을 통째로 버린다.
+  const 키워드줄 = postTitle
+    ? `\n이 글의 제목은 "${postTitle}" 이다. **대체텍스트마다 이 제목의 핵심 키워드를\n한 번씩 자연스럽게 넣어라.** 네이버 이미지검색에서 이 글로 들어오는 길이 여기서 난다.\n단, 세 장에 똑같은 문장을 붙이지 말고 그림마다 실제로 보이는 것을 달리 적어라.`
+    : "";
   return `
 다음 이미지 후보 파일들을 각각 읽어서 확인하라:
 ${candidateFiles.map((f, i) => `${i}: ${f}`).join("\n")}
@@ -97,7 +105,9 @@ ${candidateFiles.map((f, i) => `${i}: ${f}`).join("\n")}
 이 글과 가장 잘 어울리는 순서대로 상위 ${count}개를 골라라. 그리고 고른 이미지마다
 SEO 검색엔진이 이미지 내용을 이해할 수 있도록, 이미지가 실제로 무엇을 보여주는지
 구체적으로 설명하는 한국어 대체텍스트(alt text)를 15~40자 내외로 작성하라(이
-글의 주제와 자연스럽게 연결지어서). 반드시 순수 JSON으로만 답하라:
+글의 주제와 자연스럽게 연결지어서).${키워드줄}
+
+반드시 순수 JSON으로만 답하라:
 {"selected_indices": [0, 2, 4], "alt_texts": ["...", "...", "..."], "reason": "..."}
 alt_texts는 selected_indices와 같은 순서, 같은 개수여야 한다.
 `.trim();
