@@ -1,6 +1,7 @@
 import type { Category } from "../db/repositories/categories.js";
 import type { PostDirective } from "../pipeline/directives.js";
 import { buildStyleRulesBlock } from "./styleRules.js";
+import { buildTitleRuleBlock } from "./제목규칙.js";
 
 export function buildPostPrompt(
   category: Category,
@@ -39,12 +40,12 @@ ${recentTitles.map((t) => `- ${t}`).join("\n")}
     : "";
 
   const titleVariantsInstruction = `
-title과 별도로, 후킹(hook) 패턴이 서로 다른 제목 후보 3개를 title_variants에 담아라.
-같은 글 내용을 각각 다른 방식으로 낚아채듯 표현하되, 절대 서로 비슷한 문장 구조로
-겹치지 않게 하라:
-1. 질문형 — 독자의 호기심을 직접 자극하는 질문 문장
-2. 숫자/구체적 사실 강조형 — 숫자나 놀라운 사실을 앞세운 문장 (예: "OO하는 3가지 이유")
-3. 공감형 — 독자의 감정·경험에 바로 와닿는 공감형 문장
+title 과 별도로, **같은 글을 노릴 수 있는 다른 세부 키워드 조합 3개**를 title_variants 에 담아라.
+후보 3개도 위 [제목 규칙]을 똑같이 지켜야 한다 — 낱말 3~4개, 30자 이내, 문장 아님, 기호 없음.
+title 과 낱말이 통째로 겹치지 않게, 공략하는 각도를 서로 다르게 잡아라:
+1. 조건·기준형 — 독자가 따져 보는 것 (예: "노원구 소형 아파트 대출 조건")
+2. 방법·절차형 — 독자가 직접 해 보려는 것 (예: "초등 스크래치 게임 만들기")
+3. 후기·비교형 — 독자가 고르기 전에 찾아보는 것 (예: "스크래치 주니어 실사용 후기")
 `;
 
   return `
@@ -56,10 +57,11 @@ ${searchInstruction}
 ${topicKeywordBlock}
 ${recentTitlesBlock}
 ${buildStyleRulesBlock(directive)}
+${buildTitleRuleBlock()}
 ${titleVariantsInstruction}
 
 최종 답변은 마크다운 코드블록이나 다른 설명 없이 오직 순수 JSON 데이터 형식으로만 출력하라:
-{"title": "...", "content": "...", "image_query": "...", "tags": ["#태그1", "#태그2"], "title_variants": ["질문형 제목", "숫자/사실형 제목", "공감형 제목"]}
+{"title": "세부 키워드 조합", "content": "...", "image_query": "...", "tags": ["#태그1", "#태그2"], "title_variants": ["조건·기준형 키워드 조합", "방법·절차형 키워드 조합", "후기·비교형 키워드 조합"]}
 `.trim();
 }
 
@@ -73,6 +75,7 @@ export function buildPreviewPrompt(directive: PostDirective, blogProfileBlock: s
 아래 설정에 맞는 아무 가벼운 일상 주제나 골라서 짧게 써라.
 ${blogProfileBlock || "(특별히 지정된 블로그 전역 설정 없음 — 기본 스타일 규칙만 따른다.)"}
 ${buildStyleRulesBlock(directive)}
+${buildTitleRuleBlock()}
 
 최종 답변은 마크다운 코드블록이나 다른 설명 없이 오직 순수 JSON 데이터 형식으로만 출력하라:
 {"title": "...", "content": "..."}

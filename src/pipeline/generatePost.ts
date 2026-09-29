@@ -10,6 +10,7 @@ import { getSettings, resolvePostingDirectionInstruction } from "../db/repositor
 import type { PostDirective } from "./directives.js";
 import { config } from "../config.js";
 import { 최소분량 } from "../db/repositories/settings.js";
+import { 제목고르기 } from "../claude/제목규칙.js";
 
 // 목표 분량(2500~4500자)에 못 미치더라도 최소한 이 정도는 되어야 재시도 없이 통과시킨다.
 // 최소 분량은 **화면에서 정하신다.** 예전에는 2000 이 코드에 박혀 있어서,
@@ -99,13 +100,24 @@ export async function generatePost(category: Category, directive: PostDirective)
     console.warn(`[${category.name}] 스타일 규칙 위반 감지 및 자동 제거:`, parsed.warnings);
   }
 
+  // 제목이 「세부 키워드 조합」 꼴을 벗어났으면, 이미 받아 둔 후보 제목 중
+  // 규칙에 맞는 것으로 바꿔 끼운다. AI 를 다시 부르지 않는다 — 3분이 더 들기 때문.
+  const 제목 = 제목고르기(parsed.post.title, parsed.post.title_variants);
+  if (제목.바꿨나) {
+    console.warn(
+      `[${category.name}] 제목을 후보로 교체: "${parsed.post.title}" (${제목.왜}) -> "${제목.title}"`,
+    );
+  } else if (제목.왜) {
+    console.warn(`[${category.name}] 제목이 키워드 꼴이 아니다(${제목.왜}): "${제목.title}"`);
+  }
+
   const post = insertDraftPost({
     categoryId: category.id,
-    title: parsed.post.title,
+    title: 제목.title,
     content: parsed.post.content,
     imageQuery: parsed.post.image_query,
     tags: parsed.post.tags,
-    titleVariants: parsed.post.title_variants,
+    titleVariants: 제목.title_variants,
   });
 
   markCategoryUsed(category.id);

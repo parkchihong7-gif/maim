@@ -40,9 +40,10 @@ export function buildStyleRulesBlock(directive: PostDirective): string {
    - 이모지는 문단 곳곳, 강조 문장, 감정 표현에 적극적이고 다채롭게 배치하되 과유불급, 매 문장마다 넣지는 마라.
 
 5. 출력 형식:
-   - title 필드는 기호 없이 임팩트 있는 제목 문장 한 줄.
+   - title 필드는 문장이 아니라 낱말 3~4개를 붙인 세부 키워드 조합 한 줄. 아래 [제목 규칙]을 그대로 따르라.
    - content 필드는 title을 반복하지 말고 바로 본문을 시작하라.
    - image_query는 이 글의 대표 이미지를 검색할 때 쓸 짧은 "영어" 키워드 1개로 작성하라 (Unsplash/Pexels 검색용).
-   - tags는 '#' 접두사가 붙은 SEO 해시태그 10개.
+   - tags는 '#' 접두사가 붙은 SEO 해시태그 10개. 첫 번째 태그는 title 의 핵심 키워드를
+     띄어쓰기 없이 붙여 쓴 것으로 하고, 나머지는 그 세부 키워드의 변형·연관어로 채워라.
 `.trim();
 }
