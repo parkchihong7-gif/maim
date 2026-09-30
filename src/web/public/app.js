@@ -59,6 +59,17 @@ function 로그인_오류(res, data) {
 /** 관문이 열려 있는 동안의 약속. 401 이 여러 개 와도 관문은 하나만 뜬다. */
 let gatePromise = null;
 
+/**
+ * 방금 키를 넣고 들어왔는가.
+ *
+ * 체험 회원은 들어오자마자 「내 글 스타일」 부터 보셔야 한다. 안내 메일에
+ * 적어 두어도 대충 읽고 [포스팅] 부터 누르시면, 주제·말투가 빈 채로 글이
+ * 나와 «내 블로그랑 안 맞네» 하고 끝난다. 그래서 첫 화면을 정해 준다.
+ */
+let 방금들어옴 = false;
+/** 이번에 화면을 연 동안 체험 첫 화면으로 한 번 데려갔는가. 두 번은 안 한다. */
+let 체험첫화면_보냄 = false;
+
 function openGate(먼저할말) {
   if (gatePromise) return gatePromise;
   const gate = document.getElementById("gate");
@@ -88,6 +99,7 @@ function openGate(먼저할말) {
         key1.value = ""; key2.value = "";
         msg.textContent = "";
         떼어내기();
+        방금들어옴 = true;
         resolve(답.token);
       } catch (err) {
         msg.className = "gate-msg";
@@ -863,6 +875,25 @@ async function refreshSettings() {
   renderPresetGrid();
   renderFinalDirectionSummary();
   renderHomeStats();
+  체험첫화면으로(s);
+}
+
+/**
+ * 체험 회원이면 **「내 글 스타일」 을 첫 화면으로.**
+ *
+ * 키를 넣고 막 들어왔을 때, 또는 아직 스타일을 한 번도 안 정했을 때.
+ * 정하고 나면 다음부터는 평소처럼 홈으로 들어온다.
+ */
+function 체험첫화면으로(s) {
+  const 막들어옴 = 방금들어옴;
+  방금들어옴 = false;
+  if (!isTrialSeat || 체험첫화면_보냄) return;
+  if (!막들어옴 && s.style_saved) return;
+  체험첫화면_보냄 = true;
+  if (currentView !== "settings") {
+    switchView("settings").catch((err) => console.error("[maim] 첫 화면 전환 실패:", err));
+  }
+  window.scrollTo(0, 0);
 }
 
 // --- 사이드바 뷰 전환 (홈/블로그 관리/포스팅/발행 이력/관리자 설정/사용법) ---

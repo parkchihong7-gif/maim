@@ -69,6 +69,10 @@ export async function settingsRoutes(app: FastifyInstance) {
       pixabay_api_key_set: !!getPixabayKey(),
       // 화면이 «이 자리에서 무엇을 바꿀 수 있나» 를 이걸로 가른다.
       seat: 주인 ? "owner" : "trial",
+      // 체험 회원이 자기 스타일을 한 번이라도 정했는가. 안 정했으면 화면이
+      // 들어오자마자 「내 글 스타일」 을 먼저 연다 — 안내 메일은 대충 읽혀도
+      // 첫 화면은 반드시 보인다.
+      style_saved: 주인 ? true : STYLE_KEYS.some((k) => raw[k] !== null && raw[k] !== undefined),
       trial_daily_limit: 주인 ? null : 체험_하루상한,
       min_length: 최소분량(),
       // 지금 값으로 아침에 몇 분 걸릴지. 화면이 그 자리에서 경고한다.
