@@ -5,6 +5,7 @@ import { getPost, getImagePaths, markPublished } from "../../db/repositories/pos
 import { attachImage } from "../../pipeline/attachImage.js";
 import { downloadFileIfMissing } from "../../persistence/gcsState.js";
 import { config } from "../../config.js";
+import { 오류적기 } from "../../db/repositories/errorLog.js";
 
 const MIME_BY_EXT: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -79,6 +80,7 @@ export async function postsRoutes(app: FastifyInstance) {
     try {
       await attachImage(post, { count: 3, page: randomPage, append: true });
     } catch (err) {
+      오류적기("이미지 재생성", post.title ?? "", (err as Error).message);
       reply.code(500);
       return { error: (err as Error).message };
     }

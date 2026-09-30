@@ -7,6 +7,8 @@ import { assignDirectives } from "../../pipeline/directives.js";
 import { generatePost } from "../../pipeline/generatePost.js";
 import { attachImage } from "../../pipeline/attachImage.js";
 import { runDailyJob } from "../../scheduler/dailyJob.js";
+import { 오류적기, 최근오류 } from "../../db/repositories/errorLog.js";
+import { 주인자리인가 } from "../../tenancy.js";
 
 export async function manualRunRoutes(app: FastifyInstance) {
   // Cloud Run처럼 평소 잠들어 있다가 요청이 와야만 깨어나는 배포에서는 서버 내부의
@@ -45,7 +47,15 @@ export async function manualRunRoutes(app: FastifyInstance) {
     }
 
     const [directive] = assignDirectives(1);
-    const post = await generatePost(category, directive);
+    let post;
+    try {
+      post = await generatePost(category, directive);
+    } catch (탈) {
+      // 적어 두고 그대로 돌려준다. 체험 회원 화면에 뜬 오류를 주인이
+      // [관리자 설정 → 최근 오류] 에서 볼 수 있게 한다.
+      오류적기("글쓰기", category.name, (탈 as Error).message);
+      throw 탈;
+    }
 
     // 주제 키워드는 "이번 한 번만" 우선 반영되는 1회성 입력이다. 생성에
     // 실제로 쓰였으니 다음 "지금 생성"이 같은 키워드로 또 반복되지 않도록
@@ -57,11 +67,18 @@ export async function manualRunRoutes(app: FastifyInstance) {
     try {
       await attachImage(post);
     } catch (err) {
+      오류적기("이미지", category.name, (err as Error).message);
       markReady(post.id);
       return { ...getPost(post.id), imageError: (err as Error).message };
     }
 
     markReady(post.id);
     return getPost(post.id);
+  });
+
+  // 최근 오류. 주인은 전부(누구 자리에서 났는지까지), 체험 회원은 자기 것만.
+  app.get("/api/errors", async () => {
+    const 주인 = 주인자리인가();
+    return { errors: 최근오류(주인), all: 주인 };
   });
 }

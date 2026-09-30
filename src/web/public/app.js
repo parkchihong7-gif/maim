@@ -908,7 +908,7 @@ async function switchView(view) {
   document.querySelectorAll(".sidebar-nav-item").forEach((navBtn) => {
     navBtn.classList.toggle("active", navBtn.dataset.view === view);
   });
-  if (view === "settings") { await refreshSettings(); await refreshSchedule(); await refreshEngines(); }
+  if (view === "settings") { await refreshSettings(); await refreshSchedule(); await refreshEngines(); await refreshErrors(); }
   if (view === "home") renderHome();
 }
 
@@ -958,7 +958,8 @@ document.addEventListener("click", async (e) => {
       // 200 OK로 imageError 필드만 실어서 돌려준다 — 이걸 그냥 무시하면
       // 이미지 없는 초안이 조용히 생겨서 "이미지 생성이 안 된다"처럼 보인다.
       if (result.imageError) {
-        alert(`글은 생성됐지만 이미지 첨부에 실패했습니다: ${result.imageError}\n\n포스팅 카드의 "이미지 재생성" 버튼으로 다시 시도해보세요.`);
+        오류창("글은 만들었지만 이미지를 못 붙였습니다",
+          `${result.imageError}\n\n포스팅 카드의 [이미지 재생성] 버튼으로 다시 시도해 보세요.`);
       }
     } else if (action === "copy") {
       const post = readyPosts.find((p) => p.id === Number(id));
@@ -1245,7 +1246,14 @@ document.addEventListener("click", async (e) => {
       renderFinalDirectionSummary();
     }
   } catch (err) {
-    alert(err.message);
+    // 글 만들기·이미지는 **복사할 수 있는 창**으로. 휴대폰 알림창은 글을
+    // 복사할 수 없어서, 쓰시는 분이 무슨 오류인지 전할 길이 없었다.
+    if (action === "generate" || action === "regenerate-image") {
+      오류창(action === "generate" ? "글을 만들지 못했습니다" : "이미지를 다시 찾지 못했습니다",
+        err && err.message ? err.message : String(err));
+    } else {
+      alert(err.message);
+    }
   } finally {
     if (action === "generate") {
       btn.disabled = false;
@@ -1656,4 +1664,91 @@ document.addEventListener("change", async (e) => {
   const 결과 = document.querySelector('[data-result="claude"]');
   if (결과) { 결과.textContent = ""; 결과.className = "setup-step-result"; }
   await refreshEngines();
+});
+
+
+// ─────────────────────────────────────────── 복사할 수 있는 오류 창
+//
+// alert() 창은 휴대폰에서 글을 고를 수가 없다. 체험 회원이 «오류가 떴다»
+// 고만 전하게 되고, 무엇이 문제인지 아무도 모른다. 글을 고르고 [복사] 할 수
+// 있는 창을 띄운다. 같은 오류는 서버에도 남아 주인이 [최근 오류] 에서 본다.
+
+function 오류창(제목, 내용) {
+  let 창 = document.getElementById("error-dialog");
+  if (!창) {
+    창 = document.createElement("div");
+    창.id = "error-dialog";
+    창.className = "error-dialog";
+    창.innerHTML = `
+      <div class="error-dialog-box" role="alertdialog" aria-modal="true" aria-labelledby="error-dialog-title">
+        <h3 id="error-dialog-title"></h3>
+        <textarea id="error-dialog-text" readonly rows="7"></textarea>
+        <p class="muted">위 내용을 <strong>[복사]</strong> 해서 보내 주신 분께 전해 주시면 바로 확인할 수 있습니다.</p>
+        <div class="error-dialog-actions">
+          <button class="btn-primary" type="button" data-error-copy>복사</button>
+          <button class="btn-secondary" type="button" data-error-close>닫기</button>
+        </div>
+      </div>`;
+    document.body.appendChild(창);
+    창.addEventListener("click", async (e) => {
+      if (e.target === 창 || e.target.closest("[data-error-close]")) { 창.hidden = true; return; }
+      const 복사단추 = e.target.closest("[data-error-copy]");
+      if (!복사단추) return;
+      const 칸 = document.getElementById("error-dialog-text");
+      try {
+        await navigator.clipboard.writeText(칸.value);
+      } catch {
+        칸.select();                      // 클립보드를 못 쓰는 브라우저면 골라만 둔다
+        try { document.execCommand("copy"); } catch { /* 골라 둔 것으로 충분하다 */ }
+      }
+      복사단추.textContent = "복사됨!";
+      setTimeout(() => { 복사단추.textContent = "복사"; }, 1500);
+    });
+  }
+  document.getElementById("error-dialog-title").textContent = `⚠️ ${제목}`;
+  const 때 = new Date().toLocaleString("ko-KR");
+  document.getElementById("error-dialog-text").value = `${내용}\n\n(${때})`;
+  창.hidden = false;
+}
+
+// ─────────────────────────────────────────── 최근 오류 (주인 화면)
+
+/** DB 의 시각(UTC, «2026-09-30 07:49:34») 을 한국 시각으로. */
+function 한국시각(utc) {
+  const d = new Date(String(utc || "").replace(" ", "T") + "Z");
+  return Number.isNaN(d.getTime()) ? String(utc || "")
+    : d.toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+}
+
+async function refreshErrors() {
+  const 칸 = document.getElementById("error-log-list");
+  if (!칸 || isTrialSeat) return;
+  let 답;
+  try { 답 = await api("/api/errors"); } catch { return; }
+  const 줄들 = (답 && 답.errors) || [];
+  if (!줄들.length) {
+    칸.innerHTML = '<p class="muted">최근에 난 오류가 없습니다.</p>';
+    return;
+  }
+  칸.innerHTML = 줄들.map((e) => {
+    const 누구 = e.owner_key
+      ? `체험 · ${escapeHtml(e.holder_name || "")} (${escapeHtml(e.owner_key)})`
+      : "사장님";
+    return `<li><div class="error-log-head"><strong>${escapeHtml(e.stage)}</strong>
+      · ${escapeHtml(e.category || "")} · ${누구} · <span class="muted">${escapeHtml(한국시각(e.created_at))}</span></div>
+      <div class="error-log-msg">${escapeHtml(e.message)}</div></li>`;
+  }).join("");
+}
+
+document.addEventListener("click", async (e) => {
+  const 새로 = e.target.closest && e.target.closest('[data-action="refresh-errors"]');
+  if (새로) { e.preventDefault(); await refreshErrors(); return; }
+  const 단추 = e.target.closest && e.target.closest('[data-action="copy-errors"]');
+  if (!단추) return;
+  e.preventDefault();
+  const 칸 = document.getElementById("error-log-list");
+  const 글 = 칸 ? 칸.innerText.trim() : "";
+  try { await navigator.clipboard.writeText(글); 단추.textContent = "복사됨!"; }
+  catch { 단추.textContent = "복사하지 못했습니다"; }
+  setTimeout(() => { 단추.textContent = "전부 복사"; }, 1500);
 });
