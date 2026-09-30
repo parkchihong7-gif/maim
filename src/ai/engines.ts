@@ -205,7 +205,8 @@ export const ENGINES: Record<EngineId, Engine> = {
   claude: {
     id: "claude",
     label: "Claude (Anthropic)",
-    cost: "Claude Pro 또는 Max 구독이 필요합니다. 구독 한도 안에서 돌아 건당 요금은 없습니다.",
+    cost: "**유료 구독 필수 — Claude Pro(월 $20) 이상.** 무료 가입으로는 안 됩니다 "
+        + "(무료 요금제에는 Claude Code 가 없습니다). 구독 한도 안에서 돌아 건당 요금은 없습니다.",
     bin: "claude",
     install: "npm install -g @anthropic-ai/claude-code",
     login: "claude login",
@@ -239,8 +240,9 @@ export const ENGINES: Record<EngineId, Engine> = {
   gemini: {
     id: "gemini",
     label: "Gemini (Google)",
-    cost: "구글 AI 스튜디오에서 **API 키 한 줄**을 받아 넣으시면 됩니다. "
-        + "무료 등급이 있어 카드 등록 없이 시작하실 수 있습니다. "
+    cost: "**가입만으로 무료** — 구글 계정으로 AI 스튜디오에서 **API 키 한 줄**을 받아 넣으시면 됩니다. "
+        + "카드 등록 없이 시작하실 수 있습니다. 무료 등급은 하루 한도가 작아, 많이 쓰시면 "
+        + "결제를 등록해 쓴 만큼 내셔야 합니다. Gemini 앱 유료 구독(Google AI Pro)은 이 한도와 별개입니다. "
         + "하루 몇 건까지 무료인지는 구글이 수시로 바꾸니 아래 링크에서 확인하세요.",
     bin: "gemini",
     install: "npm install -g @google/gemini-cli",
@@ -289,7 +291,8 @@ export const ENGINES: Record<EngineId, Engine> = {
   codex: {
     id: "codex",
     label: "Codex (OpenAI)",
-    cost: "ChatGPT Plus 이상 구독이 필요합니다. 구독 한도 안에서 돌아 건당 요금은 없습니다.",
+    cost: "**유료 구독 필수 — ChatGPT Plus(월 $20) 이상.** 무료·Go 요금제는 한도가 작아 "
+        + "매일 쓰기에 모자랍니다. 구독 한도 안에서 돌아 건당 요금은 없습니다.",
     bin: "codex",
     install: "npm install -g @openai/codex",
     login: "codex login",
