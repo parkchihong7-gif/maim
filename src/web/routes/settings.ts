@@ -13,7 +13,7 @@ import {
   deleteCustomPreset,
   resolvePostingDirectionInstruction,
 } from "../../db/repositories/settings.js";
-import { runAI, 지금엔진, 엔진고르기, 엔진키, 엔진모델, 준비됐나 } from "../../ai/run.js";
+import { runAI, 지금엔진, 엔진고르기, 엔진키, 엔진모델, 준비됐나, 상태지우기, 상태적기, 지금상태 } from "../../ai/run.js";
 import { ENGINE_IDS, ENGINES, ENGINE_KEY_SETTINGS, ENGINE_MODEL_SETTINGS, 키검사 } from "../../ai/engines.js";
 import { buildPreviewPrompt } from "../../claude/promptBuilder.js";
 import { buildBlogProfileBlock } from "../../claude/blogProfile.js";
@@ -130,6 +130,8 @@ export async function settingsRoutes(app: FastifyInstance) {
       if (개인설정인가(key)) 개인설정정하기(key, body[key]);
       else setSetting(key, body[key]);
     }
+    // AI 키·모델이 바뀌면 전의 «연결됨/끊김» 은 더 이상 맞지 않다.
+    if ([...ENGINE_KEY_SETTINGS, ...ENGINE_MODEL_SETTINGS].some((k) => k in body)) 상태지우기();
     const 어림 = 주인 ? 시간재보기(최소분량(), 지금상한()) : null;
     return 분량알림 ? { ok: true, notice: 분량알림, min_length: 최소분량(), timing: 어림 }
                    : { ok: true, min_length: 최소분량(), timing: 어림 };
@@ -201,9 +203,11 @@ export async function settingsRoutes(app: FastifyInstance) {
         // 방금 검은 창에서 새로 로그인해 올리셨을 수 있다. 지금 받아 온다.
         freshLogin: true,
       });
-      return { ok: true, engine: 지금엔진().label };
+      return { ok: true, engine: 지금엔진().label, status: 지금상태() };
     } catch (err) {
-      return { ok: false, engine: 지금엔진().label, error: (err as Error).message };
+      // 연결 테스트가 실패했으면 그게 곧 «끊김» 이다. 글쓰기를 막아 둔다.
+      상태적기(false, (err as Error).message);
+      return { ok: false, engine: 지금엔진().label, error: (err as Error).message, status: 지금상태() };
     }
   });
 

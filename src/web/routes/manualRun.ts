@@ -9,6 +9,26 @@ import { attachImage } from "../../pipeline/attachImage.js";
 import { runDailyJob } from "../../scheduler/dailyJob.js";
 import { 오류적기, 최근오류 } from "../../db/repositories/errorLog.js";
 import { 주인자리인가 } from "../../tenancy.js";
+import { 쓸수있나, 지금상태, type AI상태 } from "../../ai/run.js";
+
+/**
+ * AI 가 **끊긴 것이 분명하면** 글을 만들러 가지 않는다.
+ *
+ * 가 봐야 몇 분 뒤 영문 오류만 받는다. 체험 회원은 그 한 번으로 하루 한도를
+ * 잃는다. 주인에게는 무엇을 고치면 되는지, 체험 회원에게는 누구에게 알리면
+ * 되는지 말한다. 화면은 `needsAi` 를 보고 [관리자 설정] 으로 데려간다.
+ */
+function 막힌답(상태: AI상태, 주인: boolean) {
+  return {
+    needsAi: true,
+    engine: 상태.label,
+    error: 주인
+      ? `글 쓸 AI(${상태.label})가 연결되어 있지 않습니다 — ${상태.why || "연결 테스트가 실패했습니다."} `
+        + `[관리자 설정 → 1) AI 커넥트 연결] 에서 고치신 뒤 [연결 테스트] 를 눌러 주세요.`
+      : `지금은 글 쓸 AI 연결이 끊겨 있어 글을 만들 수 없습니다. `
+        + `보내 주신 분께 «AI 연결이 끊겼다» 고 알려 주세요. 오늘 한도는 줄지 않았습니다.`,
+  };
+}
 
 export async function manualRunRoutes(app: FastifyInstance) {
   // Cloud Run처럼 평소 잠들어 있다가 요청이 와야만 깨어나는 배포에서는 서버 내부의
@@ -24,6 +44,8 @@ export async function manualRunRoutes(app: FastifyInstance) {
       reply.code(403);
       return { error: "체험 키로는 전체 생성을 부를 수 없습니다. 카테고리에서 [지금 생성] 을 눌러 주세요." };
     }
+    const 상태 = await 쓸수있나();
+    if (상태.ok === false) { reply.code(409); return 막힌답(상태, true); }
     await runDailyJob();
     return { ok: true };
   });
@@ -38,6 +60,9 @@ export async function manualRunRoutes(app: FastifyInstance) {
         return { error: 상한안내(오늘), limit: 체험_하루상한, today: 오늘 };
       }
     }
+
+    const 상태 = await 쓸수있나();
+    if (상태.ok === false) { reply.code(409); return 막힌답(상태, 주인자리인가()); }
 
     const { categoryId } = req.body as { categoryId: number };
     const category = getCategory(categoryId);
@@ -74,6 +99,19 @@ export async function manualRunRoutes(app: FastifyInstance) {
 
     markReady(post.id);
     return getPost(post.id);
+  });
+
+  // 화면 맨 위 상태 막대가 부른다. 체험 회원에게는 까닭의 속사정(명령·경로)은
+  // 빼고 «되는가 안 되는가» 만 준다.
+  app.get("/api/ai/status", async () => {
+    const 주인 = 주인자리인가();
+    const 상태 = 지금상태();
+    return {
+      ...상태,
+      why: 주인 ? 상태.why : (상태.ok === false ? "AI 연결이 끊겨 있습니다." : ""),
+      changed: 주인 ? 상태.changed : null,
+      role: 주인 ? "admin" : "client",
+    };
   });
 
   // 최근 오류. 주인은 전부(누구 자리에서 났는지까지), 체험 회원은 자기 것만.

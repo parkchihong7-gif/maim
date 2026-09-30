@@ -185,7 +185,11 @@ async function api(path, options = {}) {
     // 서버가 JSON 에러 대신 순수 오류(예: Cloud Run이 너무 오래 걸린 요청을
     // 강제로 끊었을 때의 504)를 돌려주면 data.error가 비어있다 — 그때도
     // 상태 코드/문구는 남겨서 "요청 실패"만 뜨고 끝나지 않게 한다.
-    throw new Error(data.error || `요청 실패 (${res.status} ${res.statusText || ""})`.trim());
+    const 탈 = new Error(data.error || `요청 실패 (${res.status} ${res.statusText || ""})`.trim());
+    // 화면이 까닭을 가려 다르게 대할 수 있게 (AI 끊김이면 설정으로 데려간다).
+    탈.status = res.status;
+    탈.data = data;
+    throw 탈;
   }
   return data;
 }
@@ -224,6 +228,7 @@ function 시간경고칠하기(어디, t) {
  *   중간에 끊겨도 덜 잃는다.
  */
 async function 하루치만들기(단추) {
+  if (!(await AI되나())) return;
   const 상태 = document.getElementById("batch-state");
   const 기록 = document.getElementById("batch-log");
   const 말 = (글, 탈났나) => {
@@ -947,6 +952,8 @@ document.addEventListener("click", async (e) => {
 
   try {
     if (action === "generate") {
+      // AI 가 끊긴 게 분명하면 몇 분 기다려 영문 오류를 받게 하지 않는다.
+      if (!(await AI되나())) return;
       btn.disabled = true;
       btn.textContent = "생성 중...";
       const result = await api("/api/run/generate", {
@@ -1122,6 +1129,7 @@ document.addEventListener("click", async (e) => {
       try {
         const res = await api("/api/settings/test-claude", { method: "POST" });
         claudeTestedOk = !!res.ok;
+        AI막대그리기().catch(() => {});
         setStepBadge("claude", claudeTestedOk);
         updateSetupProgress();
         if (resultEl) {
@@ -1248,7 +1256,9 @@ document.addEventListener("click", async (e) => {
   } catch (err) {
     // 글 만들기·이미지는 **복사할 수 있는 창**으로. 휴대폰 알림창은 글을
     // 복사할 수 없어서, 쓰시는 분이 무슨 오류인지 전할 길이 없었다.
-    if (action === "generate" || action === "regenerate-image") {
+    if (err && err.data && err.data.needsAi) {
+      AI안내창(err.message);
+    } else if (action === "generate" || action === "regenerate-image") {
       오류창(action === "generate" ? "글을 만들지 못했습니다" : "이미지를 다시 찾지 못했습니다",
         err && err.message ? err.message : String(err));
     } else {
@@ -1650,6 +1660,23 @@ document.addEventListener("click", async (e) => {
 document.addEventListener("change", async (e) => {
   const el = e.target;
   if (!(el instanceof HTMLInputElement) || el.name !== "ai_engine") return;
+  // **눌렀다고 바로 바꾸지 않는다.** 한 번 데였다 — 설명을 읽으려고 Codex
+  // 칸을 눌렀을 뿐인데 서버 전체가 Codex 로 바뀌었고, 로그인도 안 된
+  // Codex 로 체험 회원 글을 쓰다 401 로 멈췄다.
+  const 전 = 엔진목록 && 엔진목록.engines.find((x) => x.id === 엔진목록.current);
+  const 새 = 엔진목록 && 엔진목록.engines.find((x) => x.id === el.value);
+  const 되돌리기 = () => {
+    document.querySelectorAll('input[name="ai_engine"]').forEach((r) => {
+      r.checked = !!(엔진목록 && r.value === 엔진목록.current);
+      r.closest(".engine")?.classList.toggle("on", r.checked);
+    });
+  };
+  if (!confirm(`글 쓰는 AI 를 바꿀까요?\n\n${전 ? 전.label : "지금 것"}  →  ${새 ? 새.label : el.value}\n\n`
+             + "바꾸면 이 서버의 모든 글(아침 자동 준비·체험 회원 글 포함)이 새 AI 로 써집니다. "
+             + "새 AI 가 로그인(또는 키)이 안 되어 있으면 글이 안 나옵니다 — 바꾼 뒤 [연결 테스트] 를 꼭 눌러 주세요.")) {
+    되돌리기();
+    return;
+  }
   try {
     await api("/api/settings/ai", { method: "PUT", body: JSON.stringify({ engine: el.value }) });
   } catch (탈) {
@@ -1664,6 +1691,7 @@ document.addEventListener("change", async (e) => {
   const 결과 = document.querySelector('[data-result="claude"]');
   if (결과) { 결과.textContent = ""; 결과.className = "setup-step-result"; }
   await refreshEngines();
+  await AI막대그리기();
 });
 
 
@@ -1752,3 +1780,134 @@ document.addEventListener("click", async (e) => {
   catch { 단추.textContent = "복사하지 못했습니다"; }
   setTimeout(() => { 단추.textContent = "전부 복사"; }, 1500);
 });
+
+
+// ─────────────────────────────────────────── 맨 위 상태 막대
+//
+// «지금 누가 들어와 있고, 어느 AI 로, 연결이 되어 있는가» 를 모든 화면
+// 맨 위에 늘 보인다. 한 번 데였다 — 사장님은 Claude 인 줄 아셨는데 서버는
+// Codex 였고, 그걸 오류 창을 보고서야 알았다.
+
+let AI상태 = null;
+let 자동확인함 = false;
+
+function 짧은때(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? ""
+    : d.toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric",
+                                  hour: "numeric", minute: "2-digit" });
+}
+
+async function AI막대그리기() {
+  const 막대 = document.getElementById("ai-bar");
+  if (!막대) return null;
+  let s;
+  try { s = await api("/api/ai/status"); } catch { return null; }
+  AI상태 = s;
+  const 주인 = s.role === "admin";
+  const 누구 = 주인 ? "👤 <strong>사장님(주인)</strong> 접속 중" : "👤 <strong>체험 회원</strong> 접속 중";
+  const 엔진 = `🤖 글 쓰는 AI: <strong>${escapeHtml(s.label)}</strong>`;
+  let 상태말, 꼴;
+  if (s.ok === true) {
+    상태말 = `✅ 연결됨${s.at ? ` <span class="ai-bar-when">(${escapeHtml(짧은때(s.at))} 확인)</span>` : ""}`;
+    꼴 = "ok";
+  } else if (s.ok === false) {
+    상태말 = 주인
+      ? `⚠️ <strong>연결 안 됨</strong> — 지금은 글이 안 나옵니다 `
+        + `<button class="btn-small" data-action="go-ai-settings">AI 설정으로 가기</button>`
+      : `⚠️ <strong>지금 AI 연결이 끊겨 글을 만들 수 없습니다.</strong> 보내 주신 분께 알려 주세요.`;
+    꼴 = "bad";
+  } else {
+    상태말 = 주인
+      ? `⏳ 연결 확인 전 <button class="btn-small" data-action="go-ai-settings">연결 테스트</button>`
+      : `⏳ 준비됨`;
+    꼴 = "wait";
+  }
+  let 바뀜 = "";
+  if (주인 && s.changed && s.changed.at && Date.now() - new Date(s.changed.at).getTime() < 3 * 86400_000) {
+    const 이름 = (id) => ({ claude: "Claude", gemini: "Gemini", codex: "Codex" }[id] || id);
+    바뀜 = `<div class="ai-bar-note">${escapeHtml(짧은때(s.changed.at))}에 `
+      + `${escapeHtml(이름(s.changed.from))} → <strong>${escapeHtml(이름(s.changed.to))}</strong> 로 바뀌었습니다.</div>`;
+  }
+  막대.className = `ai-bar ai-bar-${꼴}`;
+  막대.innerHTML = `<div class="ai-bar-line"><span>${누구}</span><span>${엔진}</span><span>${상태말}</span></div>`
+    + (주인 && s.ok === false && s.why ? `<div class="ai-bar-note">${escapeHtml(s.why).slice(0, 300)}</div>` : "")
+    + 바뀜;
+  막대.hidden = false;
+
+  // 주인이 들어왔는데 아직 모르면 한 번 알아서 확인한다 (짧은 «ok» 한 마디).
+  if (주인 && s.ok === null && !자동확인함) {
+    자동확인함 = true;
+    api("/api/settings/test-claude", { method: "POST" })
+      .then(() => AI막대그리기()).catch(() => {});
+  }
+  return s;
+}
+
+/** 글을 만들기 전에 본다. 끊긴 게 분명하면 안내하고 false. */
+async function AI되나() {
+  const s = await AI막대그리기();
+  if (s && s.ok === false) {
+    AI안내창(s.role === "admin"
+      ? `글 쓸 AI(${s.label})가 연결되어 있지 않아 지금은 글을 만들 수 없습니다.\n\n${s.why || ""}`
+      : "지금은 글 쓸 AI 연결이 끊겨 있어 글을 만들 수 없습니다. 보내 주신 분께 «AI 연결이 끊겼다» 고 알려 주세요. 오늘 한도는 줄지 않았습니다.");
+    return false;
+  }
+  return true;
+}
+
+/** AI 가 끊겼을 때의 안내. 주인은 [확인] 을 누르면 AI 설정 자리로 간다. */
+function AI안내창(말) {
+  const 주인 = !AI상태 || AI상태.role === "admin";
+  let 창 = document.getElementById("ai-dialog");
+  if (!창) {
+    창 = document.createElement("div");
+    창.id = "ai-dialog";
+    창.className = "error-dialog";
+    창.innerHTML = `
+      <div class="error-dialog-box" role="alertdialog" aria-modal="true">
+        <h3>🤖 AI 연결이 필요합니다</h3>
+        <p id="ai-dialog-text" class="ai-dialog-text"></p>
+        <div class="error-dialog-actions">
+          <button class="btn-secondary" type="button" data-ai-close>닫기</button>
+          <button class="btn-primary" type="button" data-ai-go>확인</button>
+        </div>
+      </div>`;
+    document.body.appendChild(창);
+    창.addEventListener("click", async (e) => {
+      if (e.target === 창 || e.target.closest("[data-ai-close]")) { 창.hidden = true; return; }
+      if (e.target.closest("[data-ai-go]")) {
+        창.hidden = true;
+        if (창.dataset.owner === "1") await AI설정으로();
+      }
+    });
+  }
+  창.dataset.owner = 주인 ? "1" : "0";
+  document.getElementById("ai-dialog-text").textContent = 주인
+    ? `${말}\n\n[확인] 을 누르시면 [관리자 설정 → 1) AI 커넥트 연결] 로 바로 갑니다.`
+    : 말;
+  창.querySelector("[data-ai-close]").hidden = !주인;
+  창.hidden = false;
+}
+
+async function AI설정으로() {
+  await switchView("settings");
+  const 칸 = document.getElementById("ai-engines");
+  const 카드 = 칸 && 칸.closest(".card");
+  if (카드) {
+    카드.scrollIntoView({ behavior: "smooth", block: "start" });
+    카드.classList.add("flash");
+    setTimeout(() => 카드.classList.remove("flash"), 2400);
+  }
+}
+
+document.addEventListener("click", async (e) => {
+  const 단추 = e.target.closest && e.target.closest('[data-action="go-ai-settings"]');
+  if (!단추) return;
+  e.preventDefault();
+  await AI설정으로();
+});
+
+AI막대그리기().catch(() => {});
+setInterval(() => { AI막대그리기().catch(() => {}); }, 60_000);

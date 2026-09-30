@@ -67,8 +67,84 @@ export function 준비됐나(것: Engine = 지금엔진()): { ok: boolean; why: 
 export function 엔진고르기(id: string): Engine {
   const 것 = 엔진(id);
   if (것.id !== id) throw new Error(`모르는 AI 입니다: ${id}`);
+  const 전 = 지금엔진().id;
   setSetting(엔진칸, 것.id);
+  if (전 !== 것.id) {
+    // 언제 무엇에서 무엇으로 바뀌었는지 남긴다. «나는 늘 Claude 인데 왜
+    // Codex 로 돌았나» 를 나중에 화면에서 바로 알 수 있게.
+    setSetting(바뀐때칸, JSON.stringify({ from: 전, to: 것.id, at: new Date().toISOString() }));
+    상태지우기();
+  }
   return 것;
+}
+
+// ─────────────────────────────────────────── AI 연결 상태
+//
+// «지금 어느 AI 로, 연결이 되어 있는가» 를 화면 맨 위에 늘 보이게 하려는 것.
+// 한 번 데였다 — 사장님은 늘 Claude 인 줄 아셨는데 서버는 Codex 로 바뀌어
+// 있었고, 로그인도 안 된 Codex 로 체험 회원 글을 쓰다 401 로 멈췄다.
+// 어디가 붙어 있는지 안 보이니 오류 창을 보고서야 알았다.
+//
+// 연결 테스트나 실제 글쓰기의 결과로 적는다. «로그인이 풀렸다» 처럼 **다시
+// 해도 안 될 것**만 «끊김» 으로 적고, 시간 초과·답 모양 같은 한 번의
+// 실패로는 끊김으로 적지 않는다.
+
+const 상태칸 = "ai_status";
+const 바뀐때칸 = "ai_engine_changed";
+
+export interface AI상태 {
+  engine: string;
+  label: string;
+  /** true 연결됨 · false 끊김 · null 아직 모름 */
+  ok: boolean | null;
+  at: string | null;
+  why: string;
+  changed: { from: string; to: string; at: string } | null;
+}
+
+export function 상태적기(ok: boolean, why = ""): void {
+  setSetting(상태칸, JSON.stringify({
+    engine: 지금엔진().id, ok, at: new Date().toISOString(), why: why.slice(0, 600),
+  }));
+}
+
+export function 상태지우기(): void {
+  setSetting(상태칸, "");
+}
+
+export function 지금상태(): AI상태 {
+  const 것 = 지금엔진();
+  let 적힌: { engine?: string; ok?: boolean; at?: string; why?: string } = {};
+  try { 적힌 = JSON.parse(getSetting(상태칸) || "{}"); } catch { 적힌 = {}; }
+  let 바뀜: AI상태["changed"] = null;
+  try { 바뀜 = JSON.parse(getSetting(바뀐때칸) || "null"); } catch { 바뀜 = null; }
+
+  const 기본 = { engine: 것.id, label: 것.label, changed: 바뀜 };
+  const 준비 = 준비됐나(것);
+  if (!준비.ok) return { ...기본, ok: false, at: null, why: 준비.why };
+  // 다른 엔진 때 적어 둔 것은 이 엔진의 상태가 아니다.
+  if (적힌.engine !== 것.id || typeof 적힌.ok !== "boolean") {
+    return { ...기본, ok: null, at: null, why: "" };
+  }
+  return { ...기본, ok: 적힌.ok, at: 적힌.at ?? null, why: 적힌.why ?? "" };
+}
+
+/**
+ * 글을 쓰기 전에 본다. **끊긴 것이 분명하면** 막는다.
+ *
+ * 막기 전에 저장통의 로그인을 한 번 맞춰 본다 — 사장님이 검은 창에서 다시
+ * 로그인해 올리셨는데 [연결 테스트] 를 아직 안 누르셨을 수 있다. 새 로그인이
+ * 왔으면 끊김 표시를 지우고 쓰게 둔다.
+ */
+export async function 쓸수있나(): Promise<AI상태> {
+  let 상태 = 지금상태();
+  if (상태.ok !== false) return 상태;
+  const 것 = 지금엔진();
+  if (것.auth.loginWorksOnServer && (await 로그인맞추기(것.home, true)) > 0) {
+    상태지우기();
+    상태 = 지금상태();
+  }
+  return 상태;
 }
 
 /**
@@ -200,7 +276,9 @@ export async function runAI(options: RunOptions): Promise<string> {
 
   // 로그인으로 도는 엔진(Claude·Codex)은 **저장통의 로그인과 먼저 맞춘다.**
   // 사장님이 새로 로그인해 올렸으면 서버를 다시 켜지 않아도 바로 쓴다.
-  if (것.auth.loginWorksOnServer) await 로그인맞추기(것.home, !!options.freshLogin);
+  if (것.auth.loginWorksOnServer && (await 로그인맞추기(것.home, !!options.freshLogin)) > 0) {
+    상태지우기();   // 새 로그인이 왔다. 옛 «끊김» 은 더 이상 맞지 않다
+  }
 
   // 키는 **자식에게만** 넘긴다. 우리 프로세스의 환경을 바꾸면 다른 엔진을
   // 고르셨을 때 남은 키가 따라다닌다.
@@ -242,9 +320,11 @@ export async function runAI(options: RunOptions): Promise<string> {
       끝났나 = true; clearTimeout(시계);
       // 제일 흔한 탈이다 — 설치가 안 됐다. 그걸 «ENOENT» 로만 말하면
       // 무엇을 해야 할지 알 수가 없다.
-      const 왜 = (탈 as NodeJS.ErrnoException).code === "ENOENT"
+      const 없음 = (탈 as NodeJS.ErrnoException).code === "ENOENT";
+      const 왜 = 없음
         ? `${것.label} 이 이 서버에 설치돼 있지 않습니다. 「${것.install}」 를 먼저 하세요.`
         : 탈.message;
+      if (없음) 상태적기(false, 왜);
       reject(new Error(왜));
     });
 
@@ -252,9 +332,13 @@ export async function runAI(options: RunOptions): Promise<string> {
       if (끝났나) return;
       끝났나 = true; clearTimeout(시계);
       if (코드 !== 0) {
-        reject(new Error(멈춘까닭(것, 코드, 탈난것)));
+        const 까닭 = 멈춘까닭(것, 코드, 탈난것);
+        // 로그인이 풀린 것은 다시 해도 안 된다. 끊김으로 적어 다음 글을 막는다.
+        if (로그인풀림.test(탈난것)) 상태적기(false, 까닭);
+        reject(new Error(까닭));
         return;
       }
+      상태적기(true);
       resolve(나온것);
     });
   });

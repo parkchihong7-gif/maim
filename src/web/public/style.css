@@ -1609,3 +1609,14 @@ body.is-trial [data-owner-only] { display: none !important; }
 .error-log{list-style:none;padding:0;margin:8px 0;max-height:420px;overflow:auto}
 .error-log li{border-top:1px solid #eceff4;padding:10px 0}
 .error-log-msg{white-space:pre-wrap;word-break:break-word;font-size:14px;margin-top:4px;user-select:text}
+.ai-bar{border-radius:10px;padding:10px 14px;margin:0 0 18px;font-size:14px;line-height:1.6;border:1px solid #d8dde6;background:#f7f8fa}
+.ai-bar[hidden]{display:none}
+.ai-bar-line{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}
+.ai-bar-ok{background:#e9f7ef;border-color:#bfe5cc}
+.ai-bar-bad{background:#fdecec;border-color:#f3b9b9}
+.ai-bar-wait{background:#f7f8fa}
+.ai-bar-when{color:#6b7280;font-size:13px}
+.ai-bar-note{margin-top:4px;font-size:13px;color:#545c6b;word-break:break-word}
+.ai-bar .btn-small{font-size:13px;padding:3px 10px;border-radius:6px;border:1px solid var(--gold);background:#fff;color:var(--gold);cursor:pointer;margin-left:4px}
+.ai-dialog-text{white-space:pre-wrap;line-height:1.7}
+.card.flash{box-shadow:0 0 0 3px var(--gold);transition:box-shadow .3s}
