@@ -24,9 +24,11 @@ fs.chmodSync(가짜, 0o755);
 process.env.DATA_DIR = 임시;
 process.env.CLAUDE_BIN = 가짜;
 delete process.env.AI_ENGINE;
+for (const k of ["UNSPLASH_ACCESS_KEY", "PEXELS_API_KEY", "PIXABAY_API_KEY"]) delete process.env[k];
 
 const { getDb } = await import("../src/db/index.js");
 const R = await import("../src/ai/run.js");
+const S = await import("../src/db/repositories/settings.js");
 getDb();
 
 let 틀린것 = 0;
@@ -65,6 +67,12 @@ console.log("\n⑤ 키가 없는 Gemini 는 부르기 전부터 끊김");
 R.엔진고르기("gemini");
 참("Gemini 키 없음 → 끊김", R.지금상태().ok === false && R.지금상태().why.includes("API 키"));
 R.엔진고르기("claude");
+
+console.log("\n⑥ 무료 이미지 키 — 하나도 없으면 0, 하나 넣으면 1");
+참("처음은 0개", S.이미지키들().count === 0);
+참("빠진 것 셋", S.이미지키들().missing.length === 3);
+S.setSetting("pexels_api_key", "abc");
+참("Pexels 하나 → 1개", S.이미지키들().count === 1 && S.이미지키들().set[0] === "Pexels");
 
 fs.rmSync(임시, { recursive: true, force: true });
 console.log(틀린것 === 0 ? "\n전부 통과했습니다.\n" : `\n${틀린것}건 틀렸습니다.\n`);

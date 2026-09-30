@@ -106,6 +106,22 @@ export function getPixabayKey(): string | null {
 }
 
 /**
+ * 넣어 둔 무료 이미지 키. **하나도 없으면 글쓰기를 막는다.**
+ *
+ * 키가 없어도 글은 나온다. 그런데 사진 없는 초안이 쌓이고, 체험 회원은
+ * «이미지 첨부에 실패했습니다» 창만 보게 된다. 셋 다 무료이고 가입하면
+ * 바로 나오니, 적어도 하나는 넣은 뒤 쓰시게 한다.
+ */
+export function 이미지키들(): { count: number; total: number; set: string[]; missing: string[] } {
+  const 목록: [string, string | null][] = [
+    ["Unsplash", getUnsplashKey()], ["Pexels", getPexelsKey()], ["Pixabay", getPixabayKey()],
+  ];
+  const set = 목록.filter(([, 키]) => !!키).map(([이름]) => 이름);
+  const missing = 목록.filter(([, 키]) => !키).map(([이름]) => 이름);
+  return { count: set.length, total: 목록.length, set, missing };
+}
+
+/**
  * **본문 최소 글자수.**
  *
  * 예전에는 2,000자로 코드에 박혀 있었다. 그런데 목표 길이는 2,500~4,500

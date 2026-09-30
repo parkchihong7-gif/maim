@@ -979,6 +979,8 @@ document.addEventListener("click", async (e) => {
         }, 1500);
       }
     } else if (action === "regenerate-image") {
+      // 이미지 고르기에도 AI 를 쓰고, 찾으려면 이미지 키가 있어야 한다.
+      if (!(await AI되나())) return;
       btn.disabled = true;
       btn.textContent = "재생성 중...";
       const updated = await api(`/api/posts/${id}/regenerate-image`, { method: "POST" });
@@ -1116,6 +1118,7 @@ document.addEventListener("click", async (e) => {
       await api("/api/settings", { method: "PUT", body: JSON.stringify({ [key]: value }) });
       input.value = "";
       await refreshSettings();
+      AI막대그리기().catch(() => {});   // 이미지 키가 생겼으면 막대도 풀어 준다
       const original = btn.textContent;
       btn.textContent = "저장됨!";
       setTimeout(() => {
@@ -1256,7 +1259,9 @@ document.addEventListener("click", async (e) => {
   } catch (err) {
     // 글 만들기·이미지는 **복사할 수 있는 창**으로. 휴대폰 알림창은 글을
     // 복사할 수 없어서, 쓰시는 분이 무슨 오류인지 전할 길이 없었다.
-    if (err && err.data && err.data.needsAi) {
+    if (err && err.data && err.data.needsImages) {
+      AI안내창(err.message, "images");
+    } else if (err && err.data && err.data.needsAi) {
       AI안내창(err.message);
     } else if (action === "generate" || action === "regenerate-image") {
       오류창(action === "generate" ? "글을 만들지 못했습니다" : "이미지를 다시 찾지 못했습니다",
@@ -1830,11 +1835,36 @@ async function AI막대그리기() {
     바뀜 = `<div class="ai-bar-note">${escapeHtml(짧은때(s.changed.at))}에 `
       + `${escapeHtml(이름(s.changed.from))} → <strong>${escapeHtml(이름(s.changed.to))}</strong> 로 바뀌었습니다.</div>`;
   }
+  // 무료 이미지 키. 하나도 없으면 글쓰기를 막으므로 막대도 빨갛게.
+  const 그림 = s.images || { count: 0, total: 3, set: [] };
+  let 그림말;
+  if (그림.count > 0) {
+    그림말 = 주인
+      ? `🖼️ 무료 이미지: <strong>${escapeHtml(그림.set.join(" · "))}</strong> (${그림.count}/${그림.total})`
+      : `🖼️ 무료 이미지 ✅`;
+  } else {
+    그림말 = 주인
+      ? `🖼️ <strong>무료 이미지 키 없음</strong> — 1개 이상 넣어야 글을 만듭니다 `
+        + `<button class="btn-small" data-action="go-image-settings">이미지 키 넣기</button>`
+      : `🖼️ <strong>무료 이미지 키가 없어 글을 만들 수 없습니다.</strong> 보내 주신 분께 알려 주세요.`;
+    꼴 = "bad";
+  }
   막대.className = `ai-bar ai-bar-${꼴}`;
-  막대.innerHTML = `<div class="ai-bar-line"><span>${누구}</span><span>${엔진}</span><span>${상태말}</span></div>`
+  막대.innerHTML = `<div class="ai-bar-line"><span>${누구}</span><span>${엔진}</span><span>${상태말}</span><span>${그림말}</span></div>`
     + (주인 && s.ok === false && s.why ? `<div class="ai-bar-note">${escapeHtml(s.why).slice(0, 300)}</div>` : "")
     + 바뀜;
   막대.hidden = false;
+
+  // 주인이 들어왔는데 준비가 안 된 것이 있으면 **들어오자마자 한 번** 알린다.
+  // 막대는 지나치기 쉽다. 이 창은 브라우저를 닫기 전까지 한 번만 뜬다.
+  if (주인 && (s.ok === false || 그림.count === 0)) {
+    let 알림 = false;
+    try { 알림 = sessionStorage.getItem("maim-setup-warned") === "1"; } catch { /* 못 쓰면 매번 */ }
+    if (!알림) {
+      try { sessionStorage.setItem("maim-setup-warned", "1"); } catch { /* 그만 */ }
+      준비안내창(s);
+    }
+  }
 
   // 주인이 들어왔는데 아직 모르면 한 번 알아서 확인한다 (짧은 «ok» 한 마디).
   if (주인 && s.ok === null && !자동확인함) {
@@ -1848,6 +1878,14 @@ async function AI막대그리기() {
 /** 글을 만들기 전에 본다. 끊긴 게 분명하면 안내하고 false. */
 async function AI되나() {
   const s = await AI막대그리기();
+  if (s && s.ok !== false && s.images && s.images.count === 0) {
+    AI안내창(s.role === "admin"
+      ? "무료 이미지 사이트 API 키가 하나도 없습니다.\n\n키가 없어도 글은 나오지만 사진이 붙지 않습니다. "
+        + "Unsplash · Pexels · Pixabay 중 하나 이상 키를 넣은 뒤 이용해 주세요. 셋 다 무료이고, 가입하면 바로 나옵니다."
+      : "지금은 사진을 찾아 올 무료 이미지 키가 설정되어 있지 않아 글을 만들 수 없습니다. 보내 주신 분께 «이미지 키가 없다» 고 알려 주세요. 오늘 한도는 줄지 않았습니다.",
+      "images");
+    return false;
+  }
   if (s && s.ok === false) {
     AI안내창(s.role === "admin"
       ? `글 쓸 AI(${s.label})가 연결되어 있지 않아 지금은 글을 만들 수 없습니다.\n\n${s.why || ""}`
@@ -1857,8 +1895,17 @@ async function AI되나() {
   return true;
 }
 
-/** AI 가 끊겼을 때의 안내. 주인은 [확인] 을 누르면 AI 설정 자리로 간다. */
-function AI안내창(말) {
+/** 들어오자마자 알리는 창 — AI·이미지 중 무엇이 빠졌는지 한데 모아. */
+function 준비안내창(s) {
+  const 빠진것 = [];
+  if (s.ok === false) 빠진것.push(`• 글 쓸 AI(${s.label})가 연결되어 있지 않습니다.`);
+  if (s.images && s.images.count === 0) 빠진것.push("• 무료 이미지 사이트 API 키가 하나도 없습니다 (Unsplash · Pexels · Pixabay 중 1개 이상 필요).");
+  AI안내창(`아래가 준비되지 않아 지금은 글을 만들 수 없습니다.\n\n${빠진것.join("\n")}`,
+    s.ok === false ? "ai" : "images", "⚠️ 먼저 설정이 필요합니다");
+}
+
+/** AI·이미지 키가 없을 때의 안내. 주인은 [확인] 을 누르면 그 설정 자리로 간다. */
+function AI안내창(말, 어디 = "ai", 제목 = null) {
   const 주인 = !AI상태 || AI상태.role === "admin";
   let 창 = document.getElementById("ai-dialog");
   if (!창) {
@@ -1867,7 +1914,7 @@ function AI안내창(말) {
     창.className = "error-dialog";
     창.innerHTML = `
       <div class="error-dialog-box" role="alertdialog" aria-modal="true">
-        <h3>🤖 AI 연결이 필요합니다</h3>
+        <h3 id="ai-dialog-title">🤖 AI 연결이 필요합니다</h3>
         <p id="ai-dialog-text" class="ai-dialog-text"></p>
         <div class="error-dialog-actions">
           <button class="btn-secondary" type="button" data-ai-close>닫기</button>
@@ -1879,13 +1926,21 @@ function AI안내창(말) {
       if (e.target === 창 || e.target.closest("[data-ai-close]")) { 창.hidden = true; return; }
       if (e.target.closest("[data-ai-go]")) {
         창.hidden = true;
-        if (창.dataset.owner === "1") await AI설정으로();
+        if (창.dataset.owner === "1") {
+          if (창.dataset.where === "images") await 이미지설정으로(); else await AI설정으로();
+        }
       }
     });
   }
   창.dataset.owner = 주인 ? "1" : "0";
+  창.dataset.where = 어디;
+  document.getElementById("ai-dialog-title").textContent = 제목
+    || (어디 === "images" ? "🖼️ 무료 이미지 키가 필요합니다" : "🤖 AI 연결이 필요합니다");
+  const 자리 = 어디 === "images"
+    ? "[관리자 설정 → 1) AI 커넥트 연결 → 무료 이미지 API 키]"
+    : "[관리자 설정 → 1) AI 커넥트 연결]";
   document.getElementById("ai-dialog-text").textContent = 주인
-    ? `${말}\n\n[확인] 을 누르시면 [관리자 설정 → 1) AI 커넥트 연결] 로 바로 갑니다.`
+    ? `${말}\n\n[확인] 을 누르시면 ${자리} 로 바로 갑니다.`
     : 말;
   창.querySelector("[data-ai-close]").hidden = !주인;
   창.hidden = false;
@@ -1902,7 +1957,22 @@ async function AI설정으로() {
   }
 }
 
+/** 무료 이미지 키 넣는 자리로. 첫 칸(Unsplash)을 비춘다. */
+async function 이미지설정으로() {
+  await switchView("settings");
+  const 칸 = document.querySelector('.setup-step[data-step="unsplash"]');
+  if (칸) {
+    칸.scrollIntoView({ behavior: "smooth", block: "center" });
+    칸.classList.add("flash");
+    setTimeout(() => 칸.classList.remove("flash"), 2400);
+    const 입력 = document.getElementById("unsplash-key-input");
+    if (입력) setTimeout(() => 입력.focus({ preventScroll: true }), 600);
+  }
+}
+
 document.addEventListener("click", async (e) => {
+  const 그림단추 = e.target.closest && e.target.closest('[data-action="go-image-settings"]');
+  if (그림단추) { e.preventDefault(); await 이미지설정으로(); return; }
   const 단추 = e.target.closest && e.target.closest('[data-action="go-ai-settings"]');
   if (!단추) return;
   e.preventDefault();

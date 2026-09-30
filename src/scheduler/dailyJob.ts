@@ -5,6 +5,8 @@ import { assignDirectives } from "../pipeline/directives.js";
 import { generatePost } from "../pipeline/generatePost.js";
 import { attachImage } from "../pipeline/attachImage.js";
 import { 죽은자리치우기 } from "./죽은자리치우기.js";
+import { 이미지키들 } from "../db/repositories/settings.js";
+import { 오류적기 } from "../db/repositories/errorLog.js";
 
 /**
  * 하루 1회 실행: 활성화된 모든 카테고리에 대해 콘텐츠+이미지를 생성해
@@ -26,6 +28,16 @@ export async function runDailyJob(): Promise<void> {
     await 죽은자리치우기();
   } catch (err) {
     console.error("[dailyJob] 죽은 자리를 치우다 탈이 났습니다:", (err as Error).message);
+  }
+
+  // 무료 이미지 키가 하나도 없으면 아침 준비도 하지 않는다. 사진 없는 초안만
+  // 쌓이고 한도만 준다. [관리자 설정 → 🧯 최근 오류] 에 남겨 알아차리게 한다.
+  if (이미지키들().count === 0) {
+    const 말 = "무료 이미지 API 키가 하나도 없어 아침 자동 준비를 건너뛰었습니다. "
+             + "[관리자 설정 → 1) AI 커넥트 연결] 에서 Unsplash · Pexels · Pixabay 중 하나 이상 넣어 주세요.";
+    console.error(`[dailyJob] ${말}`);
+    오류적기("아침 자동 준비", "", 말);
+    return;
   }
 
   // **예약 설정대로** 오늘 만들 목록을 펼친다. 예전에는 활성 카테고리를

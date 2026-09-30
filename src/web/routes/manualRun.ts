@@ -10,6 +10,20 @@ import { runDailyJob } from "../../scheduler/dailyJob.js";
 import { 오류적기, 최근오류 } from "../../db/repositories/errorLog.js";
 import { 주인자리인가 } from "../../tenancy.js";
 import { 쓸수있나, 지금상태, type AI상태 } from "../../ai/run.js";
+import { 이미지키들 } from "../../db/repositories/settings.js";
+
+/** 무료 이미지 키가 하나도 없을 때. 화면은 `needsImages` 를 보고 키 넣는 자리로 데려간다. */
+function 이미지없는답(주인: boolean) {
+  return {
+    needsImages: true,
+    error: 주인
+      ? "무료 이미지 사이트 API 키가 하나도 없습니다. 키가 없어도 글은 나오지만 사진이 안 붙습니다. "
+        + "[관리자 설정 → 1) AI 커넥트 연결] 의 Unsplash · Pexels · Pixabay 중 하나 이상 키를 넣은 뒤 이용해 주세요 "
+        + "(셋 다 무료, 가입하면 바로 나옵니다)."
+      : "지금은 사진을 찾아 올 무료 이미지 키가 설정되어 있지 않아 글을 만들 수 없습니다. "
+        + "보내 주신 분께 «이미지 키가 없다» 고 알려 주세요. 오늘 한도는 줄지 않았습니다.",
+  };
+}
 
 /**
  * AI 가 **끊긴 것이 분명하면** 글을 만들러 가지 않는다.
@@ -46,6 +60,7 @@ export async function manualRunRoutes(app: FastifyInstance) {
     }
     const 상태 = await 쓸수있나();
     if (상태.ok === false) { reply.code(409); return 막힌답(상태, true); }
+    if (이미지키들().count === 0) { reply.code(409); return 이미지없는답(true); }
     await runDailyJob();
     return { ok: true };
   });
@@ -63,6 +78,7 @@ export async function manualRunRoutes(app: FastifyInstance) {
 
     const 상태 = await 쓸수있나();
     if (상태.ok === false) { reply.code(409); return 막힌답(상태, 주인자리인가()); }
+    if (이미지키들().count === 0) { reply.code(409); return 이미지없는답(주인자리인가()); }
 
     const { categoryId } = req.body as { categoryId: number };
     const category = getCategory(categoryId);
@@ -111,6 +127,8 @@ export async function manualRunRoutes(app: FastifyInstance) {
       why: 주인 ? 상태.why : (상태.ok === false ? "AI 연결이 끊겨 있습니다." : ""),
       changed: 주인 ? 상태.changed : null,
       role: 주인 ? "admin" : "client",
+      // 무료 이미지 키. 체험 회원에게는 몇 개인지만.
+      images: 주인 ? 이미지키들() : { count: 이미지키들().count, total: 3, set: [], missing: [] },
     };
   });
 

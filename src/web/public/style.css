@@ -1620,3 +1620,4 @@ body.is-trial [data-owner-only] { display: none !important; }
 .ai-bar .btn-small{font-size:13px;padding:3px 10px;border-radius:6px;border:1px solid var(--gold);background:#fff;color:var(--gold);cursor:pointer;margin-left:4px}
 .ai-dialog-text{white-space:pre-wrap;line-height:1.7}
 .card.flash{box-shadow:0 0 0 3px var(--gold);transition:box-shadow .3s}
+.setup-step.flash{box-shadow:0 0 0 3px var(--gold);border-radius:10px;transition:box-shadow .3s}
