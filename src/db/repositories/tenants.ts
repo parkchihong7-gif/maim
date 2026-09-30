@@ -50,6 +50,8 @@ export interface 지운결과 {
   images: number;
   sessions: number;
   files: number;
+  /** 그 자리의 글 스타일 설정 줄 수 (seat_settings). */
+  settings: number;
 }
 
 /**
@@ -72,7 +74,7 @@ export function purgeTenant(ownerKey: string): 지운결과 {
   const 글번호 = (db.prepare("SELECT id FROM posts WHERE owner_key = ?").all(키) as { id: number }[])
     .map((r) => r.id);
 
-  let 결과: 지운결과 = { posts: 0, categories: 0, images: 0, sessions: 0, files: 0 };
+  let 결과: 지운결과 = { posts: 0, categories: 0, images: 0, sessions: 0, files: 0, settings: 0 };
 
   const 지우기 = db.transaction(() => {
     결과.images = db.prepare(
@@ -81,6 +83,8 @@ export function purgeTenant(ownerKey: string): 지운결과 {
     결과.posts = db.prepare("DELETE FROM posts WHERE owner_key = ?").run(키).changes;
     결과.categories = db.prepare("DELETE FROM categories WHERE owner_key = ?").run(키).changes;
     결과.sessions = db.prepare("DELETE FROM keyserver_sessions WHERE key1 = ?").run(키).changes;
+    // 자리별 글 스타일. 몇 줄 안 되지만, 남겨 두면 끝난 키의 설정이 영영 남는다.
+    결과.settings = db.prepare("DELETE FROM seat_settings WHERE owner_key = ?").run(키).changes;
   });
   지우기();
 

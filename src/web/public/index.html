@@ -50,7 +50,7 @@
         <button class="sidebar-nav-item" data-action="switch-view" data-view="categories">📁 <span>블로그 관리</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="drafts">📝 <span>포스팅</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="history">📜 <span>발행 이력</span></button>
-        <button class="sidebar-nav-item" data-action="switch-view" data-view="settings">⚙️ <span>관리자 설정</span></button>
+        <button class="sidebar-nav-item" data-action="switch-view" data-view="settings">⚙️ <span id="nav-settings-label">관리자 설정</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="guide">📖 <span>사용법</span></button>
       </nav>
 
@@ -203,12 +203,23 @@
       <section data-view-panel="settings" hidden>
         <div class="page-header">
           <div>
-            <h1>⚙️ 관리자 설정</h1>
-            <p class="muted">AI 연결, 블로그 주제/톤, 접속 코드를 관리합니다.</p>
+            <h1 id="settings-title">⚙️ 관리자 설정</h1>
+            <p class="muted" id="settings-subtitle">AI 연결, 블로그 주제/톤, 접속 코드를 관리합니다.</p>
           </div>
         </div>
 
-        <div class="card">
+        <!-- 체험 키로 들어온 분에게만 보인다. 무엇을 바꿀 수 있고, 그게 어디에 저장되는지. -->
+        <div class="card trial-style-note" id="trial-style-note" hidden>
+          <h3>🎨 이 체험 키만의 글 스타일</h3>
+          <p>아래 <strong>2) 블로그 주제 설정</strong>과 <strong>3) 포스팅 방향 설정</strong>은
+            <strong>이 체험 키에만 저장</strong>되고, 이 키로 만드는 글에만 쓰입니다.
+            다른 체험 회원이나 서버 주인의 설정에는 영향을 주지 않습니다.</p>
+          <p class="muted">AI 연결·이미지 키·아침 자동 작성은 서버 주인이 관리합니다.
+            스타일을 바꾸신 뒤에는 <strong>[포스팅]</strong>에서 글을 직접 만들어 확인해 보세요
+            (하루 <span id="trial-daily-limit">3</span>건).</p>
+        </div>
+
+        <div class="card" data-owner-only>
           <h3>1) AI 커넥트 연결</h3>
           <p class="setup-progress" id="setup-progress"></p>
 
@@ -564,7 +575,7 @@
             직접 새 프리셋을 만들 수 있고, 아래 보강 입력란에 원하는 방향을 자유롭게 추가로 적을 수도 있습니다.</p>
           <div class="preset-grid" id="preset-grid"></div>
 
-          <div class="preset-add-form" id="preset-add-form" hidden>
+          <div class="preset-add-form" id="preset-add-form" data-owner-only hidden>
             <label>프리셋 이름
               <input type="text" id="preset-add-label" placeholder="예: 담백한 뉴스 브리핑형" />
             </label>
@@ -584,7 +595,7 @@
             placeholder="이런 점은 다르게 써줬으면 좋겠다 싶은 부분을 자유롭게 적어주세요 (선택)"></textarea>
           <button class="btn-primary" data-action="save-posting-direction">보강 내용 저장</button>
 
-          <div class="subsection">
+          <div class="subsection" data-owner-only>
             <button class="btn-secondary" data-action="preview-post">예시 포스팅 보기</button>
             <p class="muted">지금 설정 기준으로 짧은 샘플 글을 생성해서 미리 보여줍니다. 마음에 안 들면 위에서
               프리셋을 바꾸거나 보강 문구를 추가해보세요.</p>
@@ -593,7 +604,7 @@
         </div>
 
         <!-- 4) 포스팅 예약 설정 -->
-        <div class="card">
+        <div class="card" data-owner-only>
           <h3>4) 포스팅 예약 설정</h3>
           <p class="muted">매일 아침 <strong>어떤 카테고리로 몇 편</strong>을 준비할지 정합니다.
             편수는 <strong>[블로그 관리]</strong>의 각 카테고리에서 정하시고, 여기서는

@@ -1,13 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import { config } from "../../config.js";
-import { 주인자리인가, 체험은못함 } from "../../tenancy.js";
+import { 주인자리인가, 체험은못함, 체험_하루상한 } from "../../tenancy.js";
 import {
-  getSettings,
   setSetting,
   getUnsplashKey,
   getPexelsKey,
   getPixabayKey,
   최소분량, 최소분량정하기, 최소분량최저, 최소분량최고,
+  개인설정들, 개인설정정하기, 개인설정인가, 개인설정_최대글자,
   getAllPostingDirectionPresets,
   addCustomPreset,
   deleteCustomPreset,
@@ -21,6 +21,19 @@ import { parsePreviewResponse } from "../../claude/parseResponse.js";
 import { 시간재보기 } from "../../scheduler/시간예상.js";
 import { 지금상한 } from "../../scheduler/예약.js";
 
+/** 자리마다 따로 두는 글 스타일 칸. 체험 회원이 바꿀 수 있는 것은 이것뿐이다. */
+const STYLE_KEYS = [
+  "blog_type",
+  "blog_topic",
+  "posting_direction_preset",
+  "posting_direction_refinement",
+] as const;
+
+/** 체험 회원에게 막을 때 하는 말. 무엇은 되는지까지 말해 준다. */
+const 체험은스타일만 =
+  "체험 키로는 [2) 블로그 주제 설정]과 [3) 포스팅 방향 설정]만 바꾸실 수 있습니다. "
+  + "AI 연결·이미지 키·아침 예약은 서버 주인이 관리합니다.";
+
 const SETTINGS_KEYS = [
   // AI 엔진마다의 API 키 (gemini_api_key 등). engines.ts 가 이름의 주인이다.
   ...ENGINE_KEY_SETTINGS,
@@ -29,10 +42,7 @@ const SETTINGS_KEYS = [
   "unsplash_access_key",
   "pexels_api_key",
   "pixabay_api_key",
-  "blog_type",
-  "blog_topic",
-  "posting_direction_preset",
-  "posting_direction_refinement",
+  ...STYLE_KEYS,
 ];
 
 /** 앞 4자만 보여주고 나머지는 가려서 "이미 설정돼 있다"만 확인 가능하게 한다. */
@@ -44,9 +54,11 @@ function maskSecret(value: string | null): string | null {
 
 export async function settingsRoutes(app: FastifyInstance) {
   app.get("/api/settings", async () => {
-    const raw = getSettings(SETTINGS_KEYS);
     // 가려 놓았어도 앞 네 자는 보인다. 체험 회원에게 보일 것이 아니다.
     const 주인 = 주인자리인가();
+    // 글 스타일은 **지금 들어온 자리의 것**이다. 체험 회원에게 사장님
+    // 블로그 주제를 보여 주면, 제 것인 줄 알고 그대로 두게 된다.
+    const raw = 개인설정들(STYLE_KEYS);
     const 가림 = (값: string | null) => (주인 ? maskSecret(값) : null);
     return {
       unsplash_access_key: 가림(getUnsplashKey()),
@@ -55,9 +67,13 @@ export async function settingsRoutes(app: FastifyInstance) {
       pexels_api_key_set: !!getPexelsKey(),
       pixabay_api_key: 가림(getPixabayKey()),
       pixabay_api_key_set: !!getPixabayKey(),
+      // 화면이 «이 자리에서 무엇을 바꿀 수 있나» 를 이걸로 가른다.
+      seat: 주인 ? "owner" : "trial",
+      trial_daily_limit: 주인 ? null : 체험_하루상한,
       min_length: 최소분량(),
       // 지금 값으로 아침에 몇 분 걸릴지. 화면이 그 자리에서 경고한다.
-      timing: 시간재보기(최소분량(), 지금상한()),
+      // 아침 예약은 주인 자리만 돈다 — 체험 회원에게는 해당이 없는 경고다.
+      timing: 주인 ? 시간재보기(최소분량(), 지금상한()) : null,
       min_length_min: 최소분량최저,
       min_length_max: 최소분량최고,
       blog_type: raw.blog_type,
@@ -68,8 +84,21 @@ export async function settingsRoutes(app: FastifyInstance) {
   });
 
   app.put("/api/settings", async (req, reply) => {
-    if (!주인자리인가()) { reply.code(403); return { error: 체험은못함 }; }
-    const body = req.body as Record<string, string | null>;
+    const 주인 = 주인자리인가();
+    const body = (req.body ?? {}) as Record<string, string | null>;
+
+    // 체험 회원은 **글 스타일 칸만** 바꿀 수 있다. 하나라도 다른 칸이
+    // 섞여 오면 통째로 돌려보낸다 — 반만 저장되면 화면과 서버가 어긋난다.
+    if (!주인) {
+      const 막힌칸 = Object.keys(body).filter((k) => !개인설정인가(k));
+      if (막힌칸.length > 0) { reply.code(403); return { error: 체험은스타일만 }; }
+    }
+
+    const 보강 = body.posting_direction_refinement;
+    if (typeof 보강 === "string" && 보강.length > 개인설정_최대글자) {
+      reply.code(400);
+      return { error: `보강 내용은 ${개인설정_최대글자.toLocaleString()}자까지 적으실 수 있습니다 (지금 ${보강.length.toLocaleString()}자).` };
+    }
 
     // AI 키는 **저장하기 전에** 본다. 잘못된 것이 들어가면 나중에
     // 「연결 테스트」 에서 알아보기 어려운 영문 오류로만 나타난다.
@@ -83,7 +112,6 @@ export async function settingsRoutes(app: FastifyInstance) {
     // 글자수는 숫자이고 범위가 있어서 따로 받는다.
     let 분량알림 = "";
     if ("min_length" in body && body.min_length !== null) {
-      if (!주인자리인가()) { reply.code(403); return { error: 체험은못함 }; }
       const 넣은것 = Number(body.min_length);
       if (!Number.isFinite(넣은것)) { reply.code(400); return { error: "최소 글자수는 숫자여야 합니다." }; }
       const 맞춘 = 최소분량정하기(넣은것);
@@ -93,9 +121,12 @@ export async function settingsRoutes(app: FastifyInstance) {
     }
 
     for (const key of SETTINGS_KEYS) {
-      if (key in body) setSetting(key, body[key]);
+      if (!(key in body)) continue;
+      // 스타일 칸은 자리별로, 나머지는 서버 하나에 하나.
+      if (개인설정인가(key)) 개인설정정하기(key, body[key]);
+      else setSetting(key, body[key]);
     }
-    const 어림 = 시간재보기(최소분량(), 지금상한());
+    const 어림 = 주인 ? 시간재보기(최소분량(), 지금상한()) : null;
     return 분량알림 ? { ok: true, notice: 분량알림, min_length: 최소분량(), timing: 어림 }
                    : { ok: true, min_length: 최소분량(), timing: 어림 };
   });
@@ -173,8 +204,11 @@ export async function settingsRoutes(app: FastifyInstance) {
   // 미리보기도 글 한 편을 진짜로 쓴다. 체험 하루 3건 셈에도 안 잡히는
   // 자리라, 여기로 사장님 한도가 새면 막을 길이 없다.
   app.post("/api/settings/preview-post", async (_req, reply) => {
-    if (!주인자리인가()) { reply.code(403); return { error: 체험은못함 }; }
-    const raw = getSettings(SETTINGS_KEYS);
+    if (!주인자리인가()) {
+      reply.code(403);
+      return { error: `체험 키로는 예시 포스팅을 볼 수 없습니다. [포스팅]에서 글을 직접 만들어 보세요 (하루 ${체험_하루상한}건).` };
+    }
+    const raw = 개인설정들(STYLE_KEYS);
     const blogProfileBlock = buildBlogProfileBlock({
       blogType: raw.blog_type,
       blogTopic: raw.blog_topic,

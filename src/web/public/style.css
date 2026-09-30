@@ -1587,3 +1587,13 @@ textarea:focus {
 }
 
 .batch-log:empty { display: none; }
+
+
+/* ── 체험 자리 ─────────────────────────────────────────────────────
+ * 체험 키로 들어오면 body 에 is-trial 이 붙는다. 서버 주인만 바꾸는 칸
+ * (AI 연결·이미지 키·아침 예약·프리셋 추가·예시 보기)은 아예 감춘다.
+ * 보여 주고 누르면 «못 바꿉니다» 가 뜨는 것보다, 바꿀 수 있는 것만 두는
+ * 편이 덜 헷갈린다. 서버도 따로 막고 있다(routes/settings.ts). */
+body.is-trial [data-owner-only] { display: none !important; }
+.trial-style-note { border-left: 4px solid var(--gold); background: var(--gold-soft); }
+.trial-style-note p + p { margin-top: 6px; }

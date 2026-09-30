@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { getDb } from "../index.js";
 import { config } from "../../config.js";
 import { POSTING_DIRECTION_PRESETS } from "../../claude/blogProfile.js";
+import { 지금, 체험역할 } from "../../tenancy.js";
 
 export interface PostingDirectionPreset {
   id: string;
@@ -120,7 +121,10 @@ export const 최소분량최저 = 800;
 export const 최소분량최고 = 6000;
 
 export function 최소분량(): number {
-  const 글 = (getSetting(최소분량키) ?? "").trim();
+  // 체험 자리는 자기 값이 있으면 그것을, 없으면 주인의 값을 따른다.
+  // 글자수는 스타일이라기보다 «얼마나 길게» 라서, 안 정한 분에게 주인
+  // 기준을 그대로 주는 편이 자연스럽다.
+  const 글 = ((체험자리() ? 자리값(최소분량키) : null) ?? getSetting(최소분량키) ?? "").trim();
   if (글 === "") return 최소분량기본;
   const 값 = Number(글);
   if (!Number.isFinite(값)) return 최소분량기본;
@@ -129,6 +133,81 @@ export function 최소분량(): number {
 
 export function 최소분량정하기(값: number): number {
   const n = Math.max(최소분량최저, Math.min(최소분량최고, Math.floor(Number(값))));
-  setSetting(최소분량키, String(n));
+  개인설정정하기(최소분량키, String(n));
   return n;
+}
+
+/**
+ * **자리마다 따로 두는 «글 스타일» 설정.**
+ *
+ * 체험 키를 여러 분께 나눠 드리면, 전에는 모두가 사장님의 블로그 유형·주제·
+ * 말투로 글을 받았다. 설정 표(settings)에 «누구 것» 칸이 없었기 때문이다.
+ * 그렇다고 체험 회원이 그 표를 고치게 하면 사장님 아침 글의 말투가 바뀐다.
+ *
+ * 그래서 이 다섯 가지만 자리마다 따로 둔다.
+ *
+ *   주인(owner_key='')  → 지금처럼 settings 표
+ *   체험(owner_key=1차키) → seat_settings 표, 자기 줄만
+ *
+ * 체험 회원이 아직 안 정했으면 **주인의 스타일을 빌려 쓰지 않는다**(글자수만
+ * 예외 — 위 최소분량() 참고). 사장님 블로그 주제로 쓴 글이 친구에게 가면
+ * 그 친구는 «내 블로그에 맞나» 를 판단할 수 없다. 안 정한 칸은 기본값이다.
+ *
+ * AI 연결·이미지 키·아침 예약·사용자 프리셋 목록은 여기 없다. 그건 서버
+ * 주인의 것이고, 체험 회원은 여전히 못 바꾼다.
+ */
+export const 개인설정키 = [
+  "blog_type",
+  "blog_topic",
+  "posting_direction_preset",
+  "posting_direction_refinement",
+  최소분량키,
+] as const;
+
+export function 개인설정인가(key: string): boolean {
+  return (개인설정키 as readonly string[]).includes(key);
+}
+
+/** 보강 지시 한 칸에 담을 수 있는 최대 글자수. 체험 키가 서버를 부풀리지 못하게. */
+export const 개인설정_최대글자 = 2000;
+
+/** 체험으로 들어온 자리인가. 1차키가 비어 있으면 주인으로 본다(안전한 쪽). */
+function 체험자리(): boolean {
+  const 누구 = 지금();
+  return 누구.role === 체험역할 && 누구.ownerKey !== "";
+}
+
+function 자리값(key: string): string | null {
+  const row = getDb()
+    .prepare("SELECT value FROM seat_settings WHERE owner_key = ? AND key = ?")
+    .get(지금().ownerKey, key) as { value: string } | undefined;
+  return row ? row.value : null;
+}
+
+/** 지금 자리의 스타일 설정 한 칸. 주인은 settings, 체험은 제 줄. */
+export function 개인설정(key: string): string | null {
+  if (!개인설정인가(key)) throw new Error(`${key} 는 자리별 설정이 아닙니다.`);
+  return 체험자리() ? 자리값(key) : getSetting(key);
+}
+
+export function 개인설정들(keys: readonly string[]): Record<string, string | null> {
+  const 결과: Record<string, string | null> = {};
+  for (const key of keys) 결과[key] = 개인설정(key);
+  return 결과;
+}
+
+/** 지금 자리의 스타일 설정을 바꾼다. 빈 값·null 은 «안 정함» 으로 되돌린다. */
+export function 개인설정정하기(key: string, value: string | null): void {
+  if (!개인설정인가(key)) throw new Error(`${key} 는 자리별 설정이 아닙니다.`);
+  if (!체험자리()) { setSetting(key, value); return; }
+  const db = getDb();
+  const 주인키 = 지금().ownerKey;
+  if (value === null || value === "") {
+    db.prepare("DELETE FROM seat_settings WHERE owner_key = ? AND key = ?").run(주인키, key);
+    return;
+  }
+  db.prepare(
+    `INSERT INTO seat_settings (owner_key, key, value, updated_at) VALUES (?, ?, ?, datetime('now'))
+     ON CONFLICT(owner_key, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+  ).run(주인키, key, value);
 }

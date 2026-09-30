@@ -716,6 +716,8 @@ let selectedPreset = "balanced";
 // 확인 가능한 라이브 상태라서, 페이지를 새로고침하면 다시 초기화된다.
 let claudeTestedOk = false;
 let isMasterSession = false;
+/** 체험 키로 들어온 자리인가. 자리표시하기() 가 /api/settings 의 seat 로 정한다. */
+let isTrialSeat = false;
 // 홈 화면의 "AI 연결 상태" 카드가 참고하는 마지막 GET /api/settings 응답.
 // null이면 아직 한 번도 안 불러온 것(부팅 직후).
 let lastSettingsSnapshot = null;
@@ -751,14 +753,16 @@ function renderPresetGrid() {
     .map(
       (p) => `
       <div class="preset-card${p.id === selectedPreset ? " selected" : ""}" data-action="select-preset" data-preset="${p.id}">
-        ${p.custom ? `<button class="preset-delete" data-action="delete-preset" data-preset="${p.id}" title="이 프리셋 삭제">✕</button>` : ""}
+        ${p.custom && !isTrialSeat ? `<button class="preset-delete" data-action="delete-preset" data-preset="${p.id}" title="이 프리셋 삭제">✕</button>` : ""}
         <strong>${escapeHtml(p.label)}</strong>
         <p class="muted">${escapeHtml(p.description)}</p>
       </div>`,
     )
     .join("");
-  grid.innerHTML =
-    cards + `<div class="preset-card preset-card-add" data-action="show-add-preset-form">+<span>새 프리셋 추가</span></div>`;
+  // 프리셋 목록은 서버 하나에 하나다. 체험 키는 고르기만 하고 늘리거나 지우지 않는다.
+  grid.innerHTML = isTrialSeat
+    ? cards
+    : cards + `<div class="preset-card preset-card-add" data-action="show-add-preset-form">+<span>새 프리셋 추가</span></div>`;
 }
 
 function renderFinalDirectionSummary() {
@@ -785,10 +789,36 @@ function renderFinalDirectionSummary() {
     </ul>`;
 }
 
+/**
+ * **체험 키로 들어왔으면 화면을 그 자리에 맞춘다.**
+ *
+ * 체험 회원이 바꿀 수 있는 것은 글 스타일(2·3번 카드)뿐이다. 나머지 카드는
+ * body.is-trial 로 감추고, 이 설정이 «이 키에만» 저장된다는 안내를 띄운다.
+ * 메뉴 이름도 「관리자 설정」 그대로면 체험 회원은 자기와 상관없는 곳인 줄
+ * 알고 안 들어온다 — 그래서 「내 글 스타일」 로 바꿔 부른다.
+ */
+function 자리표시하기(s) {
+  isTrialSeat = s.seat === "trial";
+  document.body.classList.toggle("is-trial", isTrialSeat);
+  const 안내 = document.getElementById("trial-style-note");
+  if (안내) 안내.hidden = !isTrialSeat;
+  const 한도 = document.getElementById("trial-daily-limit");
+  if (한도 && s.trial_daily_limit) 한도.textContent = s.trial_daily_limit;
+  const 메뉴 = document.getElementById("nav-settings-label");
+  if (메뉴) 메뉴.textContent = isTrialSeat ? "내 글 스타일" : "관리자 설정";
+  const 제목 = document.getElementById("settings-title");
+  if (제목) 제목.textContent = isTrialSeat ? "🎨 내 글 스타일" : "⚙️ 관리자 설정";
+  const 부제 = document.getElementById("settings-subtitle");
+  if (부제) 부제.textContent = isTrialSeat
+    ? "이 체험 키로 만드는 글의 블로그 유형·주제·톤을 정합니다."
+    : "AI 연결, 블로그 주제/톤, 접속 코드를 관리합니다.";
+}
+
 async function refreshSettings() {
   const [s, who] = await Promise.all([api("/api/settings"), api("/api/auth/whoami")]);
   isMasterSession = !!who.isMaster;
   lastSettingsSnapshot = s;
+  자리표시하기(s);
 
   setStepBadge("unsplash", s.unsplash_access_key_set);
   document.querySelector('[data-current="unsplash_access_key"]').textContent = s.unsplash_access_key_set
@@ -1373,7 +1403,7 @@ async function refreshEngines() {
     const 주인 = 엔진목록.role === "admin";
     누구.innerHTML = 주인
       ? `지금 <strong>${escapeHtml(엔진목록.roleLabel || "판매용 (주인)")}</strong> 자격으로 들어와 계십니다. 아래 설정을 바꾸실 수 있습니다.`
-      : `지금 <strong>${escapeHtml(엔진목록.roleLabel || "체험용")}</strong> 자격입니다 — 보여 드리기용 자리라 설정은 못 바꾸십니다.<br>`
+      : `지금 <strong>${escapeHtml(엔진목록.roleLabel || "체험용")}</strong> 자격입니다 — 글 스타일(블로그 주제·포스팅 방향)만 바꾸실 수 있습니다.<br>`
         + `<strong>사장님이신데 이렇게 보인다면</strong>, 접속키가 체험용으로 발급된 것입니다. `
         + `설치 때 정하신 <strong>대시보드 암호</strong>로 들어오시면 주인 자격이 됩니다.`;
     누구.className = 주인 ? "muted" : "setup-warn";

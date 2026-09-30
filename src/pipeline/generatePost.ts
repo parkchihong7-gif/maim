@@ -6,7 +6,7 @@ import { buildPostPrompt } from "../claude/promptBuilder.js";
 import { buildBlogProfileBlock } from "../claude/blogProfile.js";
 import { runAI, 지금엔진, 시간초과인가 } from "../ai/run.js";
 import { parsePostResponse } from "../claude/parseResponse.js";
-import { getSettings, resolvePostingDirectionInstruction } from "../db/repositories/settings.js";
+import { 개인설정들, resolvePostingDirectionInstruction } from "../db/repositories/settings.js";
 import type { PostDirective } from "./directives.js";
 import { config } from "../config.js";
 import { 최소분량 } from "../db/repositories/settings.js";
@@ -21,7 +21,9 @@ import { 제목고르기 } from "../claude/제목규칙.js";
 export async function generatePost(category: Category, directive: PostDirective): Promise<Post> {
   const today = DateTime.now().setZone(config.timezone).toFormat("yyyy-MM-dd");
   const recentTitles = listRecentTitles(20);
-  const blogSettings = getSettings([
+  // 글 스타일은 **이 글을 만드는 자리의 것**이다. 체험 키로 만든 글은 그
+  // 사람이 정한 유형·주제·말투로, 아침 자동 글은 주인의 것으로 쓴다.
+  const blogSettings = 개인설정들([
     "blog_type",
     "blog_topic",
     "posting_direction_preset",
