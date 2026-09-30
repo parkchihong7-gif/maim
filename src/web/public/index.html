@@ -698,78 +698,111 @@
         <div class="page-header">
           <div>
             <h1>📖 사용법</h1>
-            <p class="muted">처음 쓰시는 분들을 위한 전체 흐름 안내입니다.</p>
+            <p class="muted">처음 쓰시는 분을 위한 전체 흐름입니다. 하루에 쓰는 시간은 <strong>5분</strong>이면 됩니다.</p>
           </div>
         </div>
 
+        <!-- 사용법은 주인·체험 회원이 같이 본다. 한쪽에만 맞는 줄은 data-owner-only /
+             data-trial-only 로 가른다 (body.is-trial). 없는 메뉴를 찾게 하지 않으려는 것. -->
         <div class="card">
+          <div class="guide-step">
+            <div class="guide-step-num">0</div>
+            <div class="guide-step-body">
+              <h4>맨 위 상태 막대부터 보기</h4>
+              <p>모든 화면 맨 위에 <strong>👤 누가 접속 중인지 · 🤖 글 쓰는 AI · 연결 상태 · 🖼️ 무료 이미지 키</strong>가
+                늘 보입니다. <strong>초록</strong>이면 준비 끝, <strong>빨강</strong>이면 지금은 글이 나오지 않습니다.</p>
+              <p data-owner-only>빨간 막대의 <strong>[AI 설정으로 가기]</strong>·<strong>[이미지 키 넣기]</strong>를 누르면
+                고칠 자리로 바로 갑니다. 최근에 AI 가 바뀌었으면 «언제 무엇 → 무엇» 도 함께 보입니다.</p>
+              <p data-trial-only>빨간 막대가 보이면 <strong>보내 주신 분께 알려 주세요.</strong> 체험 회원이 고칠 곳은 아닙니다.</p>
+            </div>
+          </div>
           <div class="guide-step">
             <div class="guide-step-num">1</div>
             <div class="guide-step-body">
               <h4>블로그 관리에서 카테고리 설정</h4>
-              <p>기본 카테고리 9개가 이미 준비돼 있습니다. 이름/설명(프롬프트 힌트)을 [수정]으로 언제든 바꿀 수 있고,
-                이번에 특정 이슈를 우선 다루고 싶으면 [주제 키워드]를 한 번만 채워두면 다음 생성에 최우선 반영됩니다.</p>
+              <p>기본 카테고리 <strong>3개</strong>(「부동산 이야기」 「생활 절세」 「일상 기록」)가 이미 준비돼 있습니다.
+                이름·설명을 <strong>[수정]</strong>으로 내 블로그 주제에 맞게 바꾸시거나, 지우고 새로 만드셔도 됩니다.
+                <strong>카테고리 하나가 초안 하나</strong>입니다.</p>
+              <p>이번에 꼭 다루고 싶은 이슈가 있으면 <strong>[주제 키워드]</strong>를 한 번 채워 두세요. 다음 글에 최우선으로
+                반영되고, 쓰고 나면 저절로 비워집니다.</p>
+              <p data-owner-only>「하루 편수」 칸은 아침 자동 준비 때 그 카테고리에서 몇 편을 만들지 정합니다 (7번 참고).</p>
             </div>
           </div>
           <div class="guide-step">
             <div class="guide-step-num">2</div>
             <div class="guide-step-body">
-              <h4>[지금 생성] 클릭</h4>
-              <p>고르신 AI 가 카테고리 설명과 관리자 설정(블로그 주제/포스팅 방향)을 바탕으로 글을 쓰고, 어울리는 이미지 3장을
-                자동으로 찾아 붙입니다. 완료되면 [포스팅] 메뉴에 나타납니다.</p>
+              <h4>내 블로그 방향 정하기</h4>
+              <p data-trial-only>왼쪽 <strong>[내 글 스타일]</strong>에서 블로그 유형(개인·기업)·주제 분야·말투(톤)·보강 문구·
+                최소 글자수를 정합니다. <strong>이 체험 키에만</strong> 저장되고, AI 설정은 따로 하실 필요가 없습니다.
+                처음 들어오시면 이 화면이 먼저 열립니다.</p>
+              <p data-owner-only><strong>[관리자 설정 → 2) 블로그 주제 설정 · 3) 포스팅 방향 설정]</strong>에서 블로그 유형·
+                주제 분야·톤 프리셋·보강 문구·최소 글자수를 정합니다. <strong>[예시 포스팅 보기]</strong>로 톤을 먼저 확인해 보세요.</p>
             </div>
           </div>
           <div class="guide-step">
             <div class="guide-step-num">3</div>
             <div class="guide-step-body">
-              <h4>포스팅에서 결과 확인</h4>
-              <p>제목을 클릭하면 본문이 펼쳐집니다. 품질 체크리스트(글자수/서식/키워드/주제 중복)를 확인하고,
-                이미지가 마음에 안 들면 [이미지 재생성]으로 3장을 더 받아볼 수 있습니다.</p>
+              <h4>[지금 생성] 클릭</h4>
+              <p>AI 가 카테고리 설명과 내 블로그 방향을 바탕으로 글을 쓰고, 어울리는 무료 사진 3장을 찾아 붙입니다.
+                <strong>2~5분</strong> 걸리고, 끝나면 <strong>[포스팅]</strong>에 나타납니다.</p>
+              <p>AI 연결이 끊겼거나 무료 이미지 키가 하나도 없으면, 기다리게 하지 않고 <strong>안내 창</strong>이 먼저 뜹니다.</p>
+              <p data-trial-only class="muted">체험 키는 <strong>하루 3건</strong>까지 만들 수 있습니다.</p>
             </div>
           </div>
           <div class="guide-step">
             <div class="guide-step-num">4</div>
             <div class="guide-step-body">
-              <h4>네이버 블로그에 붙여넣기</h4>
-              <p>[복사하기]로 제목+본문+태그를 클립보드에 복사하고, [이미지 복사]로 이미지 자체를 클립보드에 담아
-                네이버 에디터에 Ctrl+V로 붙여넣으세요. 이미지 아래 파란 박스의 대체텍스트도 함께 복사해서
-                네이버 에디터의 "대체텍스트" 입력란에 붙여넣으면 검색엔진 노출에 도움이 됩니다.</p>
+              <h4>포스팅에서 결과 확인 · 제목 고르기</h4>
+              <p>제목은 <strong>[검색 키워드] + [눌러 보고 싶게 만드는 말]</strong>로, 네이버 검색 결과에 다 보이는
+                <strong>32~40자</strong>로 나옵니다.
+                <br><span class="muted">예) 노원구 소형 아파트 대출 조건 2026 바뀐 한도 3가지 총정리</span></p>
+              <p>본 제목 아래에 <strong>후킹 제목 후보 3가지</strong>(조건·기준형 / 방법·절차형 / 후기·비교형)가 글자 수와 함께
+                붙습니다. 마음에 드는 것을 <strong>[복사하기]</strong>로 가져가세요.</p>
+              <p>제목을 누르면 본문이 펼쳐집니다. 품질 체크리스트(글자수·서식·키워드·주제 중복)를 보시고, 사진이 마음에
+                안 들면 <strong>[이미지 재생성]</strong>으로 3장을 더 받을 수 있습니다.</p>
             </div>
           </div>
           <div class="guide-step">
             <div class="guide-step-num">5</div>
             <div class="guide-step-body">
-              <h4>발행 완료로 표시</h4>
-              <p>네이버에 실제로 발행한 뒤 [발행 완료로 표시]를 누르면 [발행 이력]으로 이동해 기록으로 남습니다.
-                실제 네이버 발행 여부는 이 프로그램이 알 수 없으므로, 사람이 직접 눌러 표시하는 방식입니다
-                (이 프로그램은 완전자동 발행 대신 반자동 방식을 씁니다 — 아래 참고).</p>
+              <h4>네이버 블로그에 붙여넣기</h4>
+              <p><strong>[복사하기]</strong>로 제목+본문+태그를, <strong>[이미지 복사]</strong>로 사진 자체를 담아 네이버 편집기에
+                Ctrl+V 로 붙여넣으세요. 사진 아래 파란 상자의 <strong>대체텍스트</strong>도 네이버 편집기의 「대체텍스트」 칸에
+                넣으면 이미지 검색에 도움이 됩니다.</p>
+              <p><strong>직접 겪은 이야기 한두 줄</strong>을 더하고 발행하세요. AI 는 겪은 것을 모릅니다 — 그 한두 줄이 검색에서
+                이 글을 올려 줍니다.</p>
             </div>
           </div>
           <div class="guide-step">
             <div class="guide-step-num">6</div>
             <div class="guide-step-body">
-              <h4>관리자 설정으로 취향에 맞게 다듬기</h4>
-              <p>AI 커넥트 연결(글 쓸 AI·이미지 API), 블로그 주제, 포스팅 방향(톤 프리셋+보강 문구)을 관리자 설정에서
-                조정할 수 있습니다. [예시 포스팅 보기]로 톤을 먼저 확인해보세요.</p>
+              <h4>발행 완료로 표시</h4>
+              <p>네이버에 올리신 뒤 <strong>[발행 완료로 표시]</strong>를 누르면 <strong>[발행 이력]</strong>에 남고,
+                다음 글이 <strong>최근 제목 20개와 겹치지 않게</strong> 나옵니다. 이 프로그램은 네이버를 들여다볼 수 없어서
+                눌러 주신 것으로 압니다.</p>
             </div>
           </div>
-
-          <div class="guide-step">
+          <div class="guide-step" data-owner-only>
             <div class="guide-step-num">7</div>
             <div class="guide-step-body">
+              <h4>관리자 설정 — AI 하나 + 무료 이미지 키 1개 이상</h4>
+              <p><strong>1) AI 커넥트 연결</strong>에서 글 쓸 AI 를 <strong>하나</strong> 고릅니다 —
+                Claude(Pro 이상 구독) · Gemini(구글 계정 무료 키) · Codex(ChatGPT Plus 이상 구독).
+                AI 를 바꿀 때는 <strong>확인 창</strong>이 뜹니다. 바꾸면 이 서버의 모든 글(체험 회원 글 포함)이 새 AI 로 써지니,
+                바꾼 뒤 꼭 <strong>[연결 테스트]</strong>를 눌러 «연결 성공» 을 확인하세요.</p>
+              <p>무료 이미지 키(Unsplash · Pexels · Pixabay)는 <strong>1개 이상 있어야</strong> 글을 만들 수 있습니다.
+                셋 다 넣어 두시면 하나가 한도에 걸려도 사진이 계속 나옵니다.</p>
+            </div>
+          </div>
+          <div class="guide-step" data-owner-only>
+            <div class="guide-step-num">8</div>
+            <div class="guide-step-body">
               <h4>매일 아침 자동으로 준비되게 하기</h4>
-              <p>여기까지는 <strong>[지금 생성]</strong>을 눌러 한 편씩 만드는 방법입니다.
-                <strong>[관리자 설정 → 4) 포스팅 예약 설정]</strong>에서 <strong>시각</strong>과
-                <strong>하루 몇 건</strong>을 정해 두시면, 아침에 열었을 때 이미 준비돼 있습니다.
-                카테고리별 편수는 <strong>[블로그 관리]</strong>의 「하루 편수」 칸에서 정하십니다.</p>
-              <p><strong>시각을 바꾸시면 손이 한 번 더 갑니다.</strong> 이 서버는 아무도 안 쓸 때
-                잠들어서(그래서 요금이 0원입니다) 스스로 일어나지 못하고, 깨우는 시각은
-                구글 쪽(Cloud Scheduler)에 적혀 있기 때문입니다. 저장하면 화면이
-                <strong>「아직 반만 바뀌었습니다」</strong>와 함께 붙여넣을 명령 한 줄을 만들어 드립니다 —
-                [복사] → 검은 창에 붙여넣기 → [넣었습니다], 세 걸음입니다.</p>
-              <p class="muted">예약 화면 맨 위에 <strong>⏰ 자동 준비가 …</strong> 경고가 떠 있다면,
-                아직 그 자명종을 한 번도 안 걸어 두신 것입니다. 설치 안내서의 해당 단계를 따라
-                한 번만 걸어 두시면 됩니다.</p>
+              <p><strong>[관리자 설정 → 4) 포스팅 예약 설정]</strong>에서 차례와 <strong>하루 몇 건</strong>을 정해 두시면,
+                <strong>아침 6시</strong>에 준비돼 있습니다. 카테고리별 편수는 <strong>[블로그 관리]</strong>의 「하루 편수」
+                칸에서 정합니다. 무료 이미지 키가 하나도 없으면 아침 준비도 건너뜁니다.</p>
+              <p class="muted">예약 화면 맨 위에 <strong>⏰ 자동 준비가 …</strong> 경고가 떠 있다면, 아직 자명종(Cloud
+                Scheduler)을 한 번도 안 걸어 두신 것입니다. 설치 안내서의 6단계를 따라 한 번만 걸어 두시면 됩니다.</p>
             </div>
           </div>
         </div>
@@ -779,23 +812,31 @@
           <p class="muted">이전에 네이버 블로그 에디터를 자동으로 조작하는 방식을 시도했다가, 네이버가 이를
             자동화 도구로 탐지해 계정에 보호조치(비밀번호 강제 재설정)가 걸린 적이 있습니다. 그 이후로 이
             프로그램은 "AI가 글과 이미지를 준비 → 사람이 직접 복사해서 발행"하는 반자동 방식으로 설계를
-            바꿨습니다. 다소 손이 더 가지만, 계정 제재 위험 없이 안전하게 쓸 수 있습니다.</p>
+            바꿨습니다. 네이버 비밀번호를 넣는 칸이 아예 없습니다. <strong>복사 한 번이 계정을 지킵니다.</strong></p>
         </div>
 
         <div class="card">
           <h3>자주 막히는 부분</h3>
-          <p class="muted"><strong>이미지가 안 보여요</strong> — 관리자 설정에서 Unsplash/Pexels 키가 저장돼 있는지
-            확인하세요. 두 키 모두 없으면 이미지 검색 자체가 안 됩니다.</p>
-          <p class="muted"><strong>"지금 생성"을 눌렀는데 에러가 나요</strong> — 고르신 AI 의 로그인이 안 돼 있을 가능성이
-            높습니다. <strong>관리자 설정 1단계</strong>에서 어느 AI 로 돼 있는지 확인하시고 <strong>[연결 테스트]</strong>를
-            눌러 보세요. 오류 글에 무엇이 문제인지 그대로 나옵니다.</p>
-          <p class="muted"><strong>아침에 아무것도 안 쌓여 있어요</strong> — 예약 화면(관리자 설정 → 4)의
-            맨 위를 보세요. <strong>⏰ 자동 준비가 …</strong> 경고가 떠 있으면 자명종(Cloud Scheduler)이
-            안 걸린 것이고, <strong>「아직 반만 바뀌었습니다」</strong>가 떠 있으면 시각을 바꾸고
-            명령 한 줄을 아직 안 넣으신 것입니다. 하루 건수가 0으로 되어 있어도 아무것도 안 나옵니다.</p>
-
-          <p class="muted"><strong>토큰을 입력하라는 창이 계속 떠요</strong> — 대시보드 토큰(또는 1회용 접속 코드)이
-            틀렸거나 만료된 코드일 수 있습니다. 마스터라면 정확한 토큰을, 게스트라면 새 코드를 받아 입력하세요.</p>
+          <p class="muted"><strong>「AI 연결이 필요합니다」 창이 떠요</strong> —
+            <span data-owner-only>맨 위 막대에서 지금 어느 AI 인지 확인하시고, 창의 <strong>[확인]</strong>으로 AI 설정에 가서
+              <strong>[연결 테스트]</strong>를 누르세요. «로그인이 풀렸습니다» 가 나오면 설치 안내서 4단계 [나]의 ③·④
+              (검은 창에서 다시 로그인 → 저장통에 올리기)를 하시면 됩니다. 서버를 다시 켤 필요는 없습니다.</span>
+            <span data-trial-only>보내 주신 분께 «AI 연결이 끊겼다» 고 알려 주세요. 이때는 하루 한도가 줄지 않습니다.</span></p>
+          <p class="muted"><strong>「무료 이미지 키가 필요합니다」 창이 떠요</strong> —
+            <span data-owner-only>창의 <strong>[확인]</strong>을 누르면 이미지 키 칸으로 갑니다. Unsplash · Pexels · Pixabay 중
+              하나 이상 키를 넣고 [저장]하세요. 셋 다 무료이고 가입하면 바로 나옵니다.</span>
+            <span data-trial-only>보내 주신 분께 «이미지 키가 없다» 고 알려 주세요.</span></p>
+          <p class="muted"><strong>오류 창이 떴어요</strong> — 창의 <strong>[복사]</strong>를 눌러 내용을 그대로 전해 주시면
+            바로 확인할 수 있습니다.<span data-owner-only> 체험 회원에게 뜬 오류도
+              <strong>[관리자 설정 → 🧯 최근 오류]</strong>에 누가·언제·무슨 오류였는지 남습니다.</span></p>
+          <p class="muted"><strong>글은 나왔는데 사진이 없어요</strong> — 무료 사진 사이트의 한도를 넘긴 것입니다. 시간이 지나면
+            풀립니다. 급하면 글만 먼저 올리고 사진은 직접 넣으셔도 됩니다.</p>
+          <p class="muted" data-owner-only><strong>아침에 아무것도 안 쌓여 있어요</strong> — 예약 화면(관리자 설정 → 4)의
+            맨 위를 보세요. <strong>⏰ 자동 준비가 …</strong> 경고가 떠 있으면 자명종이 안 걸린 것입니다.
+            하루 건수가 0 이거나, 무료 이미지 키가 하나도 없어도 아무것도 안 나옵니다.</p>
+          <p class="muted"><strong>갑자기 로그아웃됐어요 / 접속 창이 계속 떠요</strong> — 같은 2차 인증키를 다른 기기에서
+            쓰시면 먼저 쓰던 기기가 끊깁니다. 메일에서 <strong>지금 기기(PC·노트북·휴대폰)에 맞는 2차키</strong>를 찾아
+            넣으세요.<span data-trial-only> 체험 기간이 끝났어도 접속 창이 뜹니다.</span></p>
         </div>
       </section>
     </main>
