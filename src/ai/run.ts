@@ -102,9 +102,22 @@ export interface AI상태 {
   changed: { from: string; to: string; at: string } | null;
 }
 
-export function 상태적기(ok: boolean, why = ""): void {
+/**
+ * 적는 모양의 판. 판이 다르면 읽지 않는다.
+ *
+ * 1판은 «적는 그 순간의 엔진» 이름으로 적었다. 그래서 Codex 로 돌던 글이
+ * 늦게 실패하는 사이 사장님이 Claude 로 바꾸고 연결 테스트까지 마치셨는데,
+ * 뒤늦은 Codex 의 401 이 **Claude 의 끊김**으로 적혔다. 멀쩡한 Claude 가
+ * 막혔다. 2판부터는 **실제로 돈 엔진** 이름으로 적는다. 1판은 버린다.
+ */
+const 상태판 = 2;
+
+/**
+ * @param 엔진id 실제로 돌았던 엔진. **적는 순간의 엔진이 아니다** — 그사이 바뀌었을 수 있다.
+ */
+export function 상태적기(ok: boolean, why = "", 엔진id: string = 지금엔진().id): void {
   setSetting(상태칸, JSON.stringify({
-    engine: 지금엔진().id, ok, at: new Date().toISOString(), why: why.slice(0, 600),
+    v: 상태판, engine: 엔진id, ok, at: new Date().toISOString(), why: why.slice(0, 600),
   }));
 }
 
@@ -114,7 +127,7 @@ export function 상태지우기(): void {
 
 export function 지금상태(): AI상태 {
   const 것 = 지금엔진();
-  let 적힌: { engine?: string; ok?: boolean; at?: string; why?: string } = {};
+  let 적힌: { v?: number; engine?: string; ok?: boolean; at?: string; why?: string } = {};
   try { 적힌 = JSON.parse(getSetting(상태칸) || "{}"); } catch { 적힌 = {}; }
   let 바뀜: AI상태["changed"] = null;
   try { 바뀜 = JSON.parse(getSetting(바뀐때칸) || "null"); } catch { 바뀜 = null; }
@@ -122,8 +135,8 @@ export function 지금상태(): AI상태 {
   const 기본 = { engine: 것.id, label: 것.label, changed: 바뀜 };
   const 준비 = 준비됐나(것);
   if (!준비.ok) return { ...기본, ok: false, at: null, why: 준비.why };
-  // 다른 엔진 때 적어 둔 것은 이 엔진의 상태가 아니다.
-  if (적힌.engine !== 것.id || typeof 적힌.ok !== "boolean") {
+  // 다른 엔진 때 적어 둔 것은 이 엔진의 상태가 아니다. 옛 판으로 적힌 것도 믿지 않는다.
+  if (적힌.v !== 상태판 || 적힌.engine !== 것.id || typeof 적힌.ok !== "boolean") {
     return { ...기본, ok: null, at: null, why: "" };
   }
   return { ...기본, ok: 적힌.ok, at: 적힌.at ?? null, why: 적힌.why ?? "" };
@@ -140,12 +153,26 @@ export async function 쓸수있나(): Promise<AI상태> {
   let 상태 = 지금상태();
   if (상태.ok !== false) return 상태;
   const 것 = 지금엔진();
+  if (!준비됐나(것).ok) return 상태;          // 키가 없는 것은 해 볼 것도 없다
   if (것.auth.loginWorksOnServer && (await 로그인맞추기(것.home, true)) > 0) {
     상태지우기();
+    return 지금상태();
+  }
+  // **적힌 «끊김» 이 조금 지났으면, 막기 전에 한 번 직접 확인한다.**
+  // 적어 둔 것 하나로 계속 막으면, 적힌 게 틀렸거나 그사이 고쳐졌을 때
+  // 멀쩡한 AI 를 붙잡고 있게 된다. 짧은 «ok» 한 마디라 한도는 거의 안 든다.
+  const 지난 = 상태.at ? Date.now() - new Date(상태.at).getTime() : Infinity;
+  if (지난 > 다시볼간격_ms) {
+    try {
+      await runAI({ prompt: "연결 확인이다. 다른 설명 없이 'ok'라고만 답하라.", timeoutMs: 45_000 });
+    } catch { /* runAI 가 결과를 적는다. 여기서는 그대로 둔다 */ }
     상태 = 지금상태();
   }
   return 상태;
 }
+
+/** 적힌 «끊김» 을 이만큼 지나면, 막기 전에 한 번 직접 확인한다. */
+const 다시볼간격_ms = 2 * 60_000;
 
 /**
  * 실행 파일 이름.
@@ -324,7 +351,7 @@ export async function runAI(options: RunOptions): Promise<string> {
       const 왜 = 없음
         ? `${것.label} 이 이 서버에 설치돼 있지 않습니다. 「${것.install}」 를 먼저 하세요.`
         : 탈.message;
-      if (없음) 상태적기(false, 왜);
+      if (없음) 상태적기(false, 왜, 것.id);
       reject(new Error(왜));
     });
 
@@ -334,11 +361,11 @@ export async function runAI(options: RunOptions): Promise<string> {
       if (코드 !== 0) {
         const 까닭 = 멈춘까닭(것, 코드, 탈난것);
         // 로그인이 풀린 것은 다시 해도 안 된다. 끊김으로 적어 다음 글을 막는다.
-        if (로그인풀림.test(탈난것)) 상태적기(false, 까닭);
+        if (로그인풀림.test(탈난것)) 상태적기(false, 까닭, 것.id);
         reject(new Error(까닭));
         return;
       }
-      상태적기(true);
+      상태적기(true, "", 것.id);
       resolve(나온것);
     });
   });

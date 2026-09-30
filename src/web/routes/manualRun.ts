@@ -132,6 +132,20 @@ export async function manualRunRoutes(app: FastifyInstance) {
     };
   });
 
+  // 화면이 «끊김» 을 보고 막기 전에 부른다. 적힌 것이 오래됐으면 서버가 한 번
+  // 직접 확인하고 새 상태를 돌려준다 — 옛 기록 하나로 멀쩡한 AI 를 막지 않게.
+  app.post("/api/ai/check", async () => {
+    const 주인 = 주인자리인가();
+    const 상태 = await 쓸수있나();
+    return {
+      ...상태,
+      why: 주인 ? 상태.why : (상태.ok === false ? "AI 연결이 끊겨 있습니다." : ""),
+      changed: 주인 ? 상태.changed : null,
+      role: 주인 ? "admin" : "client",
+      images: 주인 ? 이미지키들() : { count: 이미지키들().count, total: 3, set: [], missing: [] },
+    };
+  });
+
   // 최근 오류. 주인은 전부(누구 자리에서 났는지까지), 체험 회원은 자기 것만.
   app.get("/api/errors", async () => {
     const 주인 = 주인자리인가();

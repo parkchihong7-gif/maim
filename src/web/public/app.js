@@ -1877,7 +1877,14 @@ async function AI막대그리기() {
 
 /** 글을 만들기 전에 본다. 끊긴 게 분명하면 안내하고 false. */
 async function AI되나() {
-  const s = await AI막대그리기();
+  let s = await AI막대그리기();
+  if (s && s.ok === false) {
+    // 적힌 «끊김» 이 옛것일 수 있다. 막기 전에 서버에게 한 번 직접 확인시킨다.
+    try {
+      s = await api("/api/ai/check", { method: "POST" });
+      await AI막대그리기();
+    } catch { /* 확인을 못 했으면 적힌 대로 */ }
+  }
   if (s && s.ok !== false && s.images && s.images.count === 0) {
     AI안내창(s.role === "admin"
       ? "무료 이미지 사이트 API 키가 하나도 없습니다.\n\n키가 없어도 글은 나오지만 사진이 붙지 않습니다. "

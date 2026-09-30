@@ -196,6 +196,8 @@ export async function settingsRoutes(app: FastifyInstance) {
     if (!주인자리인가()) { reply.code(403); return { ok: false, error: 체험은못함 }; }
     const 준비 = 준비됐나();
     if (!준비.ok) return { ok: false, engine: 지금엔진().label, error: 준비.why };
+    // 시험하는 사이 AI 가 바뀔 수 있다. 시험한 엔진 이름으로 적어야 한다.
+    const 시험엔진 = 지금엔진().id;
     try {
       await runAI({
         prompt: "연결 테스트다. 다른 설명 없이 'ok'라고만 답하라.",
@@ -206,7 +208,7 @@ export async function settingsRoutes(app: FastifyInstance) {
       return { ok: true, engine: 지금엔진().label, status: 지금상태() };
     } catch (err) {
       // 연결 테스트가 실패했으면 그게 곧 «끊김» 이다. 글쓰기를 막아 둔다.
-      상태적기(false, (err as Error).message);
+      상태적기(false, (err as Error).message, 시험엔진);
       return { ok: false, engine: 지금엔진().label, error: (err as Error).message, status: 지금상태() };
     }
   });

@@ -68,6 +68,31 @@ R.엔진고르기("gemini");
 참("Gemini 키 없음 → 끊김", R.지금상태().ok === false && R.지금상태().why.includes("API 키"));
 R.엔진고르기("claude");
 
+console.log("\n⑦ 실제로 겪은 일 — 늦게 끝난 Codex 의 401 이 Claude 의 끊김으로 적히면 안 된다");
+fs.writeFileSync(모드, "ok");
+await 부르기();                                          // Claude 연결됨
+참("Claude 연결됨", R.지금상태().ok === true);
+R.상태적기(false, "Codex (OpenAI) 로그인이 풀렸습니다 … 401", "codex");  // 늦게 온 Codex 실패
+참("Claude 는 그대로 연결됨으로 보인다", R.지금상태().ok !== false);
+참("Codex 이야기가 Claude 상태에 안 섞였다", !R.지금상태().why.includes("Codex"));
+
+console.log("\n⑧ 옛 판(1판)으로 적힌 «끊김» 은 믿지 않는다 — 배포하면 저절로 풀린다");
+S.setSetting("ai_status", JSON.stringify({ engine: "claude", ok: false, at: new Date().toISOString(), why: "Codex 401" }));
+참("옛 판 기록은 «모름»", R.지금상태().ok === null);
+
+console.log("\n⑨ 적힌 «끊김» 이 2분 넘게 지났으면 막기 전에 직접 확인한다");
+const 오래전 = new Date(Date.now() - 10 * 60_000).toISOString();
+S.setSetting("ai_status", JSON.stringify({ v: 2, engine: "claude", ok: false, at: 오래전, why: "옛 끊김" }));
+참("적힌 대로면 끊김", R.지금상태().ok === false);
+const 확인 = await R.쓸수있나();
+참("직접 확인해 보니 연결됨 → 막지 않는다", 확인.ok === true);
+
+console.log("\n⑩ 방금 적힌 «끊김» 은 그대로 막는다 (매번 확인하느라 느려지지 않게)");
+fs.writeFileSync(모드, "401");
+await 부르기();
+fs.writeFileSync(모드, "ok");
+참("방금 끊김 → 막는다", (await R.쓸수있나()).ok === false);
+
 console.log("\n⑥ 무료 이미지 키 — 하나도 없으면 0, 하나 넣으면 1");
 참("처음은 0개", S.이미지키들().count === 0);
 참("빠진 것 셋", S.이미지키들().missing.length === 3);
