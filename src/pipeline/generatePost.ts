@@ -104,7 +104,7 @@ export async function generatePost(category: Category, directive: PostDirective)
 
   // 제목이 「세부 키워드 조합」 꼴을 벗어났으면, 이미 받아 둔 후보 제목 중
   // 규칙에 맞는 것으로 바꿔 끼운다. AI 를 다시 부르지 않는다 — 3분이 더 들기 때문.
-  const 제목 = 제목고르기(parsed.post.title, parsed.post.title_variants);
+  const 제목 = 제목고르기(parsed.post.title, parsed.post.title_variants, parsed.post.keyword);
   if (제목.바꿨나) {
     console.warn(
       `[${category.name}] 제목을 후보로 교체: "${parsed.post.title}" (${제목.왜}) -> "${제목.title}"`,

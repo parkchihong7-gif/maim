@@ -543,7 +543,8 @@ async function refreshQueue() {
         ? `<div class="post-tags">${tags.map((t) => `<span class="post-tag">${escapeHtml(t)}</span>`).join("")}</div>`
         : "";
 
-    const TITLE_VARIANT_LABELS = ["질문형", "숫자/사실형", "공감형"];
+    // 프롬프트가 시키는 순서 그대로. (바꿔 끼운 본 제목이 뒤에 붙으면 «후보 4» 로 보인다)
+    const TITLE_VARIANT_LABELS = ["조건·기준형", "방법·절차형", "후기·비교형"];
     const titleVariants = getTitleVariants(p);
     const titleVariantsHtml =
       titleVariants.length > 0
@@ -554,7 +555,7 @@ async function refreshQueue() {
                 (t, idx) => `
               <div class="title-variant-row">
                 <span class="badge">${escapeHtml(TITLE_VARIANT_LABELS[idx] || `후보 ${idx + 1}`)}</span>
-                <span class="title-variant-text">${escapeHtml(t)}</span>
+                <span class="title-variant-text">${escapeHtml(t)} <span class="muted title-len">${[...t].length}자</span></span>
                 <button class="btn-secondary btn-copy-image" data-action="copy-title-variant" data-title="${escapeHtml(t)}">복사하기</button>
               </div>`,
               )

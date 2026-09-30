@@ -30,6 +30,9 @@ function 다듬기(날것: unknown): unknown {
       .slice(0, 15);
   }
 
+  if (typeof 글.keyword !== "string") delete 글.keyword;
+  else 글.keyword = 글.keyword.trim();
+
   if (typeof 글.image_query === "string") {
     글.image_query = 글.image_query.trim().slice(0, 80);
   }
@@ -61,6 +64,8 @@ export const PostResponseSchema = z.preprocess(다듬기, z.object({
   // 후킹 패턴이 다른 제목 후보 3개(질문형/숫자·사실 강조형/공감형). 모델이
   // 빠뜨려도 전체 파싱이 깨지지 않도록 선택 필드로 방어적으로 받는다.
   title_variants: z.array(z.string().min(3).max(200)).optional().default([]),
+  // 제목 앞머리의 세부 키워드 조합. 제목이 이걸로 시작하는지 잰다. 빠뜨려도 글은 받는다.
+  keyword: z.string().max(80).optional().default(""),
 }));
 
 export type PostResponse = z.infer<typeof PostResponseSchema>;

@@ -1621,3 +1621,4 @@ body.is-trial [data-owner-only] { display: none !important; }
 .ai-dialog-text{white-space:pre-wrap;line-height:1.7}
 .card.flash{box-shadow:0 0 0 3px var(--gold);transition:box-shadow .3s}
 .setup-step.flash{box-shadow:0 0 0 3px var(--gold);border-radius:10px;transition:box-shadow .3s}
+.title-len{font-size:12px;margin-left:4px}

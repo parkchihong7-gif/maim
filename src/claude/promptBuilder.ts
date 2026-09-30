@@ -1,7 +1,7 @@
 import type { Category } from "../db/repositories/categories.js";
 import type { PostDirective } from "../pipeline/directives.js";
 import { buildStyleRulesBlock } from "./styleRules.js";
-import { buildTitleRuleBlock } from "./제목규칙.js";
+import { buildTitleRuleBlock, 목표최소, 목표최대 } from "./제목규칙.js";
 import { buildSeoRuleBlock } from "./검색노출규칙.js";
 
 export function buildPostPrompt(
@@ -41,12 +41,16 @@ ${recentTitles.map((t) => `- ${t}`).join("\n")}
     : "";
 
   const titleVariantsInstruction = `
-title 과 별도로, **같은 글을 노릴 수 있는 다른 세부 키워드 조합 3개**를 title_variants 에 담아라.
-후보 3개도 위 [제목 규칙]을 똑같이 지켜야 한다 — 낱말 3~4개, 30자 이내, 문장 아님, 기호 없음.
-title 과 낱말이 통째로 겹치지 않게, 공략하는 각도를 서로 다르게 잡아라:
-1. 조건·기준형 — 독자가 따져 보는 것 (예: "노원구 소형 아파트 대출 조건")
-2. 방법·절차형 — 독자가 직접 해 보려는 것 (예: "초등 스크래치 게임 만들기")
-3. 후기·비교형 — 독자가 고르기 전에 찾아보는 것 (예: "스크래치 주니어 실사용 후기")
+title 과 별도로, **같은 글을 다른 각도로 노리는 후킹 제목 3개**를 title_variants 에 담아라.
+후보 3개도 위 [제목 규칙]을 똑같이 지킨다 — [앞머리 세부 키워드 조합 3~4낱말] + [후킹 문구],
+공백 포함 ${목표최소}~${목표최대}자, 서술형 끝맺음 금지.
+앞머리 키워드와 후킹 문구를 **셋 다 서로 다르게**, title 과도 다르게 잡아라:
+1. 조건·기준형 — 독자가 따져 보는 것 + 손실회피·돈 후킹
+   (예: "노원구 소형 아파트 대출 조건 모르고 계약하면 손해 보는 3가지")
+2. 방법·절차형 — 독자가 직접 해 보려는 것 + 시간·호기심 후킹
+   (예: "초등 스크래치 게임 만들기 주말 1시간이면 첫 작품 완성하는 법")
+3. 후기·비교형 — 독자가 고르기 전에 찾아보는 것 + 비교·안전 후킹
+   (예: "스크래치 주니어 실사용 후기 6개월 써 보고 알게 된 장단점")
 `;
 
   return `
@@ -63,7 +67,7 @@ ${buildSeoRuleBlock(directive)}
 ${titleVariantsInstruction}
 
 최종 답변은 마크다운 코드블록이나 다른 설명 없이 오직 순수 JSON 데이터 형식으로만 출력하라:
-{"title": "세부 키워드 조합", "content": "...", "image_query": "...", "tags": ["#태그1", "#태그2"], "title_variants": ["조건·기준형 키워드 조합", "방법·절차형 키워드 조합", "후기·비교형 키워드 조합"]}
+{"keyword": "앞머리 세부 키워드 조합(3~4낱말)", "title": "앞머리 키워드 + 후킹 문구 (${목표최소}~${목표최대}자)", "content": "...", "image_query": "...", "tags": ["#태그1", "#태그2"], "title_variants": ["조건·기준형 후킹 제목", "방법·절차형 후킹 제목", "후기·비교형 후킹 제목"]}
 `.trim();
 }
 
