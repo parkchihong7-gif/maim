@@ -6,7 +6,14 @@ import { getDb } from "../db/index.js";
 
 let storage: Storage | undefined;
 
+/** 시험에서 가짜 저장통을 끼울 자리. 평소에는 비어 있다. */
+let 시험용통: ReturnType<Storage["bucket"]> | undefined;
+export function 시험용통바꾸기(통: unknown): void {
+  시험용통 = 통 as ReturnType<Storage["bucket"]> | undefined;
+}
+
 function getBucket() {
+  if (시험용통) return 시험용통;
   if (!config.gcsStateBucket) return undefined;
   storage ??= new Storage();
   return storage.bucket(config.gcsStateBucket);
@@ -54,6 +61,39 @@ async function 나눠서<T>(목록: T[], 한번에: number,
 const AT_ONCE = 8;
 
 /**
+ * **파일마다 «마지막으로 맞춰 본 판».** 한 번 데였다.
+ *
+ * 예전에는 60초마다 로컬의 파일을 **전부** 버킷에 다시 올렸다. 바뀌지 않은
+ * 것까지. 그러다 AI 로그인 파일(`home/.codex/auth.json` 등)이 이렇게 망가졌다.
+ *
+ *   1. 사장님이 검은 창에서 새로 로그인하고 저장통에 올린다
+ *   2. 돌고 있던 서버는 그걸 모른다 — 시작할 때 한 번만 내려받기 때문이다
+ *   3. 60초 뒤, 그 서버가 **자기가 들고 있던 옛 로그인**을 도로 올린다
+ *   4. 새 로그인이 덮여 사라진다. AI 는 만료된 표로 401 을 받는다
+ *
+ * 배포할 때도 같다. 옛 서버가 꺼지면서 옛 로그인을 올려 새 것을 덮는다.
+ *
+ * 그래서 파일마다 버킷의 판 번호(generation)와 로컬의 크기·수정 시각을
+ * 적어 둔다. **로컬에서 바뀐 것만** 올리고, 올릴 때도 «버킷이 내가 알던 그
+ * 판일 때만» 올린다. 그사이 누가 버킷을 새로 바꿨으면 버킷 쪽을 믿는다.
+ */
+interface 맞춘판 { gen: string; size: number; mtimeMs: number }
+const 알던판 = new Map<string, 맞춘판>();
+
+function 로컬모양(localPath: string): { size: number; mtimeMs: number } | null {
+  try { const s = fs.statSync(localPath); return { size: s.size, mtimeMs: s.mtimeMs }; }
+  catch { return null; }
+}
+
+function 적어두기(rel: string, gen: unknown, localPath: string): void {
+  const 모양 = 로컬모양(localPath);
+  if (모양 && gen !== undefined && gen !== null) 알던판.set(rel, { gen: String(gen), ...모양 });
+}
+
+/** 로그인 정보가 든 자리. 여기는 **버킷을 먼저 믿는다** — 사람이 바꾸는 곳이다. */
+const 로그인자리 = "home/";
+
+/**
  * Cloud Run처럼 컨테이너 로컬 디스크가 요청 사이/재시작 사이에 보존되지 않는
  * 환경을 위한 것. GCS를 실시간 FUSE 마운트로 쓰면 SQLite가 필요로 하는 파일
  * 잠금 등 POSIX 동작이 온전히 지원되지 않아 DB 접근이 깨지므로, 대신 시작 시
@@ -78,6 +118,7 @@ export async function downloadState(): Promise<void> {
     const localPath = path.join(root, file.name);
     fs.mkdirSync(path.dirname(localPath), { recursive: true });
     await file.download({ destination: localPath });
+    적어두기(file.name, file.metadata.generation, localPath);
   });
   console.log(
     `[gcsState] gs://${config.gcsStateBucket}에서 ${essential.length}개 파일을 복원했습니다 ` +
@@ -162,10 +203,85 @@ export async function uploadState(): Promise<void> {
 
   const 뜬것 = await 성한DB한벌();
   try {
-    await 나눠서(relPaths, AT_ONCE,
-                 (rel) => bucket.upload(path.join(root, rel), { destination: rel }));
+    await 나눠서(relPaths, AT_ONCE, (rel) => 바뀐것만올리기(bucket, root, rel));
     if (뜬것) { await bucket.upload(뜬것, { destination: dbRel }); }
   } finally {
     if (뜬것) { try { fs.rmSync(뜬것, { force: true }); } catch { /* 이미 없으면 그만 */ } }
   }
+}
+
+type 통 = NonNullable<ReturnType<typeof getBucket>>;
+
+/**
+ * 로컬에서 **바뀐 파일만** 올린다. 버킷이 그사이 다른 판이 됐으면 덮지 않는다.
+ */
+async function 바뀐것만올리기(bucket: 통, root: string, rel: string): Promise<void> {
+  const localPath = path.join(root, rel);
+  const 지금모양 = 로컬모양(localPath);
+  if (!지금모양) return;
+  const 알던 = 알던판.get(rel);
+  if (알던 && 알던.size === 지금모양.size && 알던.mtimeMs === 지금모양.mtimeMs) return;
+
+  // 로그인 파일은 «내가 알던 판일 때만» 덮는다. 모르는 파일이면 «아직 없을
+  // 때만» 만든다. 그사이 사람이 새로 올렸으면 여기서 멈추고 그쪽을 받는다.
+  const 조건 = rel.startsWith(로그인자리)
+    ? { preconditionOpts: { ifGenerationMatch: 알던 ? Number(알던.gen) : 0 } }
+    : {};
+  try {
+    const [올린것] = await bucket.upload(localPath, { destination: rel, ...조건 });
+    적어두기(rel, 올린것.metadata.generation, localPath);
+  } catch (탈) {
+    const 코드 = (탈 as { code?: number }).code;
+    if (코드 === 412) {
+      console.log(`[gcsState] ${rel} — 버킷에 더 새 판이 있어 덮지 않고 그쪽을 받습니다.`);
+      const 파일 = bucket.file(rel);
+      await 파일.download({ destination: localPath });
+      const [메타] = await 파일.getMetadata();
+      적어두기(rel, 메타.generation, localPath);
+      return;
+    }
+    throw 탈;
+  }
+}
+
+/** 엔진별로 마지막으로 버킷을 들여다본 때. 글 한 편에 여러 번 부르므로 잦게 보지 않는다. */
+const 마지막확인 = new Map<string, number>();
+const 확인간격_ms = 20_000;
+
+/**
+ * **AI 로그인 폴더를 버킷과 맞춘다.** AI 를 부르기 바로 전에 쓴다.
+ *
+ * 사장님이 검은 창에서 새로 로그인해 저장통에 올리면, 서버를 다시 켜지 않아도
+ * 다음 글부터 그 로그인을 쓴다. 버킷의 판이 내가 알던 것과 다른 파일만 받는다.
+ *
+ * @param 폴더 `.codex` 처럼 HOME 아래 로그인 폴더 이름
+ * @param 꼭 true 면 간격과 상관없이 지금 본다 ([연결 테스트] 등)
+ */
+export async function 로그인맞추기(폴더: string, 꼭 = false): Promise<number> {
+  const bucket = getBucket();
+  if (!bucket || !폴더) return 0;
+  const 지금 = Date.now();
+  if (!꼭 && 지금 - (마지막확인.get(폴더) ?? 0) < 확인간격_ms) return 0;
+  마지막확인.set(폴더, 지금);
+
+  const 앞 = `${로그인자리}${폴더.replace(/^\/+|\/+$/g, "")}/`;
+  let 받은수 = 0;
+  try {
+    const [files] = await bucket.getFiles({ prefix: 앞 });
+    for (const file of files) {
+      if (건너뛸것(file.name) || file.name.endsWith("/")) continue;
+      const gen = String(file.metadata.generation ?? "");
+      if (알던판.get(file.name)?.gen === gen) continue;
+      const localPath = path.join(config.paths.dataDir, file.name);
+      fs.mkdirSync(path.dirname(localPath), { recursive: true });
+      await file.download({ destination: localPath });
+      적어두기(file.name, gen, localPath);
+      받은수++;
+    }
+    if (받은수) console.log(`[gcsState] ${앞} 새 로그인 ${받은수}개를 받았습니다.`);
+  } catch (탈) {
+    // 못 봤다고 AI 를 못 부를 까닭은 없다. 들고 있는 것으로 해 본다.
+    console.error(`[gcsState] ${앞} 를 맞추지 못했습니다:`, (탈 as Error).message);
+  }
+  return 받은수;
 }

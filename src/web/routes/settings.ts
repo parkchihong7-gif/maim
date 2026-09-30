@@ -198,6 +198,8 @@ export async function settingsRoutes(app: FastifyInstance) {
       await runAI({
         prompt: "연결 테스트다. 다른 설명 없이 'ok'라고만 답하라.",
         timeoutMs: 30_000,
+        // 방금 검은 창에서 새로 로그인해 올리셨을 수 있다. 지금 받아 온다.
+        freshLogin: true,
       });
       return { ok: true, engine: 지금엔진().label };
     } catch (err) {

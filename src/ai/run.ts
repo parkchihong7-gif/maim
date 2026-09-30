@@ -12,6 +12,7 @@ import path from "node:path";
 import { config } from "../config.js";
 import { getSetting, setSetting } from "../db/repositories/settings.js";
 import { 엔진, type Engine, type RunAsk } from "./engines.js";
+import { 로그인맞추기 } from "../persistence/gcsState.js";
 
 /** «어느 엔진을 골랐나» 를 적어 두는 설정 칸 이름. */
 const 엔진칸 = "ai_engine";
@@ -83,6 +84,33 @@ function 실행파일(것: Engine): string {
 
 export interface RunOptions extends RunAsk {
   timeoutMs?: number;
+  /** 저장통의 로그인을 간격과 상관없이 지금 맞춘다 ([연결 테스트]). */
+  freshLogin?: boolean;
+}
+
+/**
+ * 로그인이 **풀렸다**는 표시들. 도구마다 말이 다르다.
+ * Codex 는 «401 Unauthorized», Claude 는 «Invalid API key · Please run /login» 따위.
+ */
+const 로그인풀림 = /\b401\b|unauthori[sz]ed|not logged in|please (run )?\/?login|login required|invalid (api key|token|refresh)|refresh token|token (has )?expired|authentication (failed|required)/i;
+
+/**
+ * 멈춘 까닭을 **사람 말로.** 로그인이 풀린 것이면 무엇을 하면 되는지 말한다.
+ * 도구가 쏟아내는 경고 줄(«WARNING: …») 은 덜어 낸다 — 까닭을 가린다.
+ */
+export function 멈춘까닭(것: Engine, 코드: number | null, 탈난것: string): string {
+  const 줄들 = 탈난것.split("\n").map((x) => x.trim())
+    .filter((x) => x && !/^WARNING:/i.test(x) && !/^Reading additional input/i.test(x));
+  const 원문 = [...new Set(줄들)].join("\n").slice(0, 800);
+  if (로그인풀림.test(탈난것)) {
+    const 폴더 = 것.home;
+    return `${것.label} 로그인이 풀렸습니다 (만료됐거나 다른 곳에서 로그아웃됨). `
+      + `서버 주인이 검은 창에서 다시 로그인해 저장통에 올린 뒤 `
+      + `[관리자 설정 → 1단계 → 연결 테스트] 를 누르면 됩니다 — 설치 안내서 4단계 [나] 의 ③·④ `
+      + `(${것.login} → gs://…/home/${폴더} 로 올리기). 서버를 다시 켤 필요는 없습니다.`
+      + (원문 ? `\n\n[원문] ${원문.split("\n")[0]}` : "");
+  }
+  return `${것.label} 이 ${코드} 로 멈췄습니다: ${원문}`;
 }
 
 /**
@@ -170,6 +198,10 @@ export async function runAI(options: RunOptions): Promise<string> {
   const 준비 = 준비됐나(것);
   if (!준비.ok) throw new Error(준비.why);
 
+  // 로그인으로 도는 엔진(Claude·Codex)은 **저장통의 로그인과 먼저 맞춘다.**
+  // 사장님이 새로 로그인해 올렸으면 서버를 다시 켜지 않아도 바로 쓴다.
+  if (것.auth.loginWorksOnServer) await 로그인맞추기(것.home, !!options.freshLogin);
+
   // 키는 **자식에게만** 넘긴다. 우리 프로세스의 환경을 바꾸면 다른 엔진을
   // 고르셨을 때 남은 키가 따라다닌다.
   const 환경 = { ...process.env };
@@ -220,7 +252,7 @@ export async function runAI(options: RunOptions): Promise<string> {
       if (끝났나) return;
       끝났나 = true; clearTimeout(시계);
       if (코드 !== 0) {
-        reject(new Error(`${것.label} 이 ${코드} 로 멈췄습니다: ${탈난것.slice(0, 1500)}`));
+        reject(new Error(멈춘까닭(것, 코드, 탈난것)));
         return;
       }
       resolve(나온것);
