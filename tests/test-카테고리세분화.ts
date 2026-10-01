@@ -62,6 +62,18 @@ const 지시 = buildPostPrompt(카, assignDirectives(1)[0], "2026-10-01", [], ""
 참("소식이 없어도 다른 주제로 빠지지 마라", 지시.includes("키워드와 무관한 소재로 바꾸는 것은 실패"));
 참("카테고리 참고 주소를 먼저 열어 보라", 지시.includes("https://www.moe.go.kr") && 지시.includes("먼저 열어 보라"));
 
+console.log("\n②-1 대표 주소 + 참고 주소 (+/× 로 더하고 지우는 줄)");
+const 카2 = 자리에서(주인, () => C.createCategory({
+  name: "통계 해설", requiresSearch: false, promptHint: "통계 숫자를 쉽게",
+  mainUrl: "https://kosis.kr\nhttps://second.example.com", referenceUrls: "https://kosis.kr\nhttps://www.korea.kr",
+}));
+참("대표 주소는 하나만", 카2.main_url === "https://kosis.kr");
+const 지시2 = buildPostPrompt(카2, assignDirectives(1)[0], "2026-10-01", [], "");
+참("대표 주소를 가장 먼저 열라고 한다", 지시2.includes("대표 주소(기준 출처, 가장 먼저): https://kosis.kr"));
+참("참고 주소도 같이 간다", 지시2.includes("참고 주소: https://kosis.kr · https://www.korea.kr"));
+자리에서(주인, () => C.updateCategory(카2.id, { mainUrl: null }));
+참("대표 주소를 지울 수 있다", 자리에서(주인, () => C.getCategory(카2.id))?.main_url === null);
+
 console.log("\n③ 블로그 정보 — 세부 주제·회사 정보·참고 주소가 지시문 맨 위로 간다");
 const 정보 = B.buildBlogProfileBlock({
   blogType: "business", blogTopic: null,

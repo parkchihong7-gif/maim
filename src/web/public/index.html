@@ -213,15 +213,22 @@
               </div>
 
               <div class="cf cf-url">
-                <label class="cf-label">⑥ 참고 주소 <span>AI 가 먼저 열어 볼 곳 · 선택 · 줄마다 하나</span></label>
-                <textarea name="referenceUrls" rows="2" placeholder="https://..."></textarea>
-                <div class="cf-chips" data-target="referenceUrls" data-mode="line">
+                <label class="cf-label">⑥ 참고 주소 <span>AI 가 글을 쓰기 전에 먼저 열어 볼 곳 · 선택</span></label>
+                <div class="url-line main-line">
+                  <span class="url-kind main">대표 주소</span>
+                  <input name="mainUrl" type="url" placeholder="https://kosis.kr — 가장 먼저 여는 기준 출처" />
+                </div>
+                <div id="ref-url-rows" class="ref-url-rows"></div>
+                <button type="button" class="url-add" data-action="add-ref-url">+ 참고 주소 추가</button>
+                <div class="cf-chips" data-target="urls" data-mode="url">
+                  <button type="button" data-value="https://kosis.kr">통계청 KOSIS</button>
                   <button type="button" data-value="https://www.korea.kr">정책브리핑</button>
                   <button type="button" data-value="https://www.molit.go.kr">국토교통부</button>
                   <button type="button" data-value="https://www.moe.go.kr">교육부</button>
                   <button type="button" data-value="https://www.mss.go.kr">중소벤처기업부</button>
                 </div>
-                <p class="cf-tip">우리 가게 공지·지역 뉴스·관련 기관 주소를 넣으면 그 자료를 바탕으로 씁니다. 문장은 베끼지 않습니다.</p>
+                <p class="cf-tip">예시를 누르면 대표 주소가 비어 있으면 대표로, 아니면 참고 주소 한 줄로 들어갑니다.
+                  대표 주소에서 소재를 먼저 찾고, 참고 주소로 사실·숫자를 보강합니다. 문장은 베끼지 않습니다.</p>
               </div>
 
               <div class="cf cf-daily">

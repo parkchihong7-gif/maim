@@ -1680,3 +1680,21 @@ body:not(.is-trial) [data-trial-only]{display:none !important}
 #category-form.cf-form{display:flex;flex-direction:column;align-items:stretch;flex-wrap:nowrap}
 #category-form.cf-form .cf{width:100%;box-sizing:border-box;max-width:none}
 #category-form.cf-form .cf-actions{justify-content:flex-start}
+
+/* 참고 주소 줄 — 대표 1 + 참고 여러 줄, [+] 로 더하고 [×] 로 지운다 */
+.cf-url .url-line{display:grid;grid-template-columns:96px 1fr 32px;gap:6px;align-items:center;margin-top:6px}
+.cf-url .url-line input{margin-top:0}
+.cf-url .url-line.main-line{grid-template-columns:96px 1fr 32px}
+.cf-url .url-line.main-line input{grid-column:2/4}
+.url-kind{font-size:12.5px;font-weight:700;color:var(--cf-ink);text-align:center;border:1px solid var(--cf-line);background:#fff;border-radius:999px;padding:3px 0}
+.url-kind.main{background:var(--cf-main);color:#fff;border-color:var(--cf-main)}
+.url-del{border:1px solid #f3b9b9;background:#fff;color:#c0392b;border-radius:6px;cursor:pointer;height:34px;font-size:16px}
+.url-add{margin-top:8px;border:1px dashed var(--cf-main);background:#fff;color:var(--cf-ink);border-radius:8px;padding:5px 12px;cursor:pointer;font-weight:700}
+.url-add:disabled{opacity:.5;cursor:default}
+.ref-url-rows{display:flex;flex-direction:column}
+.cf-url .url-line,.cf-url .url-line.main-line{grid-template-columns:96px minmax(0,1fr) 34px}
+.cf-url .url-line input{min-width:0}
+@media (max-width:640px){
+  .cf-url .url-line,.cf-url .url-line.main-line{grid-template-columns:78px minmax(0,1fr) 30px}
+  .url-kind{font-size:11.5px}
+}

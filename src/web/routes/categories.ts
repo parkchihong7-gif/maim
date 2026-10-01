@@ -135,6 +135,7 @@ export async function categoriesRoutes(app: FastifyInstance) {
       mustKeywords?: string | null;
       excludeKeywords?: string | null;
       referenceUrls?: string | null;
+      mainUrl?: string | null;
       keywordKeep?: boolean;
     };
     if (!String(body?.name ?? "").trim() || !String(body?.promptHint ?? "").trim()) {
@@ -160,6 +161,7 @@ export async function categoriesRoutes(app: FastifyInstance) {
         mustKeywords: string | null;
         excludeKeywords: string | null;
         referenceUrls: string | null;
+        mainUrl: string | null;
         keywordKeep: boolean;
       }>,
     );

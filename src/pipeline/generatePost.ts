@@ -46,7 +46,7 @@ export async function generatePost(category: Category, directive: PostDirective)
 
   // 참고 주소가 있으면 열어 봐야 하므로 검색·열람 도구를 켠다.
   const requiresSearch = category.requires_search === 1
-    || 참고주소들.length > 0 || !!(category.reference_urls ?? "").trim();
+    || 참고주소들.length > 0 || !!(category.reference_urls ?? "").trim() || !!(category.main_url ?? "").trim();
 
   const attempt = async (p: string) => {
     const 답 = await runAI({ prompt: p, needsSearch: requiresSearch });

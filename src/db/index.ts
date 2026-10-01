@@ -101,6 +101,7 @@ function runMigrations(database: Database.Database) {
   칸붙이기(database, "categories", "must_keywords", "TEXT");      // 함께 들어갈 말 (뜻을 좁힘)
   칸붙이기(database, "categories", "exclude_keywords", "TEXT");   // 빼야 할 말 (다른 뜻)
   칸붙이기(database, "categories", "reference_urls", "TEXT");     // 이 카테고리 참고 주소 (줄마다 하나)
+  칸붙이기(database, "categories", "main_url", "TEXT");           // 이 카테고리 대표 주소 (하나, 가장 먼저 연다)
   // 주제 키워드를 한 번 쓰고 비울지(0), 계속 쓸지(1). 예전에는 늘 한 번 쓰고
   // 비웠다 — 두 번째 글부터 키워드 없이 써서 주제가 흐려졌다.
   칸붙이기(database, "categories", "keyword_keep", "INTEGER NOT NULL DEFAULT 0");

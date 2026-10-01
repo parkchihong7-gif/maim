@@ -38,6 +38,7 @@ ${recentTitles.map((t) => `- ${t}`).join("\n")}
   const 함께 = (category.must_keywords ?? "").trim();
   const 빼기 = (category.exclude_keywords ?? "").trim();
   const 카테고리주소 = (category.reference_urls ?? "").split(/\s+/).filter(Boolean);
+  const 대표주소 = (category.main_url ?? "").trim();
   const 울타리 = `카테고리 「${category.name}」 (${category.prompt_hint})`;
 
   const topicKeywordBlock = category.topic_keyword
@@ -62,12 +63,13 @@ ${recentTitles.map((t) => `- ${t}`).join("\n")}
 - 빼야 할 말(다른 뜻): ${빼기} — 이 말이 들어간 소재는 쓰지 않는다.` : ""}
 ` : ""}`;
 
-  const categoryUrlBlock = 카테고리주소.length
+  const categoryUrlBlock = 대표주소 || 카테고리주소.length
     ? `
-[이 카테고리의 참고 주소 — 먼저 열어 보라]
-${카테고리주소.map((u) => `- ${u}`).join("\n")}
-이 주소의 최신 글·공지·자료에서 이번 글의 소재를 찾아라. 문장은 베끼지 말고 네 말로 다시 쓰고,
-숫자·날짜는 출처 그대로 옮겨라. 열리지 않으면 건너뛰고 웹 검색으로 대신하라.
+[이 카테고리의 주소 — 글을 쓰기 전에 먼저 열어 보라]${대표주소 ? `
+- 대표 주소(기준 출처, 가장 먼저): ${대표주소}` : ""}${카테고리주소.length ? `
+- 참고 주소: ${카테고리주소.join(" · ")}` : ""}
+대표 주소의 최신 글·공지·자료에서 이번 글의 소재를 먼저 찾고, 참고 주소로 사실과 숫자를 보강하라.
+문장은 베끼지 말고 네 말로 다시 쓰고, 숫자·날짜는 출처 그대로 옮겨라. 열리지 않으면 건너뛰고 웹 검색으로 대신하라.
 `
     : "";
 

@@ -307,14 +307,58 @@ let categoriesCache = [];
 // 이름/설명/주제 키워드를 함께 고칠 수 있는 입력 폼으로 바뀐다.
 let editingCategoryId = null;
 
+// ── 참고 주소 줄: [+ 참고 주소 추가] 로 늘리고, 줄마다 [×] 로 지운다 ──
+const 참고주소_최대 = 9;
+
+function 참고주소줄그리기(목록) {
+  const 칸 = document.getElementById("ref-url-rows");
+  if (!칸) return;
+  const 줄들 = (목록 && 목록.length ? 목록 : [""]).slice(0, 참고주소_최대);
+  칸.innerHTML = 줄들.map((u, i) => `
+    <div class="url-line">
+      <span class="url-kind">참고 주소 ${i + 1}</span>
+      <input type="url" data-ref-url value="${escapeHtml(u)}" placeholder="https://kosis.kr" />
+      <button type="button" class="url-del" data-ref-del="${i}" title="이 주소 지우기" aria-label="참고 주소 ${i + 1} 지우기">×</button>
+    </div>`).join("");
+  const 더하기 = document.querySelector('[data-action="add-ref-url"]');
+  if (더하기) 더하기.disabled = 줄들.length >= 참고주소_최대;
+}
+
+function 참고주소줄읽기() {
+  return [...document.querySelectorAll("#ref-url-rows [data-ref-url]")].map((i) => i.value.trim()).filter(Boolean);
+}
+
+document.addEventListener("click", (e) => {
+  const 더 = e.target.closest && e.target.closest('[data-action="add-ref-url"]');
+  if (더) {
+    e.preventDefault();
+    const 지금 = [...document.querySelectorAll("#ref-url-rows [data-ref-url]")].map((i) => i.value.trim());
+    if (지금.length >= 참고주소_최대) return;
+    참고주소줄그리기([...지금, ""]);
+    const 칸들 = document.querySelectorAll("#ref-url-rows [data-ref-url]");
+    칸들[칸들.length - 1]?.focus();
+    return;
+  }
+  const 지움 = e.target.closest && e.target.closest("[data-ref-del]");
+  if (지움) {
+    e.preventDefault();
+    const 지금 = [...document.querySelectorAll("#ref-url-rows [data-ref-url]")].map((i) => i.value.trim());
+    지금.splice(Number(지움.dataset.refDel), 1);
+    참고주소줄그리기(지금.length ? 지금 : [""]);
+  }
+});
+
+참고주소줄그리기([""]);
+
 /** 표의 이름 아래 작은 꼬리표 — 함께 들어갈 말·빼야 할 말·참고 주소가 몇 개인지. */
 function 카테고리꼬리표(c) {
   const 셈 = (글, 가르개) => (글 || "").split(가르개).map((x) => x.trim()).filter(Boolean).length;
   const 조각 = [];
-  const 함께 = 셈(c.must_keywords, ","), 빼기 = 셈(c.exclude_keywords, ","), 주소 = 셈(c.reference_urls, /\s+/);
+  const 함께 = 셈(c.must_keywords, ","), 빼기 = 셈(c.exclude_keywords, ",");
+  const 주소 = 셈(c.reference_urls, /\s+/) + (c.main_url ? 1 : 0);
   if (함께) 조각.push(`<span class="cat-tag must" title="${escapeHtml(c.must_keywords)}">+함께 ${함께}</span>`);
   if (빼기) 조각.push(`<span class="cat-tag exclude" title="${escapeHtml(c.exclude_keywords)}">−빼기 ${빼기}</span>`);
-  if (주소) 조각.push(`<span class="cat-tag url" title="${escapeHtml(c.reference_urls)}">🔗 ${주소}</span>`);
+  if (주소) 조각.push(`<span class="cat-tag url" title="${escapeHtml([c.main_url ? `대표: ${c.main_url}` : "", c.reference_urls || ""].filter(Boolean).join("\n"))}">🔗 ${주소}</span>`);
   return 조각.length ? `<div class="cat-tags">${조각.join("")}</div>` : "";
 }
 
@@ -919,7 +963,8 @@ document.getElementById("category-form").addEventListener("submit", async (e) =>
     keywordKeep: form.keywordKeep.checked,
     mustKeywords: form.mustKeywords.value.trim() || null,
     excludeKeywords: form.excludeKeywords.value.trim() || null,
-    referenceUrls: form.referenceUrls.value.trim() || null,
+    mainUrl: form.mainUrl.value.trim() || null,
+    referenceUrls: 참고주소줄읽기().join("\n") || null,
     dailyCount: Number(form.dailyCount.value),
   };
   if (!값.name || !값.promptHint) { alert("이름과 카테고리 설명은 비워 둘 수 없습니다."); return; }
@@ -943,6 +988,7 @@ function 카테고리폼비우기() {
   form.reset();
   form.id.value = "";
   form.dailyCount.value = "1";
+  참고주소줄그리기([""]);
   document.getElementById("category-form-title").textContent = "새 카테고리 추가";
   document.getElementById("category-submit").textContent = "추가";
   document.getElementById("category-cancel").hidden = true;
@@ -959,7 +1005,9 @@ function 카테고리폼채우기(c) {
   form.keywordKeep.checked = !!c.keyword_keep;
   form.mustKeywords.value = c.must_keywords || "";
   form.excludeKeywords.value = c.exclude_keywords || "";
-  form.referenceUrls.value = c.reference_urls || "";
+  form.mainUrl.value = c.main_url || "";
+  const 참고 = (c.reference_urls || "").split(/\s+/).filter(Boolean);
+  참고주소줄그리기(참고.length ? 참고 : [""]);
   form.dailyCount.value = Number(c.daily_count ?? 1);
   document.getElementById("category-form-title").textContent = `카테고리 수정 — ${c.name}`;
   document.getElementById("category-submit").textContent = "수정 저장";
@@ -977,9 +1025,19 @@ document.addEventListener("click", (e) => {
   const 묶음 = 칩.closest(".cf-chips");
   const form = document.getElementById("category-form");
   const 칸 = form && form.elements[묶음.dataset.target];
-  if (!칸) return;
   const 넣을것 = 칩.dataset.value || 칩.textContent.trim();
   const 모드 = 묶음.dataset.mode;
+  if (모드 === "url") {
+    // 대표 주소가 비어 있으면 대표로, 아니면 참고 주소 한 줄로.
+    if (!form.mainUrl.value.trim()) { form.mainUrl.value = 넣을것; form.mainUrl.focus(); return; }
+    const 있는것 = 참고주소줄읽기();
+    if (form.mainUrl.value.trim() === 넣을것 || 있는것.includes(넣을것)) return;
+    const 빈칸 = [...document.querySelectorAll("#ref-url-rows input")].find((i) => !i.value.trim());
+    if (빈칸) { 빈칸.value = 넣을것; return; }
+    참고주소줄그리기([...있는것, 넣을것]);
+    return;
+  }
+  if (!칸) return;
   if (모드 === "add") {
     const 있는것 = 칸.value.split(",").map((x) => x.trim()).filter(Boolean);
     if (!있는것.includes(넣을것)) 있는것.push(넣을것);
