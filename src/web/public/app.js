@@ -307,41 +307,32 @@ let categoriesCache = [];
 // 이름/설명/주제 키워드를 함께 고칠 수 있는 입력 폼으로 바뀐다.
 let editingCategoryId = null;
 
+/** 표의 이름 아래 작은 꼬리표 — 함께 들어갈 말·빼야 할 말·참고 주소가 몇 개인지. */
+function 카테고리꼬리표(c) {
+  const 셈 = (글, 가르개) => (글 || "").split(가르개).map((x) => x.trim()).filter(Boolean).length;
+  const 조각 = [];
+  const 함께 = 셈(c.must_keywords, ","), 빼기 = 셈(c.exclude_keywords, ","), 주소 = 셈(c.reference_urls, /\s+/);
+  if (함께) 조각.push(`<span class="cat-tag must" title="${escapeHtml(c.must_keywords)}">+함께 ${함께}</span>`);
+  if (빼기) 조각.push(`<span class="cat-tag exclude" title="${escapeHtml(c.exclude_keywords)}">−빼기 ${빼기}</span>`);
+  if (주소) 조각.push(`<span class="cat-tag url" title="${escapeHtml(c.reference_urls)}">🔗 ${주소}</span>`);
+  return 조각.length ? `<div class="cat-tags">${조각.join("")}</div>` : "";
+}
+
 function renderCategories(categories) {
   const tbody = document.querySelector("#category-table tbody");
   tbody.innerHTML = "";
   for (const c of categories) {
     const tr = document.createElement("tr");
-    if (c.id === editingCategoryId) {
+    {
       tr.innerHTML = `
-        <td colspan="5">
-          <div class="category-edit-form">
-            <label>이름
-              <input class="edit-name" value="${escapeHtml(c.name)}" />
-            </label>
-            <label>카테고리 설명(프롬프트 힌트)
-              <textarea class="edit-hint" rows="3">${escapeHtml(c.prompt_hint ?? "")}</textarea>
-            </label>
-            <label>주제 키워드(선택 — 있으면 생성 시 관련 최신 뉴스를 최우선 검색·반영)
-              <input class="edit-keyword" placeholder="예: 2026 최저임금 인상" value="${escapeHtml(c.topic_keyword ?? "")}" />
-            </label>
-            <label>하루 편수 (0~10 — 0이면 이 카테고리는 쉽니다)
-              <input class="edit-daily" type="number" min="0" max="10" value="${Number(c.daily_count ?? 1)}" />
-            </label>
-            <div class="category-edit-actions">
-              <button class="btn-primary" data-action="save-category" data-id="${c.id}">저장</button>
-              <button class="btn-secondary" data-action="cancel-edit-category" data-id="${c.id}">취소</button>
-            </div>
-          </div>
-        </td>`;
-    } else {
-      tr.innerHTML = `
-        <td>${escapeHtml(c.name)}</td>
+        <td>${escapeHtml(c.name)}${카테고리꼬리표(c)}</td>
         <td><span class="badge ${c.active ? "badge-active" : "badge-inactive"}">${c.active ? "활성" : "비활성"}</span></td>
         <td>${Number(c.daily_count ?? 1) === 0
               ? '<span class="muted">쉼</span>'
               : `<strong>${Number(c.daily_count ?? 1)}</strong>편`}</td>
-        <td>${c.topic_keyword ? escapeHtml(c.topic_keyword) : '<span class="muted">-</span>'}</td>
+        <td>${c.topic_keyword
+              ? `${escapeHtml(c.topic_keyword)}${c.keyword_keep ? ' <span class="cat-tag keep" title="계속 유지">🔁 유지</span>' : ""}`
+              : '<span class="muted">-</span>'}</td>
         <td>
           <button class="btn-primary" data-action="generate" data-id="${c.id}">지금 생성</button>
           <button class="btn-secondary" data-action="edit-category" data-id="${c.id}">수정</button>
@@ -790,9 +781,7 @@ function renderFinalDirectionSummary() {
   const refinement = document.getElementById("posting-direction-refinement").value.trim();
   const typeInput = document.querySelector('input[name="blog_type"]:checked');
   const typeLabel = typeInput ? (typeInput.value === "business" ? "기업 블로그" : "개인 블로그") : "지정 안 함";
-  const topicSelect = document.getElementById("blog-topic-select");
-  const topicLabel =
-    topicSelect && topicSelect.value !== "all" ? topicSelect.selectedOptions[0]?.textContent : "전체(주제 선택 없음)";
+  const topicLabel = 블로그정보.topics.length ? 블로그정보.topics.join(" · ") : "전체(주제 선택 없음)";
 
   el.innerHTML = `
     <p><strong>지금 이 블로그의 글은 다음 기준으로 작성됩니다:</strong></p>
@@ -858,7 +847,7 @@ async function refreshSettings() {
 
   const typeRadio = document.querySelector(`input[name="blog_type"][value="${s.blog_type}"]`);
   if (typeRadio) typeRadio.checked = true;
-  document.getElementById("blog-topic-select").value = s.blog_topic || "all";
+  블로그정보받기(s);
 
   const 분량칸 = document.getElementById("min-length-input");
   if (분량칸 && document.activeElement !== 분량칸) {
@@ -921,23 +910,88 @@ async function switchView(view) {
 document.getElementById("category-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = e.target;
+  const id = form.id.value ? Number(form.id.value) : null;
+  const 값 = {
+    name: form.name.value.trim(),
+    requiresSearch: true,
+    promptHint: form.promptHint.value.trim(),
+    topicKeyword: form.topicKeyword.value.trim() || null,
+    keywordKeep: form.keywordKeep.checked,
+    mustKeywords: form.mustKeywords.value.trim() || null,
+    excludeKeywords: form.excludeKeywords.value.trim() || null,
+    referenceUrls: form.referenceUrls.value.trim() || null,
+    dailyCount: Number(form.dailyCount.value),
+  };
+  if (!값.name || !값.promptHint) { alert("이름과 카테고리 설명은 비워 둘 수 없습니다."); return; }
   try {
-    await api("/api/categories", {
-      method: "POST",
-      body: JSON.stringify({
-        name: form.name.value,
-        requiresSearch: true,
-        promptHint: form.promptHint.value,
-        topicKeyword: form.topicKeyword.value || null,
-        dailyCount: Number(form.dailyCount.value),
-      }),
+    await api(id ? `/api/categories/${id}` : "/api/categories", {
+      method: id ? "PUT" : "POST",
+      body: JSON.stringify(값),
     });
-    form.reset();
+    카테고리폼비우기();
     await refreshCategories();
+    // 편수를 바꾸면 «내일 몇 편» 이 달라진다. 설정 화면을 안 열어도 맞게 둔다.
     await refreshSchedule();
   } catch (err) {
     alert(err.message);
   }
+});
+
+/** 카테고리 폼을 «새로 추가» 모양으로 되돌린다. */
+function 카테고리폼비우기() {
+  const form = document.getElementById("category-form");
+  form.reset();
+  form.id.value = "";
+  form.dailyCount.value = "1";
+  document.getElementById("category-form-title").textContent = "새 카테고리 추가";
+  document.getElementById("category-submit").textContent = "추가";
+  document.getElementById("category-cancel").hidden = true;
+  document.getElementById("category-form-box").classList.remove("editing");
+}
+
+/** [수정] — 표 안에서 고치지 않고 **같은 폼**에 채워 고친다. 칸이 많아 표 한 줄에 안 들어간다. */
+function 카테고리폼채우기(c) {
+  const form = document.getElementById("category-form");
+  form.id.value = c.id;
+  form.name.value = c.name || "";
+  form.promptHint.value = c.prompt_hint || "";
+  form.topicKeyword.value = c.topic_keyword || "";
+  form.keywordKeep.checked = !!c.keyword_keep;
+  form.mustKeywords.value = c.must_keywords || "";
+  form.excludeKeywords.value = c.exclude_keywords || "";
+  form.referenceUrls.value = c.reference_urls || "";
+  form.dailyCount.value = Number(c.daily_count ?? 1);
+  document.getElementById("category-form-title").textContent = `카테고리 수정 — ${c.name}`;
+  document.getElementById("category-submit").textContent = "수정 저장";
+  document.getElementById("category-cancel").hidden = false;
+  const 상자 = document.getElementById("category-form-box");
+  상자.classList.add("editing");
+  상자.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// 예시 칩 — 누르면 칸에 들어간다. set 은 바꾸고, add 는 쉼표로 더하고, line 은 줄을 더한다.
+document.addEventListener("click", (e) => {
+  const 칩 = e.target.closest && e.target.closest(".cf-chips button");
+  if (!칩) return;
+  e.preventDefault();
+  const 묶음 = 칩.closest(".cf-chips");
+  const form = document.getElementById("category-form");
+  const 칸 = form && form.elements[묶음.dataset.target];
+  if (!칸) return;
+  const 넣을것 = 칩.dataset.value || 칩.textContent.trim();
+  const 모드 = 묶음.dataset.mode;
+  if (모드 === "add") {
+    const 있는것 = 칸.value.split(",").map((x) => x.trim()).filter(Boolean);
+    if (!있는것.includes(넣을것)) 있는것.push(넣을것);
+    칸.value = 있는것.join(", ");
+  } else if (모드 === "line") {
+    const 줄 = 칸.value.split(/\s+/).filter(Boolean);
+    if (!줄.includes(넣을것)) 줄.push(넣을것);
+    칸.value = 줄.join("\n");
+  } else {
+    칸.value = 넣을것;
+  }
+  칸.focus();
 });
 
 document.addEventListener("click", async (e) => {
@@ -995,8 +1049,10 @@ document.addEventListener("click", async (e) => {
       await api(`/api/categories/${id}`, { method: "DELETE" });
       await refreshCategories();
     } else if (action === "edit-category") {
-      editingCategoryId = Number(id);
-      renderCategories(categoriesCache);
+      const c = categoriesCache.find((x) => x.id === Number(id));
+      if (c) 카테고리폼채우기(c);
+    } else if (action === "cancel-category-form") {
+      카테고리폼비우기();
     } else if (action === "cancel-edit-category") {
       editingCategoryId = null;
       renderCategories(categoriesCache);
@@ -1286,19 +1342,15 @@ document.querySelectorAll('input[name="blog_type"]').forEach((radio) => {
   radio.addEventListener("change", async () => {
     try {
       await api("/api/settings", { method: "PUT", body: JSON.stringify({ blog_type: radio.value }) });
+      블로그정보.type = radio.value;
+      블로그정보그리기();
+      renderFinalDirectionSummary();
     } catch (err) {
       alert(err.message);
     }
   });
 });
 
-document.getElementById("blog-topic-select").addEventListener("change", async (e) => {
-  try {
-    await api("/api/settings", { method: "PUT", body: JSON.stringify({ blog_topic: e.target.value }) });
-  } catch (err) {
-    alert(err.message);
-  }
-});
 
 function safeRefreshAll() {
   refreshAll().catch((err) => console.error("[maim] refreshAll 실패:", err));
@@ -1989,3 +2041,167 @@ document.addEventListener("click", async (e) => {
 
 AI막대그리기().catch(() => {});
 setInterval(() => { AI막대그리기().catch(() => {}); }, 60_000);
+
+
+// ─────────────────────────────────────────── 블로그 정보 (세부 주제·참고 주소·회사 정보)
+//
+// 예전에는 주제 분야를 드롭다운 하나로만 골랐다. 이제 칩으로 여러 개 고르고,
+// 없으면 [+ 추가] 로 직접 더하고, 이 블로그의 기준 주소와 회사 정보를 저장한다.
+// 저장은 [주제·주소 저장] 한 번에 한다 — 칩 하나 누를 때마다 서버에 가면 느리다.
+
+const 블로그정보 = { type: "personal", topics: [], links: [], brand: {}, catalog: null };
+
+/** 종류마다 칸에 보일 안내. */
+const 주소안내 = {
+  main: "https://blog.naver.com/내블로그",
+  ref: "https://news.example.com/지역뉴스",
+  homepage: "https://우리회사.com",
+  instagram: "https://www.instagram.com/계정",
+  youtube: "https://www.youtube.com/@채널",
+  store: "https://smartstore.naver.com/가게",
+  etc: "https://...",
+};
+
+function 블로그정보받기(s) {
+  블로그정보.type = s.blog_type === "business" ? "business" : "personal";
+  블로그정보.topics = Array.isArray(s.blog_topics) ? [...s.blog_topics] : [];
+  블로그정보.links = Array.isArray(s.blog_links) ? s.blog_links.map((l) => ({ ...l })) : [];
+  블로그정보.brand = s.blog_brand || {};
+  블로그정보.catalog = s.blog_catalog || 블로그정보.catalog;
+  // 옛 드롭다운으로 고른 주제가 있고 아직 칩이 없으면, 그것을 첫 칩으로.
+  if (!블로그정보.topics.length && s.blog_topic_label) 블로그정보.topics.push(s.blog_topic_label);
+  if (!블로그정보.links.length) {
+    블로그정보.links = 블로그정보.type === "business"
+      ? [{ kind: "homepage", url: "", note: "" }, { kind: "instagram", url: "", note: "" }]
+      : [{ kind: "main", url: "", note: "" }, { kind: "ref", url: "", note: "" }];
+  }
+  const 회사 = 블로그정보.brand;
+  const 칸 = (id, v) => { const el = document.getElementById(id); if (el && document.activeElement !== el) el.value = v || ""; };
+  칸("brand-name", 회사.name); 칸("brand-intro", 회사.intro); 칸("brand-products", 회사.products);
+  블로그정보그리기();
+}
+
+function 블로그정보그리기() {
+  const 칩칸 = document.getElementById("topic-chips");
+  if (!칩칸 || !블로그정보.catalog) return;
+  const 고른것 = new Set(블로그정보.topics);
+  const 칩 = (이름) => `<button type="button" class="topic-chip ${고른것.has(이름) ? "on" : ""}" data-topic="${escapeHtml(이름)}">${escapeHtml(이름)}</button>`;
+  const 묶음들 = 블로그정보.type === "business"
+    ? [{ group: "업종", topics: 블로그정보.catalog.business }]
+    : 블로그정보.catalog.personal;
+  const 목록에있는 = new Set(묶음들.flatMap((g) => g.topics));
+  const 직접 = 블로그정보.topics.filter((x) => !목록에있는.has(x));
+  칩칸.innerHTML = 묶음들.map((g) => `<div class="topic-group"><span class="topic-group-name">${escapeHtml(g.group)}</span>${g.topics.map(칩).join("")}</div>`).join("")
+    + (직접.length ? `<div class="topic-group"><span class="topic-group-name">직접 추가·그 밖에 고른 것</span>${직접.map(칩).join("")}</div>` : "");
+  const 고름 = document.getElementById("topic-picked");
+  if (고름) {
+    고름.innerHTML = 블로그정보.topics.length
+      ? 블로그정보.topics.map((x) => `<span class="topic-pill">${escapeHtml(x)}<button type="button" data-untopic="${escapeHtml(x)}" title="빼기">×</button></span>`).join("")
+        + ` <span class="muted">(${블로그정보.topics.length}/${블로그정보.catalog.maxTopics})</span>`
+      : '<span class="muted">아직 없습니다 — 위에서 눌러 고르세요</span>';
+  }
+  const 회사칸 = document.getElementById("brand-box");
+  if (회사칸) 회사칸.hidden = 블로그정보.type !== "business";
+  주소줄그리기();
+}
+
+function 주소줄그리기() {
+  const 칸 = document.getElementById("link-rows");
+  if (!칸 || !블로그정보.catalog) return;
+  const 종류 = 블로그정보.catalog.linkKinds;
+  칸.innerHTML = 블로그정보.links.map((l, i) => `
+    <div class="link-row" data-i="${i}">
+      <select data-link="kind">${Object.entries(종류).map(([k, v]) => `<option value="${k}" ${l.kind === k ? "selected" : ""}>${escapeHtml(v)}</option>`).join("")}</select>
+      <input data-link="url" value="${escapeHtml(l.url || "")}" placeholder="${escapeHtml(주소안내[l.kind] || "https://...")}" />
+      <input data-link="note" value="${escapeHtml(l.note || "")}" maxlength="60" placeholder="메모 (선택) — 예: 말투 참고" />
+      <button type="button" class="link-del" data-link-del="${i}" title="이 줄 지우기">×</button>
+    </div>`).join("");
+}
+
+function 주소줄읽기() {
+  document.querySelectorAll("#link-rows .link-row").forEach((줄) => {
+    const i = Number(줄.dataset.i);
+    if (!블로그정보.links[i]) return;
+    블로그정보.links[i].kind = 줄.querySelector('[data-link="kind"]').value;
+    블로그정보.links[i].url = 줄.querySelector('[data-link="url"]').value.trim();
+    블로그정보.links[i].note = 줄.querySelector('[data-link="note"]').value.trim();
+  });
+}
+
+function 주제더하기(이름) {
+  const 말 = (이름 || "").trim().slice(0, 30);
+  if (!말) return;
+  if (블로그정보.topics.includes(말)) return;
+  const 최대 = (블로그정보.catalog && 블로그정보.catalog.maxTopics) || 10;
+  if (블로그정보.topics.length >= 최대) { alert(`세부 주제는 ${최대}개까지 고르실 수 있습니다.`); return; }
+  블로그정보.topics.push(말);
+}
+
+document.addEventListener("click", async (e) => {
+  const 칩 = e.target.closest && e.target.closest(".topic-chip");
+  if (칩) {
+    const 이름 = 칩.dataset.topic;
+    if (블로그정보.topics.includes(이름)) 블로그정보.topics = 블로그정보.topics.filter((x) => x !== 이름);
+    else 주제더하기(이름);
+    블로그정보그리기();
+    return;
+  }
+  const 빼기 = e.target.closest && e.target.closest("[data-untopic]");
+  if (빼기) { 블로그정보.topics = 블로그정보.topics.filter((x) => x !== 빼기.dataset.untopic); 블로그정보그리기(); return; }
+  const 단추 = e.target.closest && e.target.closest("[data-action]");
+  if (!단추) {
+    const 지움 = e.target.closest && e.target.closest("[data-link-del]");
+    if (지움) { 주소줄읽기(); 블로그정보.links.splice(Number(지움.dataset.linkDel), 1); 주소줄그리기(); }
+    return;
+  }
+  const 할일 = 단추.dataset.action;
+  if (할일 === "add-topic") {
+    const 칸 = document.getElementById("topic-add-input");
+    주제더하기(칸.value); 칸.value = ""; 블로그정보그리기();
+  } else if (할일 === "add-link-row") {
+    주소줄읽기();
+    const 최대 = (블로그정보.catalog && 블로그정보.catalog.maxLinks) || 10;
+    if (블로그정보.links.length >= 최대) { alert(`주소는 ${최대}개까지 넣으실 수 있습니다.`); return; }
+    블로그정보.links.push({ kind: 블로그정보.type === "business" ? "youtube" : "ref", url: "", note: "" });
+    주소줄그리기();
+  } else if (할일 === "save-blog-profile") {
+    주소줄읽기();
+    const 상태 = document.getElementById("blog-profile-state");
+    const 넣은주소 = 블로그정보.links.filter((l) => l.url);
+    const 틀린주소 = 넣은주소.filter((l) => !/^https?:\/\/[^\s]+\.[^\s]+/i.test(l.url));
+    try {
+      await api("/api/settings", { method: "PUT", body: JSON.stringify({
+        blog_topics: JSON.stringify(블로그정보.topics),
+        blog_links: JSON.stringify(넣은주소),
+        blog_brand: JSON.stringify({
+          name: document.getElementById("brand-name").value,
+          intro: document.getElementById("brand-intro").value,
+          products: document.getElementById("brand-products").value,
+        }),
+      }) });
+      await refreshSettings();
+      if (상태) {
+        상태.className = 틀린주소.length ? "setup-warn" : "setup-good";
+        상태.textContent = `저장했습니다 — 세부 주제 ${블로그정보.topics.length}개, 주소 ${넣은주소.length - 틀린주소.length}개.`
+          + (틀린주소.length ? ` http(s):// 로 시작하지 않는 주소 ${틀린주소.length}개는 뺐습니다.` : "");
+      }
+    } catch (탈) {
+      if (상태) { 상태.className = "setup-warn"; 상태.textContent = 탈.message; }
+    }
+  }
+});
+
+document.addEventListener("change", (e) => {
+  if (e.target && e.target.matches && e.target.matches('#link-rows [data-link="kind"]')) {
+    주소줄읽기();
+    const 칸 = e.target.closest(".link-row").querySelector('[data-link="url"]');
+    if (칸) 칸.placeholder = 주소안내[e.target.value] || "https://...";
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target && e.target.id === "topic-add-input") {
+    e.preventDefault();
+    주제더하기(e.target.value); e.target.value = ""; 블로그정보그리기();
+  }
+});

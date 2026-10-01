@@ -153,14 +153,86 @@
               아침 6시 자동 준비는 이것과 상관없이 그대로 돕니다.</p>
           </div>
 
-          <div class="subsection">
-            <h3>새 카테고리 추가</h3>
-            <form id="category-form">
-              <input name="name" placeholder="카테고리 이름" required />
-              <input name="promptHint" placeholder="카테고리 설명(프롬프트 힌트)" required />
-              <input name="topicKeyword" placeholder="주제 키워드(선택, 예: 2026 최저임금)" />
-              <input name="dailyCount" type="number" min="0" max="10" value="1" title="하루 몇 편" placeholder="하루 편수" />
-              <button type="submit" class="btn-primary">추가</button>
+          <div class="subsection" id="category-form-box">
+            <h3 id="category-form-title">새 카테고리 추가</h3>
+            <p class="muted"><strong>카테고리 하나가 초안 하나</strong>입니다. 칸마다 색으로 나눴습니다 —
+              칸 아래 <strong>예시를 누르면 그대로 들어갑니다.</strong> 고쳐 쓰시면 됩니다.</p>
+            <form id="category-form" class="cf-form">
+              <input type="hidden" name="id" />
+
+              <div class="cf cf-name">
+                <label class="cf-label">① 이름 <span>블로그 메뉴 이름처럼 짧게</span></label>
+                <input name="name" placeholder="예: 전세·대출 정보" required maxlength="40" />
+                <div class="cf-chips" data-target="name" data-mode="set">
+                  <button type="button">동네 맛집 탐방</button><button type="button">전세·대출 정보</button>
+                  <button type="button">초등 코딩 교육</button><button type="button">우리 가게 소식</button>
+                </div>
+              </div>
+
+              <div class="cf cf-hint">
+                <label class="cf-label">② 카테고리 설명 <span>누구에게 · 무엇을 · 어떤 말투로</span></label>
+                <textarea name="promptHint" rows="2" required maxlength="400"
+                  placeholder="예: 노원구 신혼부부에게 전세·대출 정보를 쉽게"></textarea>
+                <div class="cf-chips" data-target="promptHint" data-mode="set">
+                  <button type="button">노원구 신혼부부에게 전세·대출 정보를 쉽게</button>
+                  <button type="button">초등 학부모에게 코딩 수업 후기를 솔직하게</button>
+                  <button type="button">우리 미용실 시술 전후와 관리 팁</button>
+                  <button type="button">직장인 점심 맛집을 가격 위주로</button>
+                </div>
+              </div>
+
+              <div class="cf cf-keyword">
+                <label class="cf-label">③ 주제 키워드 <span>이번에 꼭 다룰 것 · 선택 — 관련 최신 뉴스를 먼저 찾아 씁니다</span></label>
+                <input name="topicKeyword" placeholder="예: 2026 청년 전세대출" maxlength="60" />
+                <div class="cf-chips" data-target="topicKeyword" data-mode="set">
+                  <button type="button">2026 청년 전세대출</button><button type="button">스크래치 4.0 업데이트</button>
+                  <button type="button">노원구 재건축 일정</button><button type="button">가을 신메뉴 출시</button>
+                </div>
+                <label class="cf-check"><input type="checkbox" name="keywordKeep" />
+                  계속 유지 <span>— 끄면 한 번 쓰고 비웁니다</span></label>
+              </div>
+
+              <div class="cf cf-must">
+                <label class="cf-label">④ 함께 들어갈 말 <span>뜻을 좁혀요 · 선택 · 쉼표로 여러 개</span></label>
+                <input name="mustKeywords" placeholder="예: 초등, 코딩 교육" maxlength="200" />
+                <div class="cf-chips" data-target="mustKeywords" data-mode="add">
+                  <button type="button">초등</button><button type="button">코딩 교육</button>
+                  <button type="button">서울 노원구</button><button type="button">신혼부부</button><button type="button">매매</button>
+                </div>
+                <p class="cf-tip">키워드가 이름이거나 뜻이 여럿일 때 꼭 넣으세요. 예) «스크래치» + 코딩, 초등</p>
+              </div>
+
+              <div class="cf cf-exclude">
+                <label class="cf-label">⑤ 빼야 할 말 <span>다른 뜻을 막아요 · 선택 · 쉼표로 여러 개</span></label>
+                <input name="excludeKeywords" placeholder="예: 자동차 흠집, 복권" maxlength="200" />
+                <div class="cf-chips" data-target="excludeKeywords" data-mode="add">
+                  <button type="button">자동차 흠집</button><button type="button">복권</button>
+                  <button type="button">연예인</button><button type="button">주식 종목</button><button type="button">해외</button>
+                </div>
+                <p class="cf-tip">예) «스크래치» 에서 자동차 흠집·복권 뜻은 빼기</p>
+              </div>
+
+              <div class="cf cf-url">
+                <label class="cf-label">⑥ 참고 주소 <span>AI 가 먼저 열어 볼 곳 · 선택 · 줄마다 하나</span></label>
+                <textarea name="referenceUrls" rows="2" placeholder="https://..."></textarea>
+                <div class="cf-chips" data-target="referenceUrls" data-mode="line">
+                  <button type="button" data-value="https://www.korea.kr">정책브리핑</button>
+                  <button type="button" data-value="https://www.molit.go.kr">국토교통부</button>
+                  <button type="button" data-value="https://www.moe.go.kr">교육부</button>
+                  <button type="button" data-value="https://www.mss.go.kr">중소벤처기업부</button>
+                </div>
+                <p class="cf-tip">우리 가게 공지·지역 뉴스·관련 기관 주소를 넣으면 그 자료를 바탕으로 씁니다. 문장은 베끼지 않습니다.</p>
+              </div>
+
+              <div class="cf cf-daily">
+                <label class="cf-label">⑦ 하루 편수 <span>0~10 · 0 이면 이 카테고리는 쉽니다</span></label>
+                <input name="dailyCount" type="number" min="0" max="10" value="1" />
+              </div>
+
+              <div class="cf-actions">
+                <button type="submit" class="btn-primary" id="category-submit">추가</button>
+                <button type="button" class="btn-secondary" id="category-cancel" data-action="cancel-category-form" hidden>취소</button>
+              </div>
             </form>
           </div>
         </div>
@@ -513,52 +585,35 @@
           <label><input type="radio" name="blog_type" value="personal" /> 개인 블로그</label>
           <label><input type="radio" name="blog_type" value="business" /> 기업 블로그</label>
 
-          <p class="muted" style="margin-top:14px">2단계 — 주제 분야</p>
-          <select id="blog-topic-select">
-            <option value="all">전체 (주제 선택 없음)</option>
-            <optgroup label="엔터테인먼트·예술">
-              <option value="literature_books">문학·책</option>
-              <option value="movie">영화</option>
-              <option value="art_design">미술·디자인</option>
-              <option value="performance_exhibit">공연·전시</option>
-              <option value="music">음악</option>
-              <option value="drama">드라마</option>
-              <option value="celebrity">스타·연예인</option>
-              <option value="comics_anime">만화·애니</option>
-              <option value="broadcast">방송</option>
-            </optgroup>
-            <optgroup label="생활·노하우·쇼핑">
-              <option value="daily_thoughts">일상·생각</option>
-              <option value="parenting_marriage">육아·결혼</option>
-              <option value="pets">반려동물</option>
-              <option value="good_words_images">좋은글·이미지</option>
-              <option value="fashion_beauty">패션·미용</option>
-              <option value="interior_diy">인테리어·DIY</option>
-              <option value="cooking_recipe">요리·레시피</option>
-              <option value="product_review">상품리뷰</option>
-              <option value="gardening">원예·재배</option>
-            </optgroup>
-            <optgroup label="취미·여가·여행">
-              <option value="game">게임</option>
-              <option value="sports">스포츠</option>
-              <option value="photo">사진</option>
-              <option value="car">자동차</option>
-              <option value="hobby">취미</option>
-              <option value="domestic_travel">국내여행</option>
-              <option value="world_travel">세계여행</option>
-              <option value="restaurant">맛집</option>
-            </optgroup>
-            <optgroup label="지식·동향">
-              <option value="it_computer">IT·컴퓨터</option>
-              <option value="society_politics">사회·정치</option>
-              <option value="health_medicine">건강·의학</option>
-              <option value="business_economy">비즈니스·경제</option>
-              <option value="language">어학·외국어</option>
-              <option value="education">교육·학문</option>
-            </optgroup>
-          </select>
+          <p class="muted" style="margin-top:14px">2단계 — <strong>세부 주제</strong>
+            <span class="cf-sub">눌러서 고르세요 · 여러 개 · 없으면 [+ 추가]로 직접</span></p>
+          <div id="topic-chips" class="topic-chips"></div>
+          <div class="topic-add">
+            <input id="topic-add-input" maxlength="30" placeholder="직접 추가 — 예: 노원구 재건축, 초등 코딩, 수제 디저트" />
+            <button type="button" class="btn-secondary" data-action="add-topic">+ 추가</button>
+          </div>
+          <p class="muted topic-picked-line">고른 주제: <span id="topic-picked"></span></p>
 
-          <p class="muted" style="margin-top:18px">3단계 — <strong>본문 최소 글자수</strong></p>
+          <div id="brand-box" class="brand-box" hidden>
+            <p class="muted"><strong>회사·브랜드 정보</strong> <span class="cf-sub">기업 블로그일 때만 · 글에 들어갈 기본 정보</span></p>
+            <input id="brand-name" maxlength="40" placeholder="회사·브랜드 이름 — 예: 노원 OO헤어" />
+            <input id="brand-intro" maxlength="120" placeholder="한 줄 소개 — 예: 20년 경력 원장이 직접 하는 동네 미용실" />
+            <input id="brand-products" maxlength="200" placeholder="주요 상품·서비스 — 예: 펌, 염색, 두피 케어" />
+          </div>
+
+          <p class="muted" style="margin-top:14px">3단계 — <strong>대표·참고 주소</strong>
+            <span class="cf-sub">AI 가 글을 쓰기 전에 먼저 열어 봅니다</span></p>
+          <div id="link-rows" class="link-rows"></div>
+          <button type="button" class="btn-secondary" data-action="add-link-row">+ 주소 추가</button>
+          <p class="checklist-item-why">대표 블로그는 <strong>말투와 다루는 범위</strong>를, 참고 사이트·뉴스는 <strong>최신 소식</strong>을,
+            홈페이지·스토어는 <strong>상품·서비스 정보</strong>를 보는 곳입니다. 인스타그램·유튜브처럼 로그인해야 보이는 곳은
+            <strong>공개된 소개·계정 이름</strong>만 참고합니다. 문장은 베끼지 않고 다시 씁니다.</p>
+          <div class="blog-profile-save">
+            <button type="button" class="btn-primary" data-action="save-blog-profile">주제·주소 저장</button>
+            <span id="blog-profile-state" class="muted"></span>
+          </div>
+
+          <p class="muted" style="margin-top:18px">4단계 — <strong>본문 최소 글자수</strong></p>
           <div class="setup-input-row schedule-cap-row">
             <input type="number" id="min-length-input" min="800" max="6000" step="100" />
             <span class="schedule-cap-unit">자 이상</span>
@@ -723,8 +778,11 @@
               <p>기본 카테고리 <strong>3개</strong>(「부동산 이야기」 「생활 절세」 「일상 기록」)가 이미 준비돼 있습니다.
                 이름·설명을 <strong>[수정]</strong>으로 내 블로그 주제에 맞게 바꾸시거나, 지우고 새로 만드셔도 됩니다.
                 <strong>카테고리 하나가 초안 하나</strong>입니다.</p>
-              <p>이번에 꼭 다루고 싶은 이슈가 있으면 <strong>[주제 키워드]</strong>를 한 번 채워 두세요. 다음 글에 최우선으로
-                반영되고, 쓰고 나면 저절로 비워집니다.</p>
+              <p>칸은 색으로 나뉘어 있고, 칸 아래 <strong>예시를 누르면 그대로 들어갑니다.</strong>
+                <strong>③ 주제 키워드</strong>는 이번에 꼭 다룰 것입니다 — [계속 유지]를 켜면 다음 글에도 계속 쓰고, 끄면 한 번 쓰고 비웁니다.
+                키워드가 이름이거나 뜻이 여럿이면(예: «스크래치») <strong>④ 함께 들어갈 말</strong>(코딩, 초등)과
+                <strong>⑤ 빼야 할 말</strong>(자동차 흠집, 복권)을 같이 넣으세요. 엉뚱한 글이 안 나옵니다.
+                <strong>⑥ 참고 주소</strong>를 넣으면 AI 가 그곳을 먼저 열어 보고 씁니다. [수정]을 누르면 같은 칸에서 고칩니다.</p>
               <p data-owner-only>「하루 편수」 칸은 아침 자동 준비 때 그 카테고리에서 몇 편을 만들지 정합니다 (7번 참고).</p>
             </div>
           </div>
@@ -732,6 +790,9 @@
             <div class="guide-step-num">2</div>
             <div class="guide-step-body">
               <h4>내 블로그 방향 정하기</h4>
+              <p>블로그 유형(개인·기업)을 고르면 <strong>세부 주제 칩</strong>이 바뀝니다. 여러 개 고르시고, 없으면 [+ 추가]로 직접 넣으세요.
+                <strong>대표·참고 주소</strong>(대표 블로그·참고 사이트·홈페이지·인스타·유튜브·스토어)를 넣으면 AI 가 글을 쓰기 전에 먼저 열어 봅니다.
+                기업 블로그면 <strong>회사·브랜드 정보</strong>도 넣으세요. 다 고르고 <strong>[주제·주소 저장]</strong>.</p>
               <p data-trial-only>왼쪽 <strong>[내 글 스타일]</strong>에서 블로그 유형(개인·기업)·주제 분야·말투(톤)·보강 문구·
                 최소 글자수를 정합니다. <strong>이 체험 키에만</strong> 저장되고, AI 설정은 따로 하실 필요가 없습니다.
                 처음 들어오시면 이 화면이 먼저 열립니다.</p>

@@ -16,7 +16,10 @@ import {
 import { runAI, 지금엔진, 엔진고르기, 엔진키, 엔진모델, 준비됐나, 상태지우기, 상태적기, 지금상태 } from "../../ai/run.js";
 import { ENGINE_IDS, ENGINES, ENGINE_KEY_SETTINGS, ENGINE_MODEL_SETTINGS, 키검사 } from "../../ai/engines.js";
 import { buildPreviewPrompt } from "../../claude/promptBuilder.js";
-import { buildBlogProfileBlock } from "../../claude/blogProfile.js";
+import {
+  buildBlogProfileBlock, findBlogTopicLabel, BUSINESS_INDUSTRIES, LINK_KINDS, BLOG_TOPIC_GROUPS, 세부주제_최대, 주소_최대,
+  세부주제다듬기, 세부주제읽기, 주소목록다듬기, 주소목록읽기, 브랜드다듬기, 브랜드읽기,
+} from "../../claude/blogProfile.js";
 import { parsePreviewResponse } from "../../claude/parseResponse.js";
 import { 시간재보기 } from "../../scheduler/시간예상.js";
 import { 지금상한 } from "../../scheduler/예약.js";
@@ -27,6 +30,9 @@ const STYLE_KEYS = [
   "blog_topic",
   "posting_direction_preset",
   "posting_direction_refinement",
+  "blog_topics",
+  "blog_links",
+  "blog_brand",
 ] as const;
 
 /** 체험 회원에게 막을 때 하는 말. 무엇은 되는지까지 말해 준다. */
@@ -84,6 +90,19 @@ export async function settingsRoutes(app: FastifyInstance) {
       blog_topic: raw.blog_topic,
       posting_direction_preset: raw.posting_direction_preset ?? "balanced",
       posting_direction_refinement: raw.posting_direction_refinement ?? "",
+      // 블로그 정보. 화면이 칩·주소 줄·회사 칸을 그린다.
+      blog_topics: 세부주제읽기(raw.blog_topics),
+      // 옛 드롭다운으로 고른 주제의 이름. 아직 칩을 안 고르셨으면 화면이 이것을 첫 칩으로 띄운다.
+      blog_topic_label: findBlogTopicLabel(raw.blog_topic ?? ""),
+      blog_links: 주소목록읽기(raw.blog_links),
+      blog_brand: 브랜드읽기(raw.blog_brand),
+      blog_catalog: {
+        personal: BLOG_TOPIC_GROUPS.map((g) => ({ group: g.group, topics: g.topics.map((x) => x.label) })),
+        business: BUSINESS_INDUSTRIES,
+        linkKinds: LINK_KINDS,
+        maxTopics: 세부주제_최대,
+        maxLinks: 주소_최대,
+      },
     };
   });
 
@@ -97,6 +116,11 @@ export async function settingsRoutes(app: FastifyInstance) {
       const 막힌칸 = Object.keys(body).filter((k) => !개인설정인가(k));
       if (막힌칸.length > 0) { reply.code(403); return { error: 체험은스타일만 }; }
     }
+
+    // 블로그 정보는 JSON 으로 받는다. 이상한 값은 다듬어서(버릴 것은 버리고) 저장한다.
+    if ("blog_topics" in body) body.blog_topics = 세부주제다듬기(body.blog_topics);
+    if ("blog_links" in body) body.blog_links = 주소목록다듬기(body.blog_links);
+    if ("blog_brand" in body) body.blog_brand = 브랜드다듬기(body.blog_brand);
 
     const 보강 = body.posting_direction_refinement;
     if (typeof 보강 === "string" && 보강.length > 개인설정_최대글자) {
@@ -224,6 +248,9 @@ export async function settingsRoutes(app: FastifyInstance) {
     const blogProfileBlock = buildBlogProfileBlock({
       blogType: raw.blog_type,
       blogTopic: raw.blog_topic,
+      blogTopics: 세부주제읽기(raw.blog_topics),
+      links: 주소목록읽기(raw.blog_links),
+      brand: 브랜드읽기(raw.blog_brand),
       postingDirectionInstruction: resolvePostingDirectionInstruction(raw.posting_direction_preset),
       postingDirectionRefinement: raw.posting_direction_refinement,
     });

@@ -1623,3 +1623,60 @@ body.is-trial [data-owner-only] { display: none !important; }
 .setup-step.flash{box-shadow:0 0 0 3px var(--gold);border-radius:10px;transition:box-shadow .3s}
 .title-len{font-size:12px;margin-left:4px}
 body:not(.is-trial) [data-trial-only]{display:none !important}
+
+/* ── 카테고리 폼: 칸마다 색을 달리한다 (이름 파랑·설명 초록·키워드 주황·함께 보라·빼기 빨강·주소 청록) ── */
+.cf-form{display:flex;flex-direction:column;gap:12px;margin-top:10px}
+.cf{border:1px solid var(--cf-line);border-left:5px solid var(--cf-main);background:var(--cf-soft);border-radius:10px;padding:12px 14px}
+.cf input:not([type=checkbox]),.cf textarea{width:100%;box-sizing:border-box;margin-top:6px;background:#fff}
+.cf-label{display:block;font-weight:700;color:var(--cf-ink);font-size:14px}
+.cf-label span,.cf-sub{font-weight:400;color:#6b7280;font-size:12.5px;margin-left:6px}
+.cf-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.cf-chips button{border:1px dashed var(--cf-main);background:#fff;color:var(--cf-ink);border-radius:999px;padding:3px 10px;font-size:12.5px;cursor:pointer;line-height:1.5}
+.cf-chips button:hover{background:var(--cf-main);color:#fff;border-style:solid}
+.cf-tip{margin:6px 0 0;font-size:12.5px;color:#6b7280}
+.cf-check{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:13.5px;color:var(--cf-ink);font-weight:600}
+.cf-check span{font-weight:400;color:#6b7280}
+.cf-actions{display:flex;gap:8px}
+.cf-name{--cf-main:#2f6bff;--cf-soft:#f1f5ff;--cf-line:#d9e4ff;--cf-ink:#1d3f99}
+.cf-hint{--cf-main:#1f9d55;--cf-soft:#f0faf4;--cf-line:#cdeedb;--cf-ink:#14663a}
+.cf-keyword{--cf-main:#e8810c;--cf-soft:#fff6ec;--cf-line:#fde2c3;--cf-ink:#8a4b05}
+.cf-must{--cf-main:#7c4dff;--cf-soft:#f5f1ff;--cf-line:#e2d8ff;--cf-ink:#4a2aa8}
+.cf-exclude{--cf-main:#e0464b;--cf-soft:#fff2f2;--cf-line:#fbd2d3;--cf-ink:#98262a}
+.cf-url{--cf-main:#0e9aa7;--cf-soft:#effafb;--cf-line:#c9eef1;--cf-ink:#0b6670}
+.cf-daily{--cf-main:#8b93a1;--cf-soft:#f7f8fa;--cf-line:#e4e7ec;--cf-ink:#3b4250}
+.cf-daily input{max-width:120px}
+#category-form-box.editing{outline:3px solid var(--gold);outline-offset:6px;border-radius:12px}
+.cat-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.cat-tag{font-size:11.5px;border-radius:999px;padding:1px 8px;border:1px solid}
+.cat-tag.must{color:#4a2aa8;border-color:#e2d8ff;background:#f5f1ff}
+.cat-tag.exclude{color:#98262a;border-color:#fbd2d3;background:#fff2f2}
+.cat-tag.url{color:#0b6670;border-color:#c9eef1;background:#effafb}
+.cat-tag.keep{color:#8a4b05;border-color:#fde2c3;background:#fff6ec}
+
+/* ── 블로그 정보: 세부 주제 칩·주소 줄·회사 정보 ── */
+.topic-chips{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.topic-group{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.topic-group-name{font-size:12px;color:#6b7280;min-width:108px}
+.topic-chip{border:1px solid #d8dde6;background:#fff;border-radius:999px;padding:4px 12px;font-size:13px;cursor:pointer}
+.topic-chip.on{background:var(--gold);border-color:var(--gold);color:#fff;font-weight:700}
+.topic-add{display:flex;gap:8px;margin-top:10px}
+.topic-add input{flex:1}
+.topic-picked-line{margin-top:8px}
+.topic-pill{display:inline-flex;align-items:center;gap:4px;background:var(--gold-soft);color:#1d3f99;border-radius:999px;padding:2px 4px 2px 10px;margin:2px 4px 2px 0;font-size:13px}
+.topic-pill button{border:0;background:transparent;cursor:pointer;color:#6b7280;font-size:14px;line-height:1}
+.brand-box{border:1px solid #fde2c3;background:#fff6ec;border-radius:10px;padding:12px 14px;margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.brand-box[hidden]{display:none}
+.link-rows{display:flex;flex-direction:column;gap:6px;margin:6px 0 8px}
+.link-row{display:grid;grid-template-columns:190px 1fr 190px 32px;gap:6px;align-items:center}
+.link-del{border:1px solid #f3b9b9;background:#fff;color:#c0392b;border-radius:6px;cursor:pointer;height:32px}
+.blog-profile-save{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
+@media (max-width:640px){
+  .link-row{grid-template-columns:1fr 32px}
+  .link-row select{grid-column:1/3}
+  .link-row input[data-link="note"]{grid-column:1/2}
+  .topic-group-name{min-width:100%}
+}
+
+#category-form.cf-form{display:flex;flex-direction:column;align-items:stretch;flex-wrap:nowrap}
+#category-form.cf-form .cf{width:100%;box-sizing:border-box;max-width:none}
+#category-form.cf-form .cf-actions{justify-content:flex-start}

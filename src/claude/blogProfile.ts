@@ -108,9 +108,98 @@ export function findBlogTopicLabel(value: string): string | null {
   return null;
 }
 
+// ─────────────────────────────────────────── 블로그 정보 (세부 주제·참고 주소·회사 정보)
+//
+// 주제 분야를 드롭다운 하나로만 고르게 했더니 «개인 블로그 / 일상·생각» 같은 넓은
+// 정보밖에 AI 에게 못 줬다. 그래서 세부 주제를 여러 개 고르거나 직접 더하고,
+// 이 블로그의 기준이 되는 주소(대표 블로그·참고 사이트·인스타·유튜브·홈페이지)와
+// 기업이면 회사 정보를 저장해 둔다. 이 값들은 체험 키마다 따로 저장된다.
+
+/** 기업 블로그의 업종 칩. 화면(app.js)이 이 목록을 받아 그린다. */
+export const BUSINESS_INDUSTRIES = [
+  "음식점·카페", "뷰티·미용실", "병원·의원", "학원·교육", "부동산·중개", "법률·세무·노무",
+  "인테리어·시공", "쇼핑몰·온라인판매", "IT·소프트웨어", "제조·유통", "여행·숙박",
+  "피트니스·스포츠", "반려동물 서비스", "금융·보험", "공공·비영리",
+] as const;
+
+/** 참고 주소의 종류. 종류마다 AI 에게 시키는 일이 조금씩 다르다. */
+export const LINK_KINDS: Record<string, string> = {
+  main: "대표 블로그·사이트",
+  ref: "참고 사이트·뉴스",
+  homepage: "공식 홈페이지",
+  instagram: "인스타그램",
+  youtube: "유튜브",
+  store: "스마트스토어·플레이스",
+  etc: "기타",
+};
+
+export const 세부주제_최대 = 10;
+export const 주소_최대 = 10;
+
+export interface BlogLink { kind: string; url: string; note: string }
+export interface BlogBrand { name: string; intro: string; products: string }
+
+function 짧게(값: unknown, 길이: number): string {
+  return String(값 ?? "").replace(/\s+/g, " ").trim().slice(0, 길이);
+}
+
+function 제이슨읽기(글: string | null | undefined): unknown {
+  if (!글) return null;
+  try { return JSON.parse(글); } catch { return null; }
+}
+
+/** 세부 주제 목록을 다듬는다 → JSON 글자. 화면이 배열이나 JSON 글자를 보낸다. */
+export function 세부주제다듬기(값: unknown): string {
+  const 날 = typeof 값 === "string" ? (제이슨읽기(값) ?? 값.split(",")) : 값;
+  const 목록 = (Array.isArray(날) ? 날 : []).map((x) => 짧게(x, 30)).filter(Boolean);
+  return JSON.stringify([...new Set(목록)].slice(0, 세부주제_최대));
+}
+
+export function 세부주제읽기(글: string | null | undefined): string[] {
+  const 날 = 제이슨읽기(글);
+  return Array.isArray(날) ? 날.map((x) => String(x)).filter(Boolean) : [];
+}
+
+/** 참고 주소를 다듬는다 → JSON 글자. http(s) 가 아니면 버린다. */
+export function 주소목록다듬기(값: unknown): string {
+  const 날 = typeof 값 === "string" ? 제이슨읽기(값) : 값;
+  const 목록: BlogLink[] = [];
+  for (const x of Array.isArray(날) ? 날 : []) {
+    const o = (x ?? {}) as Record<string, unknown>;
+    const url = 짧게(o.url, 300);
+    if (!/^https?:\/\/[^\s]+\.[^\s]+/i.test(url)) continue;
+    const kind = typeof o.kind === "string" && o.kind in LINK_KINDS ? o.kind : "etc";
+    if (목록.some((l) => l.url === url)) continue;
+    목록.push({ kind, url, note: 짧게(o.note, 60) });
+  }
+  return JSON.stringify(목록.slice(0, 주소_최대));
+}
+
+export function 주소목록읽기(글: string | null | undefined): BlogLink[] {
+  const 날 = 제이슨읽기(글);
+  return Array.isArray(날) ? (날 as BlogLink[]) : [];
+}
+
+/** 회사·브랜드 정보를 다듬는다 → JSON 글자. */
+export function 브랜드다듬기(값: unknown): string {
+  const 날 = (typeof 값 === "string" ? 제이슨읽기(값) : 값) as Record<string, unknown> | null;
+  return JSON.stringify({
+    name: 짧게(날?.name, 40), intro: 짧게(날?.intro, 120), products: 짧게(날?.products, 200),
+  });
+}
+
+export function 브랜드읽기(글: string | null | undefined): BlogBrand {
+  const 날 = (제이슨읽기(글) ?? {}) as Record<string, unknown>;
+  return { name: 짧게(날.name, 40), intro: 짧게(날.intro, 120), products: 짧게(날.products, 200) };
+}
+
 export interface BlogProfileSettings {
   blogType: string | null;
   blogTopic: string | null;
+  /** 세부 주제 (칩으로 고르거나 직접 더한 것). 있으면 blogTopic 보다 먼저 쓴다. */
+  blogTopics?: string[];
+  links?: BlogLink[];
+  brand?: BlogBrand | null;
   /** 프리셋이 내장이든 사용자 커스텀이든, 호출부에서 미리 찾아온 실제 지시문 텍스트를 받는다
    * (프리셋 저장 위치가 바뀌어도 이 함수는 몰라도 되게 하기 위함 — settings.ts의
    * resolvePostingDirectionInstruction() 참고). */
@@ -126,9 +215,37 @@ export function buildBlogProfileBlock(settings: BlogProfileSettings): string {
     settings.blogType === "business" ? "기업 블로그" : settings.blogType === "personal" ? "개인 블로그" : null;
   if (typeLabel) lines.push(`이 블로그는 ${typeLabel}이다.`);
 
+  const 세부 = (settings.blogTopics ?? []).filter(Boolean);
   const topicLabel = settings.blogTopic ? findBlogTopicLabel(settings.blogTopic) : null;
-  if (topicLabel) {
+  if (세부.length) {
+    lines.push(`이 블로그가 꾸준히 다루는 세부 주제: ${세부.map((x) => `"${x}"`).join(", ")}. `
+      + `글감·예시·용어는 이 주제들 안에서 고르고, 벗어난 소재로 빠지지 마라.`);
+  } else if (topicLabel) {
     lines.push(`이 블로그의 주제 분야는 "${topicLabel}"이다. 이 분야와 맞닿는 소재를 우선 고려하라.`);
+  }
+
+  const 회사 = settings.brand;
+  if (settings.blogType === "business" && 회사 && (회사.name || 회사.intro || 회사.products)) {
+    const 줄 = [`이 블로그를 운영하는 회사·브랜드: ${회사.name || "(이름 없음)"}`];
+    if (회사.intro) 줄.push(`한 줄 소개: ${회사.intro}`);
+    if (회사.products) 줄.push(`주요 상품·서비스: ${회사.products}`);
+    줄.push("이 브랜드의 블로그 글로 쓰되, 광고 문구처럼 과장하지 말고 독자에게 실제로 도움이 되는 정보를 중심에 둬라. "
+      + "상품·가격·혜택은 아래 참고 주소나 위 정보에 있는 것만 말하고, 없는 약속(무조건·100%·최저가 보장)을 만들지 마라.");
+    lines.push(줄.join("\n"));
+  }
+
+  const 주소 = (settings.links ?? []).filter((l) => l && l.url);
+  if (주소.length) {
+    lines.push([
+      "[참고 주소 — 이 블로그의 기준 자료. 글을 쓰기 전에 먼저 열어 보라]",
+      ...주소.map((l) => `- (${LINK_KINDS[l.kind] ?? "기타"}) ${l.url}${l.note ? ` — ${l.note}` : ""}`),
+      "이 주소들에서 이 블로그가 실제로 다루는 소재·용어·말투·상품 정보를 파악하고, 이번 카테고리 주제와 맞닿는 "
+      + "최신 소식·자료를 찾아 글의 바탕으로 삼아라. 대표 블로그는 말투와 다루는 범위를, 참고 사이트·뉴스는 "
+      + "사실과 최신 소식을, 홈페이지·스토어는 상품·서비스 정보를 보는 곳이다.",
+      "지킬 것: 문장을 그대로 베끼지 말고 네 말로 다시 써라. 숫자·날짜·가격은 출처 그대로 옮겨라. "
+      + "로그인해야 보이는 곳(인스타그램·유튜브의 게시물 목록 등)은 억지로 열지 말고, 공개된 소개·계정 이름·"
+      + "검색에 잡히는 공개 정보만 참고하라. 열리지 않는 주소가 있으면 건너뛰고 나머지로 써라.",
+    ].join("\n"));
   }
 
   if (settings.postingDirectionInstruction?.trim()) {

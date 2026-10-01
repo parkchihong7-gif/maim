@@ -93,6 +93,18 @@ function runMigrations(database: Database.Database) {
   // 한 사람의 글이 세 자리로 흩어진다.
   칸붙이기(database, "keyserver_sessions", "key1", "TEXT NOT NULL DEFAULT ''");
 
+  // ── 카테고리를 더 또렷하게 ───────────────────────────────────
+  //
+  // 주제 키워드 한 줄만으로는 AI 가 엉뚱한 글을 썼다. 고유명사나 뜻이 여럿인
+  // 말이면(«스크래치» 가 코딩인지 자동차 흠집인지) 검색에 먼저 걸린 쪽으로
+  // 흘렀다. 그래서 뜻을 좁히는 말·빼야 할 말·참고할 주소를 같이 받는다.
+  칸붙이기(database, "categories", "must_keywords", "TEXT");      // 함께 들어갈 말 (뜻을 좁힘)
+  칸붙이기(database, "categories", "exclude_keywords", "TEXT");   // 빼야 할 말 (다른 뜻)
+  칸붙이기(database, "categories", "reference_urls", "TEXT");     // 이 카테고리 참고 주소 (줄마다 하나)
+  // 주제 키워드를 한 번 쓰고 비울지(0), 계속 쓸지(1). 예전에는 늘 한 번 쓰고
+  // 비웠다 — 두 번째 글부터 키워드 없이 써서 주제가 흐려졌다.
+  칸붙이기(database, "categories", "keyword_keep", "INTEGER NOT NULL DEFAULT 0");
+
   // ── 포스팅 예약 ──────────────────────────────────────────────
   //
   // 카테고리마다 **하루에 몇 편**을 준비할지. 예전에는 활성 카테고리

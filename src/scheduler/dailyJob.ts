@@ -61,7 +61,8 @@ export async function runDailyJob(): Promise<void> {
       const post = await generatePost(category, directives[i]);
 
       // 주제 키워드는 1회성 입력이므로 자동 생성에 쓰였어도 소진 처리한다.
-      if (category.topic_keyword) {
+      // [계속 유지] 를 켜 둔 카테고리는 비우지 않는다.
+      if (category.topic_keyword && !category.keyword_keep) {
         updateCategory(category.id, { topicKeyword: null });
       }
 

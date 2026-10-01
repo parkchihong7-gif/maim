@@ -226,7 +226,9 @@ export const ENGINES: Record<EngineId, Engine> = {
                  "--permission-mode", "acceptEdits"];
       if (ask.model) a.push("--model", ask.model);
       if (ask.readDir) { a.push("--allowedTools", "Read", "--add-dir", ask.readDir); }
-      else if (ask.needsSearch) { a.push("--allowedTools", "WebSearch"); }
+      // WebFetch 도 연다 — 참고 주소(대표 URL·카테고리 URL)를 실제로 열어 봐야
+      // 그 자료를 바탕으로 쓸 수 있다. 검색만 되면 주소를 적어 둬도 못 읽는다.
+      else if (ask.needsSearch) { a.push("--allowedTools", "WebSearch", "WebFetch"); }
       else { a.push("--tools", ""); }
       return a;
     },

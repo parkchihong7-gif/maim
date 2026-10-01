@@ -101,7 +101,8 @@ export async function manualRunRoutes(app: FastifyInstance) {
     // 주제 키워드는 "이번 한 번만" 우선 반영되는 1회성 입력이다. 생성에
     // 실제로 쓰였으니 다음 "지금 생성"이 같은 키워드로 또 반복되지 않도록
     // 여기서 자동으로 비운다.
-    if (category.topic_keyword) {
+    // [계속 유지] 를 켜 둔 카테고리는 비우지 않는다.
+    if (category.topic_keyword && !category.keyword_keep) {
       updateCategory(category.id, { topicKeyword: null });
     }
 

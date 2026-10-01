@@ -132,7 +132,15 @@ export async function categoriesRoutes(app: FastifyInstance) {
       promptHint: string;
       topicKeyword?: string | null;
       dailyCount?: number;
+      mustKeywords?: string | null;
+      excludeKeywords?: string | null;
+      referenceUrls?: string | null;
+      keywordKeep?: boolean;
     };
+    if (!String(body?.name ?? "").trim() || !String(body?.promptHint ?? "").trim()) {
+      reply.code(400);
+      return { error: "이름과 카테고리 설명은 비워 둘 수 없습니다." };
+    }
     const category = createCategory(body);
     reply.code(201);
     return category;
@@ -149,6 +157,10 @@ export async function categoriesRoutes(app: FastifyInstance) {
         active: boolean;
         topicKeyword: string | null;
         dailyCount: number;
+        mustKeywords: string | null;
+        excludeKeywords: string | null;
+        referenceUrls: string | null;
+        keywordKeep: boolean;
       }>,
     );
     return { ok: true };

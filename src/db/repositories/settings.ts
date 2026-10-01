@@ -178,6 +178,10 @@ export const 개인설정키 = [
   "posting_direction_preset",
   "posting_direction_refinement",
   최소분량키,
+  // 블로그 정보 — 세부 주제(JSON 배열)·참고 주소(JSON 배열)·회사 정보(JSON)
+  "blog_topics",
+  "blog_links",
+  "blog_brand",
 ] as const;
 
 export function 개인설정인가(key: string): boolean {

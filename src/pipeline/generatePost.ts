@@ -3,7 +3,7 @@ import type { Category } from "../db/repositories/categories.js";
 import { insertDraftPost, listRecentTitles, type Post } from "../db/repositories/posts.js";
 import { markCategoryUsed } from "../db/repositories/categories.js";
 import { buildPostPrompt } from "../claude/promptBuilder.js";
-import { buildBlogProfileBlock } from "../claude/blogProfile.js";
+import { buildBlogProfileBlock, 세부주제읽기, 주소목록읽기, 브랜드읽기 } from "../claude/blogProfile.js";
 import { runAI, 지금엔진, 시간초과인가 } from "../ai/run.js";
 import { parsePostResponse } from "../claude/parseResponse.js";
 import { 개인설정들, resolvePostingDirectionInstruction } from "../db/repositories/settings.js";
@@ -28,16 +28,25 @@ export async function generatePost(category: Category, directive: PostDirective)
     "blog_topic",
     "posting_direction_preset",
     "posting_direction_refinement",
+    "blog_topics",
+    "blog_links",
+    "blog_brand",
   ]);
+  const 참고주소들 = 주소목록읽기(blogSettings.blog_links);
   const blogProfileBlock = buildBlogProfileBlock({
     blogType: blogSettings.blog_type,
     blogTopic: blogSettings.blog_topic,
+    blogTopics: 세부주제읽기(blogSettings.blog_topics),
+    links: 참고주소들,
+    brand: 브랜드읽기(blogSettings.blog_brand),
     postingDirectionInstruction: resolvePostingDirectionInstruction(blogSettings.posting_direction_preset),
     postingDirectionRefinement: blogSettings.posting_direction_refinement,
   });
   const prompt = buildPostPrompt(category, directive, today, recentTitles, blogProfileBlock);
 
-  const requiresSearch = category.requires_search === 1;
+  // 참고 주소가 있으면 열어 봐야 하므로 검색·열람 도구를 켠다.
+  const requiresSearch = category.requires_search === 1
+    || 참고주소들.length > 0 || !!(category.reference_urls ?? "").trim();
 
   const attempt = async (p: string) => {
     const 답 = await runAI({ prompt: p, needsSearch: requiresSearch });
