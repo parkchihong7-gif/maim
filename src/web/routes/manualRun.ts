@@ -4,7 +4,7 @@ import { getPost, markReady } from "../../db/repositories/posts.js";
 import { 체험인가, 지금주인, 체험_하루상한, 상한안내 } from "../../tenancy.js";
 import { todayPostCount } from "../../db/repositories/tenants.js";
 import { assignDirectives } from "../../pipeline/directives.js";
-import { generatePost } from "../../pipeline/generatePost.js";
+import { generatePost, type 생성기록 } from "../../pipeline/generatePost.js";
 import { attachImage } from "../../pipeline/attachImage.js";
 import { runDailyJob } from "../../scheduler/dailyJob.js";
 import { 오류적기, 최근오류 } from "../../db/repositories/errorLog.js";
@@ -88,9 +88,13 @@ export async function manualRunRoutes(app: FastifyInstance) {
     }
 
     const [directive] = assignDirectives(1);
+    // 무엇에 얼마나 걸렸나 — 상태창에 «글 3분 · 사진 40초» 로 보여 준다.
+    const 기록: 생성기록 = { 글ms: 0, 첫글: false, 메모씀: false, 다시: [] };
+    const 시작 = Date.now();
+    const 걸린것 = () => ({ ...기록, 사진ms: Math.max(0, Date.now() - 시작 - 기록.글ms), 전체ms: Date.now() - 시작 });
     let post;
     try {
-      post = await generatePost(category, directive);
+      post = await generatePost(category, directive, 기록);
     } catch (탈) {
       // 적어 두고 그대로 돌려준다. 체험 회원 화면에 뜬 오류를 주인이
       // [관리자 설정 → 최근 오류] 에서 볼 수 있게 한다.
@@ -111,11 +115,11 @@ export async function manualRunRoutes(app: FastifyInstance) {
     } catch (err) {
       오류적기("이미지", category.name, (err as Error).message);
       markReady(post.id);
-      return { ...getPost(post.id), imageError: (err as Error).message };
+      return { ...getPost(post.id), imageError: (err as Error).message, timing: 걸린것() };
     }
 
     markReady(post.id);
-    return getPost(post.id);
+    return { ...getPost(post.id), timing: 걸린것() };
   });
 
   // 화면 맨 위 상태 막대가 부른다. 체험 회원에게는 까닭의 속사정(명령·경로)은

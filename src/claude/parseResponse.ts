@@ -33,6 +33,10 @@ function 다듬기(날것: unknown): unknown {
   if (typeof 글.keyword !== "string") delete 글.keyword;
   else 글.keyword = 글.keyword.trim();
 
+  // 자료 메모 — 첫 글에서만 달라고 한다. 모양이 틀리면 버린다(글은 받는다).
+  if (typeof 글.brief !== "string") delete 글.brief;
+  else 글.brief = 글.brief.trim().slice(0, 2500);
+
   if (typeof 글.image_query === "string") {
     글.image_query = 글.image_query.trim().slice(0, 80);
   }
@@ -66,6 +70,8 @@ export const PostResponseSchema = z.preprocess(다듬기, z.object({
   title_variants: z.array(z.string().min(3).max(200)).optional().default([]),
   // 제목 앞머리의 세부 키워드 조합. 제목이 이걸로 시작하는지 잰다. 빠뜨려도 글은 받는다.
   keyword: z.string().max(80).optional().default(""),
+  // 첫 글 때 주소를 읽고 남기는 자료 메모. pipeline/자료메모.ts 참고
+  brief: z.string().optional().default(""),
 }));
 
 export type PostResponse = z.infer<typeof PostResponseSchema>;

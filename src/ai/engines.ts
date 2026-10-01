@@ -38,6 +38,11 @@ export interface RunAsk {
   prompt: string;
   /** 웹 검색이 필요한가. 뉴스형 카테고리에서만 참이다. */
   needsSearch?: boolean;
+  /**
+   * 검색만 하고 주소는 열지 않는다(WebFetch 없음). 두 번째 글부터 —
+   * 주소는 첫 글 때 읽어 «자료 메모» 로 남겨 두었기 때문이다. needsSearch 와 함께 쓴다.
+   */
+  searchOnly?: boolean;
   /** 이 폴더의 파일을 읽어야 한다 (이미지 고르기). */
   readDir?: string;
   /**
@@ -228,6 +233,7 @@ export const ENGINES: Record<EngineId, Engine> = {
       if (ask.readDir) { a.push("--allowedTools", "Read", "--add-dir", ask.readDir); }
       // WebFetch 도 연다 — 참고 주소(대표 URL·카테고리 URL)를 실제로 열어 봐야
       // 그 자료를 바탕으로 쓸 수 있다. 검색만 되면 주소를 적어 둬도 못 읽는다.
+      else if (ask.needsSearch && ask.searchOnly) { a.push("--allowedTools", "WebSearch"); }
       else if (ask.needsSearch) { a.push("--allowedTools", "WebSearch", "WebFetch"); }
       else { a.push("--tools", ""); }
       return a;

@@ -245,7 +245,7 @@ async function 하루치만들기(단추) {
     return;
   }
   if (계획.length === 0) {
-    말("오늘 만들 것이 없습니다 — 쓸 카테고리가 없거나 하루 편수가 전부 0 입니다.", true);
+    말("오늘 만들 것이 없습니다 — 켜진 카테고리가 없습니다. [블로그 관리]의 «활성» 을 눌러 켜 주세요.", true);
     return;
   }
 
@@ -260,7 +260,7 @@ async function 하루치만들기(단추) {
   try {
     for (let i = 0; i < 계획.length; i++) {
       const 것 = 계획[i];
-      말(`${i + 1}/${계획.length} 만드는 중 — ${것.name} … (한 편에 3~6분)`);
+      말(`${i + 1}/${계획.length} 만드는 중 — ${것.name} … (한 편에 2~4분, 첫 글은 5~10분)`);
       const 줄 = document.createElement("li");
       줄.textContent = `${것.name} — 만드는 중…`;
       기록 && 기록.appendChild(줄);
@@ -363,7 +363,20 @@ function 카테고리꼬리표(c) {
   if (함께) 조각.push(`<span class="cat-tag must" title="${escapeHtml(c.must_keywords)}">+함께 ${함께}</span>`);
   if (빼기) 조각.push(`<span class="cat-tag exclude" title="${escapeHtml(c.exclude_keywords)}">−빼기 ${빼기}</span>`);
   if (주소) 조각.push(`<span class="cat-tag url" title="${escapeHtml([c.main_url ? `대표: ${c.main_url}` : "", c.reference_urls || ""].filter(Boolean).join("\n"))}">🔗 ${주소}</span>`);
+  if (메모있나(c)) {
+    조각.push(`<span class="cat-tag memo" title="${escapeHtml(`${메모날(c)}에 주소를 읽고 정리한 자료 메모가 있습니다. 다음 글부터 주소를 다시 안 열고 이 메모로 빠르게 씁니다 (7일마다 새로 읽음).`)}">📒 메모 ${메모날(c)}</span>`);
+  }
   return 조각.length ? `<div class="cat-tags">${조각.join("")}</div>` : "";
+}
+
+/** 자료 메모가 아직 쓸 만한가 — 서버(pipeline/자료메모.ts)와 같은 7일. 주소를 바꾼 것은 서버가 가린다. */
+function 메모있나(c) {
+  if (!c || !c.research_brief || !c.brief_at) return false;
+  return Date.now() - Date.parse(c.brief_at) < 7 * 86_400_000;
+}
+function 메모날(c) {
+  const d = new Date(c.brief_at);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
 function renderCategories(categories) {
@@ -382,15 +395,14 @@ function renderCategories(categories) {
           <div class="cat-tools">
             <button class="link-btn" data-action="edit-category" data-id="${c.id}">✏️ 수정</button>
             <button class="link-btn danger" data-action="delete-category" data-id="${c.id}">🗑 삭제</button>
+            ${c.research_brief ? `<button class="link-btn" data-action="brief-reset" data-id="${c.id}" title="주소의 내용이 크게 바뀌었을 때 — 다음 글이 주소를 처음부터 다시 읽습니다">🔄 다시 읽기</button>` : ""}
           </div>
         </td>
         <td class="cat-keyword" data-label="주제 키워드">${c.topic_keyword
               ? `<span class="kw-pill">${escapeHtml(c.topic_keyword)}</span>${c.keyword_keep ? ' <span class="cat-tag keep" title="계속 유지">🔁 유지</span>' : ""}`
               : '<span class="muted">-</span>'}</td>
-        <td class="cat-active" data-label="활성"><span class="badge ${c.active ? "badge-active" : "badge-inactive"}">${c.active ? "활성" : "비활성"}</span></td>
-        <td class="cat-daily" data-label="하루 포스팅 수">${Number(c.daily_count ?? 1) === 0
-              ? '<span class="muted">쉼</span>'
-              : `<strong>${Number(c.daily_count ?? 1)}</strong>편`}</td>
+        <td class="cat-active" data-label="활성"><button class="badge active-toggle ${c.active ? "badge-active" : "badge-inactive"}" data-action="toggle-active" data-id="${c.id}"
+              title="${c.active ? "켜짐 — 아침 자동 준비에 들어갑니다. 누르면 끕니다" : "꺼짐 — 아침 자동 준비에서 빠집니다. 누르면 켭니다"}">${c.active ? "● 활성" : "○ 꺼짐"}</button></td>
         <td class="cat-gen"><button class="btn-primary gen-btn" data-action="generate" data-id="${c.id}" ${쓰는중 ? "disabled" : ""}>${쓰는중 ? "쓰는 중…" : "지금 생성"}</button></td>
         <td class="gen-status" data-status-for="${c.id}">${상태칸(c.id)}</td>`;
     }
@@ -614,12 +626,14 @@ async function refreshQueue() {
 
     card.innerHTML = `
       <div class="post-card-header">
-        <strong class="post-title-toggle" data-action="toggle-content" data-id="${p.id}">${escapeHtml(p.title ?? "(제목 없음)")}</strong>
-        <span class="badge">${escapeHtml(p.category_name)}</span>
+        <span class="badge post-cat">${escapeHtml(p.category_name)}</span>
+        <strong class="post-title-toggle" data-action="toggle-content" data-id="${p.id}"
+          title="누르면 본문을 펼치고 접습니다">${escapeHtml(p.title ?? "(제목 없음)")} <span class="muted title-len">${[...(p.title ?? "")].length}자</span></strong>
+        <button class="btn-secondary btn-copy-image post-title-copy" data-action="copy-title-variant" data-title="${escapeHtml(p.title ?? "")}">복사하기</button>
       </div>
       ${titleVariantsHtml}
       <div class="post-card-actions">
-        <button class="btn-secondary" data-action="copy" data-id="${p.id}">복사하기</button>
+        <button class="btn-secondary" data-action="copy" data-id="${p.id}" title="제목 + 본문 + 태그를 한꺼번에">전체 복사하기</button>
         <button class="btn-secondary" data-action="regenerate-image" data-id="${p.id}">이미지 재생성</button>
         <button class="btn-success" data-action="mark-published" data-id="${p.id}">발행 완료로 표시</button>
       </div>
@@ -979,7 +993,6 @@ document.getElementById("category-form").addEventListener("submit", async (e) =>
     excludeKeywords: form.excludeKeywords.value.trim() || null,
     mainUrl: form.mainUrl.value.trim() || null,
     referenceUrls: 참고주소줄읽기().join("\n") || null,
-    dailyCount: Number(form.dailyCount.value),
   };
   if (!값.name || !값.promptHint) { alert("이름과 카테고리 설명은 비워 둘 수 없습니다."); return; }
   try {
@@ -989,7 +1002,7 @@ document.getElementById("category-form").addEventListener("submit", async (e) =>
     });
     카테고리폼비우기();
     await refreshCategories();
-    // 편수를 바꾸면 «내일 몇 편» 이 달라진다. 설정 화면을 안 열어도 맞게 둔다.
+    // 카테고리가 늘거나 줄면 «내일 몇 편» 이 달라진다. 설정 화면을 안 열어도 맞게 둔다.
     await refreshSchedule();
   } catch (err) {
     alert(err.message);
@@ -1002,7 +1015,6 @@ function 카테고리폼비우기() {
   const form = document.getElementById("category-form");
   form.reset();
   form.id.value = "";
-  form.dailyCount.value = "1";
   참고주소줄그리기([""]);
   document.getElementById("category-form-title").textContent = "새 카테고리 추가";
   document.getElementById("category-submit").textContent = "추가";
@@ -1024,7 +1036,6 @@ function 카테고리폼채우기(c) {
   form.mainUrl.value = c.main_url || "";
   const 참고 = (c.reference_urls || "").split(/\s+/).filter(Boolean);
   참고주소줄그리기(참고.length ? 참고 : [""]);
-  form.dailyCount.value = Number(c.daily_count ?? 1);
   document.getElementById("category-form-title").textContent = `카테고리 수정 — ${c.name}`;
   document.getElementById("category-submit").textContent = "수정 저장";
   document.getElementById("category-cancel").hidden = false;
@@ -1089,7 +1100,9 @@ document.addEventListener("click", async (e) => {
       if (생성상태.get(카id)?.state === "running") return;     // 이미 쓰는 중
       // AI 가 끊긴 게 분명하면 몇 분 기다려 영문 오류를 받게 하지 않는다.
       if (!(await AI되나())) return;
-      생성상태.set(카id, { state: "running", start: Date.now() });
+      // 자료 메모가 있으면 주소를 다시 안 읽어 빠르다. 기다릴 시간을 다르게 알려 준다.
+      const 카 = categoriesCache.find((x) => x.id === 카id);
+      생성상태.set(카id, { state: "running", start: Date.now(), 예상: 메모있나(카) ? 210_000 : 480_000 });
       상태칸다시그리기(카id);
       const result = await api("/api/run/generate", {
         method: "POST",
@@ -1098,11 +1111,14 @@ document.addEventListener("click", async (e) => {
       // 글은 정상적으로 만들어졌지만 이미지 첨부만 실패한 경우, 서버가
       // 200 OK로 imageError 필드만 실어서 돌려준다. 상태칸에 남겨 둔다.
       생성상태.set(카id, {
-        state: result.imageError ? "imgwarn" : "done",
+        state: result.imageError ? "imgwarn" : "done", start: 생성상태.get(카id)?.start,
         postId: result.id, title: result.title, end: Date.now(), msg: result.imageError || "",
+        timing: result.timing || null,
       });
       상태칸다시그리기(카id);
       await refreshQueue();
+      // 첫 글이었으면 자료 메모가 생겼다 — 표의 📒 표시를 맞춘다.
+      if (result.timing && result.timing.첫글) await refreshCategories();
     } else if (action === "copy") {
       const post = readyPosts.find((p) => p.id === Number(id));
       if (post) {
@@ -1141,19 +1157,28 @@ document.addEventListener("click", async (e) => {
       const name = row.querySelector(".edit-name").value.trim();
       const promptHint = row.querySelector(".edit-hint").value.trim();
       const topicKeyword = row.querySelector(".edit-keyword").value.trim();
-      const dailyCount = Number(row.querySelector(".edit-daily").value);
       if (!name || !promptHint) {
         alert("이름과 설명은 비워둘 수 없습니다.");
         return;
       }
       await api(`/api/categories/${id}`, {
         method: "PUT",
-        body: JSON.stringify({ name, promptHint, topicKeyword: topicKeyword || null, dailyCount }),
+        body: JSON.stringify({ name, promptHint, topicKeyword: topicKeyword || null }),
       });
       editingCategoryId = null;
       await refreshCategories();
-      // 편수를 바꾸면 «내일 몇 편» 이 달라진다. 설정 화면을 안 열어도 맞게 둔다.
       await refreshSchedule();
+    } else if (action === "toggle-active") {
+      const c = categoriesCache.find((x) => x.id === Number(id));
+      if (!c) return;
+      await api(`/api/categories/${id}`, { method: "PUT", body: JSON.stringify({ active: !c.active }) });
+      await refreshCategories();
+      // 켜고 끄면 «내일 몇 편» 이 달라진다.
+      await refreshSchedule();
+    } else if (action === "brief-reset") {
+      if (!confirm("자료 메모를 지울까요?\n다음 글을 쓸 때 대표·참고 주소를 처음부터 다시 읽습니다 (그 한 편은 5~10분 걸릴 수 있어요).")) return;
+      await api(`/api/categories/${id}/brief-reset`, { method: "POST" });
+      await refreshCategories();
     } else if (action === "toggle-content") {
       const postId = Number(id);
       const preview = btn.closest(".post-card").querySelector(".post-preview");
@@ -1493,9 +1518,9 @@ async function refreshSchedule() {
   if (수) 수.textContent = s.planned;
   if (말) {
     말.textContent = s.trimmed > 0
-      ? `카테고리 편수를 모두 더하면 ${s.planned + s.trimmed}편인데, 하루 상한이 ${s.dailyCap}편이라 ${s.trimmed}편은 잘립니다.`
+      ? `켜진 카테고리가 ${s.planned + s.trimmed}개인데, 하루 상한이 ${s.dailyCap}편이라 ${s.trimmed}개는 오늘 쉽니다 (차례에 따라 돌아갑니다).`
       : s.planned === 0
-        ? "지금은 아무것도 준비되지 않습니다. [블로그 관리]에서 카테고리의 하루 편수를 1 이상으로 올려 주세요."
+        ? "지금은 아무것도 준비되지 않습니다. [블로그 관리]에서 카테고리의 «활성» 을 눌러 켜 주세요."
         : "지금 설정대로면 내일 아침에 이만큼 준비됩니다.";
   }
 
@@ -2299,15 +2324,19 @@ document.addEventListener("keydown", (e) => {
 // 다시 그려도 그 값으로 그린다. 시간이 지남에 따라 귀여운 말로 바꿔 준다.
 
 
-/** 시간대별 말. [초기 0~40초] [중간 ~2분 30초] [마지막 그 뒤]. 같은 단계 안에서 8초마다 돈다. */
+/**
+ * 단계별 말. 같은 단계 안에서 8초마다 돈다.
+ * 단계는 **예상 시간의 비율**로 나눈다 — 초기 ~15% · 중간 ~70% · 마지막. 첫 글(주소를
+ * 읽음, 예상 8분)과 자료 메모로 쓰는 글(예상 3분 30초)의 «거의 다 왔어요» 시점이 다르다.
+ */
 const 쓰는중말 = [
-  { until: 40_000, step: "초기", lines: [
+  { until: 0.15, step: "초기", lines: [
     "✏️ 이제 막 연필 깎는 중이에요",
     "🔎 자료부터 살짝 찾아보고 있어요",
     "☕ 커피 한 모금 마시고 시작할게요",
     "📚 오늘 쓸 이야기를 고르는 중이에요",
   ] },
-  { until: 150_000, step: "중간", lines: [
+  { until: 0.7, step: "중간", lines: [
     "📝 시작이 반이래요! 열심히 쓰고 있어요",
     "🧠 문장 다듬는 중… 머리 굴러가는 소리 들리시죠?",
     "🖼️ 글에 어울리는 사진도 고르고 있어요",
@@ -2322,8 +2351,11 @@ const 쓰는중말 = [
 ];
 
 function 지난시간(ms) {
-  const 초 = Math.max(0, Math.floor(ms / 1000));
-  return 초 < 60 ? `${초}초째` : `${Math.floor(초 / 60)}분 ${초 % 60}초째`;
+  return `${걸린시간(ms)}째`;
+}
+function 걸린시간(ms) {
+  const 초 = Math.max(0, Math.round(ms / 1000));
+  return 초 < 60 ? `${초}초` : `${Math.floor(초 / 60)}분${초 % 60 ? ` ${초 % 60}초` : ""}`;
 }
 
 function 상태칸(카id) {
@@ -2333,29 +2365,37 @@ function 상태칸(카id) {
     const 최근 = (readyPosts || []).filter((p) => p.category_id === 카id)
       .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
     return 최근
-      ? `<span class="gs gs-idle">🗂️ 준비된 초안 있음</span> <button class="link-btn" data-action="go-post" data-post="${최근.id}">보러 가기 →</button>`
-      : '<span class="muted">-</span>';
+      ? `<div class="gs gs-idle">🗂️ 준비된 초안 있음 <button class="link-btn" data-action="go-post" data-post="${최근.id}">보러 가기 →</button></div>`
+      : '<div class="gs gs-none">-</div>';
   }
   if (s.state === "running") {
     const 지난 = Date.now() - s.start;
-    const 단계 = 쓰는중말.find((x) => 지난 < x.until);
+    const 예상 = s.예상 || 210_000;
+    const 단계 = 쓰는중말.find((x) => 지난 < x.until * 예상);
     const 말 = 단계.lines[Math.floor(지난 / 8000) % 단계.lines.length];
     const 몇번째 = 쓰는중말.indexOf(단계);
     return `<div class="gs gs-run" role="status" aria-live="polite">
         <span class="gs-steps">${쓰는중말.map((x, i) => `<i class="${i < 몇번째 ? "done" : i === 몇번째 ? "now" : ""}">${x.step}</i>`).join("")}</span>
         <span class="gs-line">${escapeHtml(말)}</span>
-        <span class="gs-time">${지난시간(지난)} · 보통 2~5분</span>
+        <span class="gs-time">${지난시간(지난)} · ${예상 > 300_000 ? "첫 글은 자료를 읽느라 5~10분" : "📒 자료 메모로 보통 2~4분"}</span>
       </div>`;
   }
   const 보러 = s.postId ? ` <button class="link-btn strong" data-action="go-post" data-post="${s.postId}">글 보러 가기 →</button>` : "";
+  // 무엇에 얼마나 걸렸나 — «글 2분 40초 · 사진 35초». 느릴 때 어디가 느린지 보인다.
+  const t = s.timing;
+  const 내역 = t
+    ? `<span class="gs-time">${걸린시간(t.전체ms)} · 글 ${걸린시간(t.글ms)} · 사진 ${걸린시간(t.사진ms)}${
+        t.첫글 ? " · 📒 자료 메모 새로 만듦" : t.메모씀 ? " · 📒 메모로 씀" : ""}${
+        t.다시 && t.다시.length ? ` · 다시 쓴 것: ${t.다시.join("·")}` : ""}</span>`
+    : s.end && s.start ? `<span class="gs-time">${걸린시간(s.end - s.start)}</span>` : "";
   if (s.state === "done") {
-    return `<div class="gs gs-done">🎉 짠! 완성됐어요${s.end && s.start ? ` <span class="gs-time">(${Math.round((s.end - s.start) / 1000)}초)</span>` : ""}${보러}</div>`;
+    return `<div class="gs gs-done"><span class="gs-line">🎉 짠! 완성됐어요${보러}</span>${내역}</div>`;
   }
   if (s.state === "imgwarn") {
-    return `<div class="gs gs-warn">🎉 글은 완성! 사진만 못 붙였어요 — 카드에서 [이미지 재생성]을 눌러 주세요${보러}</div>`;
+    return `<div class="gs gs-warn"><span class="gs-line">🎉 글은 완성! 사진만 못 붙였어요${보러}</span><span class="gs-time">카드에서 [이미지 재생성]을 눌러 주세요</span>${내역}</div>`;
   }
-  return `<div class="gs gs-err">😢 앗, 이번엔 못 썼어요
-      <button class="link-btn" data-action="show-gen-error" data-id="${카id}">이유 보기</button></div>`;
+  return `<div class="gs gs-err"><span class="gs-line">😢 앗, 이번엔 못 썼어요
+      <button class="link-btn" data-action="show-gen-error" data-id="${카id}">이유 보기</button></span></div>`;
 }
 
 function 상태칸다시그리기(카id) {
@@ -2379,16 +2419,18 @@ window.addEventListener("beforeunload", (e) => {
   if ([...생성상태.values()].some((s) => s.state === "running")) { e.preventDefault(); e.returnValue = ""; }
 });
 
-/** 그 초안으로 바로 간다 — [포스팅] 을 열고 카드를 펼쳐 비춘다. */
+/**
+ * 그 초안으로 바로 간다 — [포스팅] 을 열고 카드를 비춘다.
+ * **본문은 닫힌 채로 둔다.** 펼치면 긴 본문이 화면을 덮어 제목·후보·단추가 안 보인다.
+ * 제목을 누르면 펼쳐진다.
+ */
 async function 초안으로가기(postId) {
   await switchView("drafts");
   try { await refreshQueue(); } catch { /* 이미 있는 것으로 */ }
   const 카드 = document.querySelector(`.post-card[data-post-id="${postId}"]`);
   if (!카드) { alert("그 초안을 찾지 못했습니다. 이미 [발행 완료]로 옮겼을 수 있습니다 — [발행 이력]을 보세요."); return; }
-  if (!expandedPostIds.has(Number(postId))) {
-    expandedPostIds.add(Number(postId));
-    카드.querySelector(".post-preview")?.classList.remove("collapsed");
-  }
+  expandedPostIds.delete(Number(postId));
+  카드.querySelector(".post-preview")?.classList.add("collapsed");
   카드.scrollIntoView({ behavior: "smooth", block: "start" });
   카드.classList.add("flash");
   setTimeout(() => 카드.classList.remove("flash"), 2600);

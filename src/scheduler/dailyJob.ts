@@ -47,8 +47,8 @@ export async function runDailyJob(): Promise<void> {
   const 할일 = 오늘목록(방식);
   const n = 할일.length;
   if (n === 0) {
-    console.log("[dailyJob] 오늘 만들 것이 없습니다 — 쓸 카테고리가 없거나 "
-              + "하루 편수가 전부 0 입니다.");
+    console.log("[dailyJob] 오늘 만들 것이 없습니다 — "
+              + "켜진 카테고리가 없습니다.");
     return;
   }
   console.log(`[dailyJob] ${차례이름[방식]} · 오늘 ${n}편 준비합니다.`);

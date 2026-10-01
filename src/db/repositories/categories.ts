@@ -1,13 +1,5 @@
 import { getDb } from "../index.js";
 import { 지금주인 } from "../../tenancy.js";
-import { 카테고리상한 } from "../../scheduler/예약.js";
-
-/** 편수는 0~10 사이여야 한다. 화면을 안 거치고 들어오는 길도 있어서 여기서 막는다. */
-function 맞춘편수(값: number | undefined): number {
-  const n = Math.floor(Number(값));
-  if (!Number.isFinite(n)) return 1;
-  return Math.max(0, Math.min(카테고리상한, n));
-}
 
 export interface Category {
   id: number;
@@ -18,7 +10,7 @@ export interface Category {
   last_used_at: string | null;
   created_at: string;
   topic_keyword: string | null;
-  /** 하루에 몇 편 준비할지 (0~10). 0 이면 쉰다. scheduler/예약.ts 참고 */
+  /** 예전의 «하루 편수». 이제 쓰지 않는다 — 늘 1. db/index.ts 참고 */
   daily_count: number;
   /** 누구의 자리인가. 빈 값이면 주인 것. tenancy.ts 참고 */
   owner_key: string;
@@ -32,6 +24,10 @@ export interface Category {
   main_url: string | null;
   /** 1 이면 주제 키워드를 쓰고 나서도 비우지 않는다 */
   keyword_keep: 0 | 1;
+  /** 첫 글 때 주소를 읽고 남긴 자료 메모. pipeline/자료메모.ts 참고 */
+  research_brief: string | null;
+  brief_sig: string | null;
+  brief_at: string | null;
 }
 
 /** 참고 주소를 다듬는다 — http(s) 만, 줄마다 하나, 10개까지. */
@@ -74,7 +70,6 @@ export function createCategory(input: {
   requiresSearch: boolean;
   promptHint: string;
   topicKeyword?: string | null;
-  dailyCount?: number;
   mustKeywords?: string | null;
   excludeKeywords?: string | null;
   referenceUrls?: string | null;
@@ -84,10 +79,10 @@ export function createCategory(input: {
   const result = getDb()
     .prepare(
       "INSERT INTO categories (name, requires_search, prompt_hint, active, topic_keyword, daily_count, owner_key,"
-      + " must_keywords, exclude_keywords, reference_urls, keyword_keep, main_url) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)",
+      + " must_keywords, exclude_keywords, reference_urls, keyword_keep, main_url) VALUES (?, ?, ?, 1, ?, 1, ?, ?, ?, ?, ?, ?)",
     )
     .run(input.name, input.requiresSearch ? 1 : 0, input.promptHint, input.topicKeyword || null,
-         맞춘편수(input.dailyCount), 지금주인(),
+         지금주인(),
          말다듬기(input.mustKeywords), 말다듬기(input.excludeKeywords), 주소다듬기(input.referenceUrls),
          input.keywordKeep ? 1 : 0, 대표주소다듬기(input.mainUrl));
   return getCategory(Number(result.lastInsertRowid))!;
@@ -101,7 +96,6 @@ export function updateCategory(
     promptHint: string;
     active: boolean;
     topicKeyword: string | null;
-    dailyCount: number;
     mustKeywords: string | null;
     excludeKeywords: string | null;
     referenceUrls: string | null;
@@ -113,7 +107,7 @@ export function updateCategory(
   if (!current) throw new Error(`Category ${id} not found`);
   getDb()
     .prepare(
-      "UPDATE categories SET name = ?, requires_search = ?, prompt_hint = ?, active = ?, topic_keyword = ?, daily_count = ?,"
+      "UPDATE categories SET name = ?, requires_search = ?, prompt_hint = ?, active = ?, topic_keyword = ?,"
       + " must_keywords = ?, exclude_keywords = ?, reference_urls = ?, keyword_keep = ?, main_url = ? WHERE id = ? AND owner_key = ?",
     )
     .run(
@@ -122,7 +116,6 @@ export function updateCategory(
       input.promptHint ?? current.prompt_hint,
       input.active !== undefined ? (input.active ? 1 : 0) : current.active,
       input.topicKeyword !== undefined ? input.topicKeyword || null : current.topic_keyword,
-      input.dailyCount !== undefined ? 맞춘편수(input.dailyCount) : current.daily_count,
       input.mustKeywords !== undefined ? 말다듬기(input.mustKeywords) : current.must_keywords,
       input.excludeKeywords !== undefined ? 말다듬기(input.excludeKeywords) : current.exclude_keywords,
       input.referenceUrls !== undefined ? 주소다듬기(input.referenceUrls) : current.reference_urls,
@@ -131,6 +124,13 @@ export function updateCategory(
       id,
       지금주인(),
     );
+}
+
+/** 자료 메모를 적는다. 빈 값이면 지운다 — 다음 글이 주소를 다시 읽는다. */
+export function 메모적기(id: number, 메모: string | null, 지문: string | null): void {
+  getDb().prepare(
+    "UPDATE categories SET research_brief = ?, brief_sig = ?, brief_at = ? WHERE id = ? AND owner_key = ?",
+  ).run(메모, 메모 ? 지문 : null, 메모 ? new Date().toISOString() : null, id, 지금주인());
 }
 
 export function deleteCategory(id: number): void {

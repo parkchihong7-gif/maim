@@ -1758,3 +1758,42 @@ body:not(.is-trial) [data-trial-only]{display:none !important}
   #category-table td.cat-gen .gen-btn{width:100%}
   #category-table td.gen-status:empty,#category-table td.gen-status:has(> .muted:only-child){display:none}
 }
+
+/* ── 수정사항-1: 칸 너비 고정 · 상태창 높이 고정 ── */
+#category-table{table-layout:fixed;width:100%}
+#category-table col.c-topic{width:24%}
+#category-table col.c-kw{width:18%}
+#category-table col.c-active{width:92px}
+#category-table col.c-gen{width:112px}
+#category-table col.c-status{width:auto}
+#category-table td.cat-topic strong,#category-table .kw-pill{overflow-wrap:anywhere}
+/* 말이 바뀌어도 줄 높이·칸 너비가 그대로 — 두 줄 자리를 늘 잡아 둔다 */
+#category-table .gen-status .gs{min-height:3.3em;display:flex;flex-direction:column;justify-content:center;box-sizing:border-box}
+#category-table .gen-status .gs-run .gs-line{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;min-height:2.9em;line-height:1.45;overflow:hidden}
+#category-table .gen-status .gs-time{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#category-table .gen-status .gs-none{color:#9aa3b2}
+.active-toggle{cursor:pointer;border:0;font:inherit;font-size:12px}
+.active-toggle:hover{filter:brightness(.95);outline:1px solid currentColor}
+.badge-inactive.active-toggle{background:#eef0f4;color:#7a8394}
+.cat-tag.memo{background:#fff7e0;color:#8a5a00;border-color:#f1d48a}
+/* 포스팅 카드 머리: [카테고리] [제목] [복사하기] */
+.post-card-header{justify-content:flex-start;align-items:flex-start}
+.post-card-header .post-cat{flex:none;margin-top:2px}
+.post-card-header .post-title-toggle{flex:1;min-width:0;overflow-wrap:anywhere}
+.post-card-header .post-title-toggle .title-len{font-weight:400;font-size:12px}
+.post-card-header .post-title-copy{flex:none}
+@media (max-width:700px){
+  #category-table{table-layout:auto}
+  #category-table td.cat-active{grid-column:1/-1}
+  #category-table .gen-status .gs-line{white-space:normal}
+  .post-card-header{flex-wrap:wrap}
+  .post-card-header .post-title-toggle{flex-basis:100%;order:2}
+  .post-card-header .post-title-copy{order:3}
+}
+#category-table .cat-tools{display:flex;flex-wrap:wrap;gap:2px 10px}
+#category-table .cat-tools .link-btn{white-space:nowrap;padding-left:0;padding-right:0}
+#category-table .gen-status .gs-done .gs-time,#category-table .gen-status .gs-warn .gs-time{white-space:normal}
+@media (max-width:700px){
+  #category-table td.gen-status:has(> .gs-none){display:none}
+  #category-table .gen-status .gs{text-align:left;align-items:flex-start}
+}

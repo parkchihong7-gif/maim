@@ -7,8 +7,11 @@
  *
  * 이제 두 가지를 정하신다.
  *
- *   카테고리마다  하루 몇 편 (0~10). 0 이면 오늘은 쉰다
+ *   하루 상한     하루에 모두 몇 편까지 (켜진 카테고리마다 한 편씩, 이 수에서 자른다)
  *   차례          순차 / 랜덤 / 덜 쓴 것 먼저
+ *
+ * 예전에는 카테고리마다 «하루 몇 편» 도 정했다. 한 카테고리로 하루 여러 편을
+ * 쓰는 일이 없어 화면에서 뺐다 — 켜진 카테고리는 하루 한 편이다.
  *
  * 차례가 왜 필요한가
  *   하루 상한에 걸려 뒤가 잘릴 때, **무엇이 잘리느냐**가 달라진다.
@@ -62,8 +65,8 @@ export function 상한정하기(값: number): number {
   return n;
 }
 
-/** 카테고리 하나에 줄 수 있는 최대 편수. */
-export const 카테고리상한 = 하루최대;
+/** 카테고리 하나가 하루에 쓰는 편수. 이제 늘 1 이다. */
+export const 카테고리상한 = 1;
 
 export type 차례 = "sequential" | "random" | "least_used";
 
@@ -145,7 +148,7 @@ export function 줄세우기(방식: 차례 = 지금차례()): Category[] {
     // 그 뜻이 코드에 안 드러난다. 명시해 둔다.
     : "last_used_at IS NOT NULL, last_used_at ASC, id ASC";
   const 줄 = db.prepare(
-    `SELECT * FROM categories WHERE owner_key = ? AND active = 1 AND daily_count > 0
+    `SELECT * FROM categories WHERE owner_key = ? AND active = 1
      ORDER BY ${정렬}`,
   ).all(주인) as Category[];
   return 방식 === "random" ? 섞기(줄) : 줄;
@@ -171,7 +174,8 @@ export function 오늘목록(방식: 차례 = 지금차례()): 오늘할일[] {
   const 줄 = 줄세우기(방식);
   if (줄.length === 0) return [];
 
-  const 남은 = 줄.map((c) => Math.max(0, Math.min(카테고리상한, c.daily_count ?? 1)));
+  // 켜진 카테고리마다 한 편.
+  const 남은 = 줄.map(() => 1);
   const 센것 = 줄.map(() => 0);
   const 목록: 오늘할일[] = [];
 
@@ -191,7 +195,7 @@ export function 오늘목록(방식: 차례 = 지금차례()): 오늘할일[] {
 export function 오늘몇편(방식: 차례 = 지금차례()): { 계획: number; 잘림: number; 상한: number } {
   const 상한 = 지금상한();
   const 줄 = 줄세우기(방식);
-  const 합 = 줄.reduce((a, c) => a + Math.max(0, Math.min(카테고리상한, c.daily_count ?? 1)), 0);
+  const 합 = 줄.length;
   return { 계획: Math.min(합, 상한), 잘림: Math.max(0, 합 - 상한), 상한 };
 }
 

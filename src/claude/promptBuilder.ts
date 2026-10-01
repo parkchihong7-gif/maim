@@ -3,6 +3,14 @@ import type { PostDirective } from "../pipeline/directives.js";
 import { buildStyleRulesBlock } from "./styleRules.js";
 import { buildTitleRuleBlock, 목표최소, 목표최대 } from "./제목규칙.js";
 import { buildSeoRuleBlock } from "./검색노출규칙.js";
+import type { 자료메모 } from "../pipeline/자료메모.js";
+
+export interface 글옵션 {
+  /** 지난 글 때 주소를 읽고 남긴 메모. 있으면 주소를 다시 열지 않는다. */
+  메모?: 자료메모 | null;
+  /** 참이면 이번 글에서 자료 메모(brief)를 함께 돌려 달라고 한다 — 첫 글. */
+  메모요청?: boolean;
+}
 
 export function buildPostPrompt(
   category: Category,
@@ -10,9 +18,11 @@ export function buildPostPrompt(
   todayIso: string,
   recentTitles: string[] = [],
   blogProfileBlock = "",
+  옵션: 글옵션 = {},
 ): string {
+  const 메모 = 옵션.메모 ?? null;
   const searchInstruction = category.requires_search
-    ? `이 카테고리는 반드시 웹 검색으로 실제 최신 정보를 확인해서 정확하게 반영하라. 검색 없이 추측하지 마라.
+    ? `${메모 ? `웹 검색은 **최근 소식 확인용으로 2~3번만** 하라. 기본 바탕은 아래 «자료 메모» 에 있으니 주소를 새로 열지 마라.\n` : ""}이 카테고리는 반드시 웹 검색으로 실제 최신 정보를 확인해서 정확하게 반영하라. 검색 없이 추측하지 마라.
 단, 이번 달/이번 주 소식을 여러 건 나열하며 정리하는 "월간 총정리"나 "이슈 모음집" 형태로 쓰지 마라.
 검색으로 찾은 여러 후보 뉴스·이슈 중에서, 실제로 대중의 관심이 크다고 판단되는 것(여러 매체가
 동시에 비중 있게 다뤘거나, 반응·댓글·공유가 많이 달렸을 법한 것) 딱 하나만 골라, 그 사건 하나에
@@ -63,13 +73,37 @@ ${recentTitles.map((t) => `- ${t}`).join("\n")}
 - 빼야 할 말(다른 뜻): ${빼기} — 이 말이 들어간 소재는 쓰지 않는다.` : ""}
 ` : ""}`;
 
-  const categoryUrlBlock = 대표주소 || 카테고리주소.length
+  const 메모날 = 메모 ? 메모.at.slice(0, 10) : "";
+  const categoryUrlBlock = 메모
+    ? `
+[자료 메모 — ${메모날}에 대표·참고 주소를 열어 읽고 정리해 둔 이 카테고리의 기본 바탕]
+${메모.text}
+이 메모가 이번 글의 기본 자료다. **주소를 다시 열지 마라.** 메모의 사실·숫자를 바탕으로 쓰되,
+${category.requires_search || category.topic_keyword || 대표주소 || 카테고리주소.length
+    ? `메모 이후의 최근 소식·이슈만 웹 검색 2~3번으로 확인해 더하라. 이미 쓴 글(아래 제목들)과 겹치지 않는 새 각도를 메모에서 골라라.`
+    : `웹 검색 없이 메모와 네 지식으로 써라. 이미 쓴 글(아래 제목들)과 겹치지 않는 새 각도를 메모에서 골라라.`}
+`
+    : 대표주소 || 카테고리주소.length
     ? `
 [이 카테고리의 주소 — 글을 쓰기 전에 먼저 열어 보라]${대표주소 ? `
 - 대표 주소(기준 출처, 가장 먼저): ${대표주소}` : ""}${카테고리주소.length ? `
 - 참고 주소: ${카테고리주소.join(" · ")}` : ""}
 대표 주소의 최신 글·공지·자료에서 이번 글의 소재를 먼저 찾고, 참고 주소로 사실과 숫자를 보강하라.
 문장은 베끼지 말고 네 말로 다시 쓰고, 숫자·날짜는 출처 그대로 옮겨라. 열리지 않으면 건너뛰고 웹 검색으로 대신하라.
+주소는 대표 주소와 참고 주소만 열고, 그 안의 링크를 줄줄이 따라가지 마라.
+`
+    : "";
+
+  // 첫 글 — 읽은 것을 메모로 남겨 받는다. 다음 글부터 주소를 다시 안 연다.
+  const 메모요청 = 옵션.메모요청 && !메모;
+  const briefInstruction = 메모요청
+    ? `
+[자료 메모 남기기] 이번에 열어 본 주소와 검색에서 확인한 것을, **다음 글을 쓸 때 주소를 다시 열지 않아도 되게**
+brief 에 정리하라. 600~1200자, 줄글이 아니라 짧은 줄로:
+- 출처별 핵심 사실·숫자(날짜 포함) — «(출처 이름) 내용» 꼴
+- 이 블로그·카테고리가 다룰 만한 소재 5~8개 (이번 글에서 쓴 것은 «썼음» 표시)
+- 독자층과 자주 쓰는 용어·말투
+지어낸 것은 넣지 마라. 확인한 것만 넣어라.
 `
     : "";
 
@@ -99,9 +133,36 @@ ${buildStyleRulesBlock(directive)}
 ${buildTitleRuleBlock()}
 ${buildSeoRuleBlock(directive)}
 ${titleVariantsInstruction}
-
+${briefInstruction}
 최종 답변은 마크다운 코드블록이나 다른 설명 없이 오직 순수 JSON 데이터 형식으로만 출력하라:
-{"keyword": "앞머리 세부 키워드 조합(3~4낱말)", "title": "앞머리 키워드 + 후킹 문구 (${목표최소}~${목표최대}자)", "content": "...", "image_query": "...", "tags": ["#태그1", "#태그2"], "title_variants": ["조건·기준형 후킹 제목", "방법·절차형 후킹 제목", "후기·비교형 후킹 제목"]}
+{"keyword": "앞머리 세부 키워드 조합(3~4낱말)", "title": "앞머리 키워드 + 후킹 문구 (${목표최소}~${목표최대}자)", "content": "...", "image_query": "...", "tags": ["#태그1", "#태그2"], "title_variants": ["조건·기준형 후킹 제목", "방법·절차형 후킹 제목", "후기·비교형 후킹 제목"]${메모요청 ? `, "brief": "다음 글을 위한 자료 메모"` : ""}}
+`.trim();
+}
+
+/**
+ * 분량만 모자랄 때 — **다시 조사하지 않고** 받은 글을 늘리게 한다.
+ *
+ * 예전에는 처음과 같은 지시를 통째로 다시 보내서, 검색·주소 열기부터 새로
+ * 했다. 글 한 편 시간이 그대로 한 번 더 들었다(3~5분). 이미 쓴 글에 살을
+ * 붙이는 일에는 검색이 필요 없다.
+ */
+export function buildExpandPrompt(
+  이전: { keyword: string; title: string; content: string; image_query: string; tags: string[]; title_variants: string[] },
+  최소: number,
+  목표: number,
+): string {
+  const 모자람 = 최소 - 이전.content.length;
+  return `
+아래는 네이버 블로그용으로 방금 쓴 글이다. 본문이 ${이전.content.length}자라 **최소 ${최소}자에 ${모자람}자 모자란다.**
+본문을 ${목표}자 안팎으로 늘려라. 규칙:
+- 새 검색이나 새 주제 없이, 이미 쓴 각 문단에 구체적인 사례·숫자·상황 묘사·독자가 해 볼 일을 덧붙여 늘린다.
+- 문단 순서와 소제목, 말투, 줄바꿈 모양은 그대로 둔다. 사실을 지어내지 마라.
+- 제목·키워드·태그·이미지 검색어·제목 후보는 그대로 둔다.
+
+[방금 쓴 글]
+${JSON.stringify(이전)}
+
+최종 답변은 다른 설명 없이 위와 같은 모양의 순수 JSON 하나만 출력하라(content 만 늘린 것).
 `.trim();
 }
 

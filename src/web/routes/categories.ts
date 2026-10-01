@@ -3,8 +3,7 @@ import {
   listAllCategories,
   createCategory,
   updateCategory,
-  deleteCategory,
-} from "../../db/repositories/categories.js";
+  deleteCategory, 메모적기 } from "../../db/repositories/categories.js";
 import {
   오늘목록, 오늘몇편, 지금차례, 차례정하기, 차례이름, 하루최대, 지금상한, 상한정하기, 카테고리상한,
   지금시각, 크론식,
@@ -131,7 +130,6 @@ export async function categoriesRoutes(app: FastifyInstance) {
       requiresSearch: boolean;
       promptHint: string;
       topicKeyword?: string | null;
-      dailyCount?: number;
       mustKeywords?: string | null;
       excludeKeywords?: string | null;
       referenceUrls?: string | null;
@@ -157,7 +155,6 @@ export async function categoriesRoutes(app: FastifyInstance) {
         promptHint: string;
         active: boolean;
         topicKeyword: string | null;
-        dailyCount: number;
         mustKeywords: string | null;
         excludeKeywords: string | null;
         referenceUrls: string | null;
@@ -165,6 +162,13 @@ export async function categoriesRoutes(app: FastifyInstance) {
         keywordKeep: boolean;
       }>,
     );
+    return { ok: true };
+  });
+
+  // [자료 다시 읽기] — 메모를 지우면 다음 글이 주소를 새로 열어 읽고 메모를 다시 만든다.
+  app.post("/api/categories/:id/brief-reset", async (req) => {
+    const id = Number((req.params as { id: string }).id);
+    메모적기(id, null, null);
     return { ok: true };
   });
 

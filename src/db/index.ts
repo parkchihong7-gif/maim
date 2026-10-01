@@ -114,6 +114,20 @@ function runMigrations(database: Database.Database) {
   //
   // 기본값 1 로 둔다. 이 칸이 생겨도 어제와 똑같이 돈다.
   칸붙이기(database, "categories", "daily_count", "INTEGER NOT NULL DEFAULT 1");
+  // **하루 편수는 화면에서 뺐다.** 한 카테고리에서 하루 여러 편을 쓰는 일이
+  // 없어서다 — 이제 켜진 카테고리마다 하루 한 편, 전체는 하루 상한까지.
+  // 예전에 0(쉼)으로 두셨던 것은 «꺼짐» 과 같은 뜻이니 그렇게 옮긴다.
+  // 0 을 적는 길이 없어졌으므로 몇 번을 돌아도 한 번만 바뀐다.
+  database.exec("UPDATE categories SET active = 0, daily_count = 1 WHERE daily_count = 0");
+
+  // ── 자료 메모 ────────────────────────────────────────────────
+  //
+  // 첫 글을 쓸 때 대표·참고 주소를 열어 읽은 것을 짧게 남겨 둔다. 두 번째
+  // 글부터는 주소를 다시 열지 않고 이 메모를 바탕으로, 최근 소식만 검색해서
+  // 쓴다. 주소를 열고 읽는 데 글 한 편 시간의 절반 넘게 들었다(6~9분).
+  칸붙이기(database, "categories", "research_brief", "TEXT");
+  칸붙이기(database, "categories", "brief_sig", "TEXT");        // 메모를 만들 때의 주소·설명 지문
+  칸붙이기(database, "categories", "brief_at", "TEXT");         // 메모를 만든 때 (ISO)
 
   database.exec(`
     CREATE INDEX IF NOT EXISTS idx_categories_owner ON categories (owner_key);

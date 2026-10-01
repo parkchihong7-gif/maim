@@ -2,7 +2,9 @@ import { DateTime } from "luxon";
 import type { Category } from "../db/repositories/categories.js";
 import { insertDraftPost, listRecentTitles, type Post } from "../db/repositories/posts.js";
 import { markCategoryUsed } from "../db/repositories/categories.js";
-import { buildPostPrompt } from "../claude/promptBuilder.js";
+import { buildPostPrompt, buildExpandPrompt } from "../claude/promptBuilder.js";
+import { 쓸메모, 메모지문, 조사할것이있나 } from "./자료메모.js";
+import { 메모적기 } from "../db/repositories/categories.js";
 import { buildBlogProfileBlock, 세부주제읽기, 주소목록읽기, 브랜드읽기 } from "../claude/blogProfile.js";
 import { runAI, 지금엔진, 시간초과인가 } from "../ai/run.js";
 import { parsePostResponse } from "../claude/parseResponse.js";
@@ -17,8 +19,21 @@ import { 제목고르기 } from "../claude/제목규칙.js";
 // 목표가 4,000자여도 2,100자만 나오면 「기준은 넘었다」 며 통과했다.
 // settings.ts 의 최소분량() 설명을 보라.
 
+/** 한 편을 만드는 데 무엇에 얼마나 걸렸나. 화면 상태창에 보여 준다. */
+export interface 생성기록 {
+  /** 글쓰기(AI 부르기) 전체 ms */
+  글ms: number;
+  /** 첫 글이라 주소를 읽었나 (참이면 자료 메모를 새로 만들었다) */
+  첫글: boolean;
+  /** 지난번 자료 메모를 썼나 */
+  메모씀: boolean;
+  /** 다시 부른 까닭들 — "JSON", "분량" */
+  다시: string[];
+}
+
 /** 카테고리 1개에 대해 claude -p를 호출해 draft 포스팅 1건을 생성한다. */
-export async function generatePost(category: Category, directive: PostDirective): Promise<Post> {
+export async function generatePost(category: Category, directive: PostDirective, 기록?: 생성기록): Promise<Post> {
+  const 시작 = Date.now();
   const today = DateTime.now().setZone(config.timezone).toFormat("yyyy-MM-dd");
   const recentTitles = listRecentTitles(20);
   // 글 스타일은 **이 글을 만드는 자리의 것**이다. 체험 키로 만든 글은 그
@@ -33,7 +48,11 @@ export async function generatePost(category: Category, directive: PostDirective)
     "blog_brand",
   ]);
   const 참고주소들 = 주소목록읽기(blogSettings.blog_links);
+  // 지난 글에서 주소를 읽고 남긴 메모가 있으면 이번엔 주소를 열지 않는다.
+  const 조사 = 조사할것이있나(category, 참고주소들.length);
+  const 메모 = 조사 ? 쓸메모(category, blogSettings.blog_links) : null;
   const blogProfileBlock = buildBlogProfileBlock({
+    주소는메모로: !!메모,
     blogType: blogSettings.blog_type,
     blogTopic: blogSettings.blog_topic,
     blogTopics: 세부주제읽기(blogSettings.blog_topics),
@@ -42,14 +61,19 @@ export async function generatePost(category: Category, directive: PostDirective)
     postingDirectionInstruction: resolvePostingDirectionInstruction(blogSettings.posting_direction_preset),
     postingDirectionRefinement: blogSettings.posting_direction_refinement,
   });
-  const prompt = buildPostPrompt(category, directive, today, recentTitles, blogProfileBlock);
+  const prompt = buildPostPrompt(category, directive, today, recentTitles, blogProfileBlock,
+    { 메모, 메모요청: 조사 && !메모 });
 
-  // 참고 주소가 있으면 열어 봐야 하므로 검색·열람 도구를 켠다.
-  const requiresSearch = category.requires_search === 1
-    || 참고주소들.length > 0 || !!(category.reference_urls ?? "").trim() || !!(category.main_url ?? "").trim();
+  // 첫 글: 참고 주소가 있으면 열어 봐야 하므로 검색·열람 도구를 켠다.
+  // 메모가 있으면: 주소는 안 열고(검색만), 최근 소식을 볼 까닭이 있을 때만 검색한다.
+  const 카테고리주소있음 = !!(category.reference_urls ?? "").trim() || !!(category.main_url ?? "").trim();
+  const requiresSearch = 메모
+    ? category.requires_search === 1 || !!category.topic_keyword || 카테고리주소있음
+    : 조사;
+  const 다시 = 기록?.다시 ?? [];
 
-  const attempt = async (p: string) => {
-    const 답 = await runAI({ prompt: p, needsSearch: requiresSearch });
+  const attempt = async (p: string, 도구 = true) => {
+    const 답 = await runAI({ prompt: p, needsSearch: 도구 && requiresSearch, searchOnly: !!메모 });
     return parsePostResponse(답);
   };
 
@@ -69,6 +93,7 @@ export async function generatePost(category: Category, directive: PostDirective)
                     + `[관리자 설정] 1단계에서 다른 모델을 적어 보십시오.`);
     }
     const retryPrompt = `${prompt}\n\n(주의: 이전 응답이 올바른 JSON 형식이 아니었다. 반드시 다른 텍스트 없이 순수 JSON 객체 하나만 출력하라.)`;
+    다시.push("JSON");
     try {
       parsed = await attempt(retryPrompt);
     } catch (secondErr) {
@@ -83,12 +108,11 @@ export async function generatePost(category: Category, directive: PostDirective)
   if (parsed.post.content.length < 최소) {
     const shortLength = parsed.post.content.length;
     // 모자란 까닭을 숫자로 못 박아 준다. 「더 길게」 만으로는 잘 안 는다.
-    const lengthRetryPrompt = `${prompt}\n\n(주의: 방금 ${shortLength}자로 썼는데 `
-      + `**${최소}자에 ${최소 - shortLength}자 모자란다.** 본문은 반드시 ${최소}자를 넘겨야 하며 `
-      + `${directive.targetLength}자 안팎을 겨냥하라. 문단을 더 만들지 말고, 이미 쓴 각 문단에 `
-      + `구체적인 사례·숫자·상황 묘사를 덧붙여 늘려라.)`;
+    // **다시 조사하지 않는다** — 받은 글을 주고 늘리게만 한다(도구 없음).
+    const lengthRetryPrompt = buildExpandPrompt(parsed.post, 최소, directive.targetLength);
+    다시.push("분량");
     try {
-      const retryParsed = await attempt(lengthRetryPrompt);
+      const retryParsed = await attempt(lengthRetryPrompt, false);
       console.warn(
         `[${category.name}] 분량 보강 재시도: ${shortLength}자 -> ${retryParsed.post.content.length}자`,
       );
@@ -132,5 +156,17 @@ export async function generatePost(category: Category, directive: PostDirective)
   });
 
   markCategoryUsed(category.id);
+
+  // 첫 글이면 읽은 것을 메모로 남긴다 — 다음 글부터 주소를 다시 안 연다.
+  // 메모를 못 받았으면(짧거나 빠짐) 그냥 둔다. 다음 글이 다시 읽는다.
+  const 받은메모 = (parsed.post.brief ?? "").trim();
+  if (조사 && !메모 && 받은메모.length >= 80) {
+    메모적기(category.id, 받은메모, 메모지문(category, blogSettings.blog_links));
+  }
+  if (기록) {
+    기록.글ms = Date.now() - 시작;
+    기록.첫글 = 조사 && !메모;
+    기록.메모씀 = !!메모;
+  }
   return post;
 }

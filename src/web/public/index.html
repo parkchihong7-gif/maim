@@ -131,8 +131,9 @@
         </div>
         <div class="card">
           <table id="category-table">
+            <colgroup><col class="c-topic"><col class="c-kw"><col class="c-active"><col class="c-gen"><col class="c-status"></colgroup>
             <thead>
-              <tr><th>주제</th><th>주제 키워드</th><th>활성</th><th>하루 포스팅 수</th><th>포스팅 생성</th><th>상태</th></tr>
+              <tr><th>주제</th><th>주제 키워드</th><th>활성</th><th>포스팅 생성</th><th>상태</th></tr>
             </thead>
             <tbody></tbody>
           </table>
@@ -143,11 +144,11 @@
           <div class="subsection" id="batch-box">
             <h3>지금 하루치 만들기</h3>
             <p class="muted">아침 6시에 저절로 만들어지지만, <strong>지금 당장 필요하실 때</strong> 쓰십시오.
-              예약 설정과 똑같은 차례·편수로 만듭니다 — <strong id="batch-plan">…</strong></p>
+              예약 설정과 똑같은 차례로, 켜진 카테고리마다 한 편씩 만듭니다 — <strong id="batch-plan">…</strong></p>
             <button class="btn-primary" data-action="run-batch">지금 하루치 만들기</button>
             <p class="muted" id="batch-state"></p>
             <ol class="batch-log" id="batch-log"></ol>
-            <p class="checklist-item-why">한 편에 <strong>3~6분</strong> 걸립니다.
+            <p class="checklist-item-why">한 편에 <strong>2~4분</strong>, 카테고리의 첫 글은 주소를 읽느라 <strong>5~10분</strong> 걸립니다.
               <strong>이 창을 닫거나 다른 화면으로 옮기시면 거기서 멈춥니다</strong> —
               만들던 글까지는 남고, 나머지는 안 만들어집니다. 켜 두고 기다리셔야 합니다.<br>
               아침 6시 자동 준비는 이것과 상관없이 그대로 돕니다.</p>
@@ -231,11 +232,6 @@
                 </div>
                 <p class="cf-tip">예시를 누르면 대표 주소가 비어 있으면 대표로, 아니면 참고 주소 한 줄로 들어갑니다.
                   대표 주소에서 소재를 먼저 찾고, 참고 주소로 사실·숫자를 보강합니다. 문장은 베끼지 않습니다.</p>
-              </div>
-
-              <div class="cf cf-daily">
-                <label class="cf-label">⑦ 하루 포스팅 수 <span>0~10 · 0 이면 이 카테고리는 쉽니다</span></label>
-                <input name="dailyCount" type="number" min="0" max="10" value="1" />
               </div>
 
               <div class="cf-actions">
@@ -690,8 +686,8 @@
         <div class="card" data-owner-only>
           <h3>4) 포스팅 예약 설정</h3>
           <p class="muted">매일 아침 <strong>어떤 카테고리로 몇 편</strong>을 준비할지 정합니다.
-            편수는 <strong>[블로그 관리]</strong>의 각 카테고리에서 정하시고, 여기서는
-            <strong>차례</strong>를 정하십니다.</p>
+            켜진 카테고리마다 하루 한 편이고, 여기서는 <strong>하루 상한</strong>과
+            <strong>차례</strong>를 정하십니다. 카테고리를 쉬게 하려면 [블로그 관리]에서 «활성» 을 눌러 끄세요.</p>
 
           <div class="schedule-alarm" id="schedule-alarm" hidden>
             <strong>⏰ 자동 준비가 꺼져 있습니다</strong>
@@ -792,7 +788,7 @@
                 키워드가 이름이거나 뜻이 여럿이면(예: «스크래치») <strong>④ 함께 들어갈 말</strong>(코딩, 초등)과
                 <strong>⑤ 빼야 할 말</strong>(자동차 흠집, 복권)을 같이 넣으세요. 엉뚱한 글이 안 나옵니다.
                 <strong>⑥ 참고 주소</strong>를 넣으면 AI 가 그곳을 먼저 열어 보고 씁니다. [수정]을 누르면 같은 칸에서 고칩니다.</p>
-              <p data-owner-only>「하루 편수」 칸은 아침 자동 준비 때 그 카테고리에서 몇 편을 만들지 정합니다 (7번 참고).</p>
+              <p data-owner-only>표의 <strong>«활성»</strong> 을 누르면 켜고 끕니다. 켜진 카테고리마다 아침에 한 편씩 준비됩니다 (8번 참고).</p>
             </div>
           </div>
           <div class="guide-step">
@@ -814,7 +810,10 @@
             <div class="guide-step-body">
               <h4>[지금 생성] 클릭</h4>
               <p>AI 가 카테고리 설명과 내 블로그 방향을 바탕으로 글을 쓰고, 어울리는 무료 사진 3장을 찾아 붙입니다.
-                <strong>2~5분</strong> 걸리고, 끝나면 <strong>[포스팅]</strong>에 나타납니다.</p>
+                표의 <strong>상태</strong> 칸에 초기 → 중간 → 마지막으로 진행이 보이고, 끝나면 <strong>[글 보러 가기 →]</strong>가 뜹니다.</p>
+              <p>카테고리의 <strong>첫 글</strong>은 대표·참고 주소를 열어 읽느라 <strong>5~10분</strong> 걸립니다. 이때 읽은 것을
+                <strong>📒 자료 메모</strong>로 남겨 두어, <strong>다음 글부터는 주소를 다시 안 열고 최근 소식만 찾아 2~4분</strong>에 씁니다.
+                메모는 주소·설명을 바꾸거나 7일이 지나면 새로 읽고, [🔄 다시 읽기]로 바로 새로 읽게 할 수도 있습니다.</p>
               <p>AI 연결이 끊겼거나 무료 이미지 키가 하나도 없으면, 기다리게 하지 않고 <strong>안내 창</strong>이 먼저 뜹니다.</p>
               <p data-trial-only class="muted">체험 키는 <strong>하루 3건</strong>까지 만들 수 있습니다.</p>
             </div>
@@ -869,8 +868,8 @@
             <div class="guide-step-body">
               <h4>매일 아침 자동으로 준비되게 하기</h4>
               <p><strong>[관리자 설정 → 4) 포스팅 예약 설정]</strong>에서 차례와 <strong>하루 몇 건</strong>을 정해 두시면,
-                <strong>아침 6시</strong>에 준비돼 있습니다. 카테고리별 편수는 <strong>[블로그 관리]</strong>의 「하루 편수」
-                칸에서 정합니다. 무료 이미지 키가 하나도 없으면 아침 준비도 건너뜁니다.</p>
+                <strong>아침 6시</strong>에 준비돼 있습니다. 켜진 카테고리마다 한 편씩, 하루 상한까지 만듭니다
+                — 쉬게 할 카테고리는 <strong>[블로그 관리]</strong>에서 «활성» 을 눌러 끄세요. 무료 이미지 키가 하나도 없으면 아침 준비도 건너뜁니다.</p>
               <p class="muted">예약 화면 맨 위에 <strong>⏰ 자동 준비가 …</strong> 경고가 떠 있다면, 아직 자명종(Cloud
                 Scheduler)을 한 번도 안 걸어 두신 것입니다. 설치 안내서의 6단계를 따라 한 번만 걸어 두시면 됩니다.</p>
             </div>
