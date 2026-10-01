@@ -1820,3 +1820,7 @@ body:not(.is-trial) [data-trial-only]{display:none !important}
 #category-table .gen-status .gs-sub{display:block;color:#8a5a00;font-size:12px}
 #category-table .gen-status .gs-done .link-btn,#category-table .gen-status .gs-warn .link-btn{padding:0;white-space:nowrap}
 #category-table .gen-status .gs-time{font-size:11.5px;color:#6b7280}
+/* ── 수정사항-4: 주제 칸은 가장 긴 이름에 맞춰 app.js(주제칸맞추기)가 정한다. 기본값만 둔다 ── */
+#category-table col.c-topic{width:150px}
+#category-table td.cat-topic > strong{overflow-wrap:anywhere}
+@media (max-width:700px){ #category-table td.cat-topic > strong{white-space:normal} }

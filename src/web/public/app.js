@@ -408,7 +408,27 @@ function renderCategories(categories) {
     }
     tbody.appendChild(tr);
   }
+  주제칸맞추기();
 }
+
+/**
+ * [주제] 칸 너비를 **가장 긴 주제 이름**에 맞춘다. 남는 자리는 [주제 키워드]가 다 쓴다.
+ * 너무 길면 320px 에서 줄바꿈.
+ */
+function 주제칸맞추기() {
+  const 칸 = document.querySelector("#category-table col.c-topic");
+  const 이름들 = [...document.querySelectorAll("#category-table td.cat-topic > strong")];
+  if (!칸 || 이름들.length === 0) return;
+  if (window.matchMedia("(max-width: 700px)").matches) { 칸.style.width = ""; return; }
+  const 재기 = 주제칸맞추기.재기 || (주제칸맞추기.재기 = document.createElement("canvas").getContext("2d"));
+  재기.font = getComputedStyle(이름들[0]).font;
+  const 이름폭 = Math.max(...이름들.map((el) => 재기.measureText(el.textContent || "").width));
+  // 꼬리표·[수정][삭제] 줄은 칸 안에서 줄바꿈되므로 이름만 잰다. 화면이 숨겨져 있어도
+  // 글꼴로 재므로 값이 같다. 최소 110px([✏️ 수정 🗑 삭제] 한 줄).
+  const 여백 = 22;   // 칸 안쪽 여백(좌우)
+  칸.style.width = `${Math.round(Math.min(320, Math.max(110, 이름폭)) + 여백)}px`;
+}
+window.addEventListener("resize", () => { if (categoriesCache.length) 주제칸맞추기(); });
 
 async function refreshCategories() {
   const categories = await api("/api/categories");
