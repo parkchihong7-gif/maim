@@ -115,12 +115,39 @@ export function findBlogTopicLabel(value: string): string | null {
 // 이 블로그의 기준이 되는 주소(대표 블로그·참고 사이트·인스타·유튜브·홈페이지)와
 // 기업이면 회사 정보를 저장해 둔다. 이 값들은 체험 키마다 따로 저장된다.
 
-/** 기업 블로그의 업종 칩. 화면(app.js)이 이 목록을 받아 그린다. */
-export const BUSINESS_INDUSTRIES = [
-  "음식점·카페", "뷰티·미용실", "병원·의원", "학원·교육", "부동산·중개", "법률·세무·노무",
-  "인테리어·시공", "쇼핑몰·온라인판매", "IT·소프트웨어", "제조·유통", "여행·숙박",
-  "피트니스·스포츠", "반려동물 서비스", "금융·보험", "공공·비영리",
-] as const;
+/**
+ * 기업 블로그의 업종 — **대표 업종 15개 × 세부 업종 5개 안팎.**
+ *
+ * 처음에는 업종 15개를 한 줄로만 늘어놓았다. «외식업» 하나로는 한식당인지
+ * 카페인지 몰라서 글감이 넓게 퍼졌다. 대표 업종 자체도 고를 수 있고, 세부
+ * 업종을 고르면 «외식 > 카페·디저트» 처럼 대표 업종의 짧은 이름을 붙여
+ * 저장한다 — AI 가 어느 업종의 카페인지까지 알게.
+ */
+export const BUSINESS_INDUSTRY_GROUPS: { group: string; short: string; subs: string[] }[] = [
+  { group: "제조업", short: "제조", subs: ["식품 제조", "화장품·뷰티 제조", "의류·섬유", "기계·장비", "전자·부품"] },
+  { group: "도소매업", short: "도소매", subs: ["온라인 쇼핑몰", "스마트스토어", "편의점·마트", "도매·유통", "수입·수출 무역"] },
+  { group: "외식업", short: "외식", subs: ["한식당", "카페·디저트", "치킨·피자·패스트푸드", "주점·호프", "베이커리"] },
+  { group: "서비스업", short: "서비스", subs: ["미용실·네일", "세탁·수선", "청소·방역", "웨딩·행사", "반려동물 서비스"] },
+  { group: "건설업", short: "건설", subs: ["인테리어·리모델링", "종합건설", "전기·설비 공사", "조경", "집수리·시공"] },
+  { group: "정보통신업 (IT 및 소프트웨어)", short: "IT", subs: ["앱·웹 개발", "SaaS·솔루션", "IT 컨설팅", "게임 개발", "데이터·AI"] },
+  { group: "부동산 및 임대업", short: "부동산", subs: ["공인중개사무소", "분양·시행", "상가·오피스 임대", "주택 임대·관리", "공유오피스"] },
+  { group: "숙박 및 관광업", short: "숙박·관광", subs: ["호텔·리조트", "펜션·민박", "게스트하우스", "여행사", "캠핑장·글램핑"] },
+  { group: "물류 및 운수업", short: "물류", subs: ["택배·배송", "화물 운송", "이사·용달", "창고·풀필먼트", "퀵서비스"] },
+  { group: "교육 및 학원업", short: "교육", subs: ["입시·보습학원", "어학원", "예체능 학원", "코딩·IT 교육", "온라인 강의"] },
+  { group: "금융 및 보험업", short: "금융·보험", subs: ["보험 설계", "대출 상담", "투자·자산관리", "카드·결제 서비스", "핀테크"] },
+  { group: "보건 및 의료업", short: "의료", subs: ["병원·의원", "치과", "한의원", "약국", "피부·성형"] },
+  { group: "문화, 예술 및 엔터테인먼트업", short: "문화·예술", subs: ["공연·전시", "엔터·매니지먼트", "출판·웹툰", "영상·콘텐츠 제작", "스튜디오·사진관"] },
+  { group: "농림어업 및 축산업", short: "농림축산", subs: ["농산물 직거래", "스마트팜", "축산·한우", "수산물", "귀농·체험농장"] },
+  { group: "전문, 과학 및 기술 서비스업", short: "전문서비스", subs: ["법률(변호사·법무사)", "세무·회계", "노무·인사", "디자인·광고", "연구·컨설팅"] },
+];
+
+/** 세부 업종을 저장할 때의 이름 — «외식 > 카페·디저트». */
+export function 세부업종이름(short: string, sub: string): string {
+  return `${short} > ${sub}`;
+}
+
+/** 예전 판(업종 한 줄 15개)과 다른 곳에서 쓰던 이름. 지금은 화면이 BUSINESS_INDUSTRY_GROUPS 를 쓴다. */
+export const BUSINESS_INDUSTRIES = BUSINESS_INDUSTRY_GROUPS.map((g) => g.group);
 
 /** 참고 주소의 종류. 종류마다 AI 에게 시키는 일이 조금씩 다르다. */
 export const LINK_KINDS: Record<string, string> = {
@@ -151,7 +178,7 @@ function 제이슨읽기(글: string | null | undefined): unknown {
 /** 세부 주제 목록을 다듬는다 → JSON 글자. 화면이 배열이나 JSON 글자를 보낸다. */
 export function 세부주제다듬기(값: unknown): string {
   const 날 = typeof 값 === "string" ? (제이슨읽기(값) ?? 값.split(",")) : 값;
-  const 목록 = (Array.isArray(날) ? 날 : []).map((x) => 짧게(x, 30)).filter(Boolean);
+  const 목록 = (Array.isArray(날) ? 날 : []).map((x) => 짧게(x, 40)).filter(Boolean);
   return JSON.stringify([...new Set(목록)].slice(0, 세부주제_최대));
 }
 
@@ -219,7 +246,10 @@ export function buildBlogProfileBlock(settings: BlogProfileSettings): string {
   const topicLabel = settings.blogTopic ? findBlogTopicLabel(settings.blogTopic) : null;
   if (세부.length) {
     lines.push(`이 블로그가 꾸준히 다루는 세부 주제: ${세부.map((x) => `"${x}"`).join(", ")}. `
-      + `글감·예시·용어는 이 주제들 안에서 고르고, 벗어난 소재로 빠지지 마라.`);
+      + `글감·예시·용어는 이 주제들 안에서 고르고, 벗어난 소재로 빠지지 마라.`
+      + (세부.some((x) => x.includes(" > "))
+        ? ` («A > B» 는 A 업종 안의 B 세부 업종이라는 뜻이다. 그 세부 업종의 손님·상품·현장에 맞춰 써라.)`
+        : ""));
   } else if (topicLabel) {
     lines.push(`이 블로그의 주제 분야는 "${topicLabel}"이다. 이 분야와 맞닿는 소재를 우선 고려하라.`);
   }

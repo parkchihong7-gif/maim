@@ -17,7 +17,7 @@ import { runAI, 지금엔진, 엔진고르기, 엔진키, 엔진모델, 준비�
 import { ENGINE_IDS, ENGINES, ENGINE_KEY_SETTINGS, ENGINE_MODEL_SETTINGS, 키검사 } from "../../ai/engines.js";
 import { buildPreviewPrompt } from "../../claude/promptBuilder.js";
 import {
-  buildBlogProfileBlock, findBlogTopicLabel, BUSINESS_INDUSTRIES, LINK_KINDS, BLOG_TOPIC_GROUPS, 세부주제_최대, 주소_최대,
+  buildBlogProfileBlock, findBlogTopicLabel, BUSINESS_INDUSTRY_GROUPS, 세부업종이름, LINK_KINDS, BLOG_TOPIC_GROUPS, 세부주제_최대, 주소_최대,
   세부주제다듬기, 세부주제읽기, 주소목록다듬기, 주소목록읽기, 브랜드다듬기, 브랜드읽기,
 } from "../../claude/blogProfile.js";
 import { parsePreviewResponse } from "../../claude/parseResponse.js";
@@ -96,9 +96,16 @@ export async function settingsRoutes(app: FastifyInstance) {
       blog_topic_label: findBlogTopicLabel(raw.blog_topic ?? ""),
       blog_links: 주소목록읽기(raw.blog_links),
       blog_brand: 브랜드읽기(raw.blog_brand),
+      // 칩 목록. 묶음마다 [묶음 칩(있으면)] + [세부 칩]. value 가 저장되는 이름, label 이 칩에 보이는 말.
       blog_catalog: {
-        personal: BLOG_TOPIC_GROUPS.map((g) => ({ group: g.group, topics: g.topics.map((x) => x.label) })),
-        business: BUSINESS_INDUSTRIES,
+        personal: BLOG_TOPIC_GROUPS.map((g) => ({
+          group: g.group, groupValue: null,
+          items: g.topics.map((x) => ({ value: x.label, label: x.label })),
+        })),
+        business: BUSINESS_INDUSTRY_GROUPS.map((g) => ({
+          group: g.group, groupValue: g.group,
+          items: g.subs.map((s) => ({ value: 세부업종이름(g.short, s), label: s })),
+        })),
         linkKinds: LINK_KINDS,
         maxTopics: 세부주제_최대,
         maxLinks: 주소_최대,

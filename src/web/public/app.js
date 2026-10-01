@@ -2143,14 +2143,17 @@ function 블로그정보그리기() {
   const 칩칸 = document.getElementById("topic-chips");
   if (!칩칸 || !블로그정보.catalog) return;
   const 고른것 = new Set(블로그정보.topics);
-  const 칩 = (이름) => `<button type="button" class="topic-chip ${고른것.has(이름) ? "on" : ""}" data-topic="${escapeHtml(이름)}">${escapeHtml(이름)}</button>`;
-  const 묶음들 = 블로그정보.type === "business"
-    ? [{ group: "업종", topics: 블로그정보.catalog.business }]
-    : 블로그정보.catalog.personal;
-  const 목록에있는 = new Set(묶음들.flatMap((g) => g.topics));
+  const 칩 = (값, 보일말, 묶음칩 = false) => `<button type="button" class="topic-chip ${묶음칩 ? "group-chip" : ""} ${고른것.has(값) ? "on" : ""}" data-topic="${escapeHtml(값)}" title="${escapeHtml(값)}">${escapeHtml(보일말)}</button>`;
+  const 묶음들 = 블로그정보.type === "business" ? 블로그정보.catalog.business : 블로그정보.catalog.personal;
+  const 목록에있는 = new Set(묶음들.flatMap((g) => [g.groupValue, ...g.items.map((x) => x.value)]).filter(Boolean));
   const 직접 = 블로그정보.topics.filter((x) => !목록에있는.has(x));
-  칩칸.innerHTML = 묶음들.map((g) => `<div class="topic-group"><span class="topic-group-name">${escapeHtml(g.group)}</span>${g.topics.map(칩).join("")}</div>`).join("")
-    + (직접.length ? `<div class="topic-group"><span class="topic-group-name">직접 추가·그 밖에 고른 것</span>${직접.map(칩).join("")}</div>` : "");
+  칩칸.className = `topic-chips ${블로그정보.type === "business" ? "is-business" : ""}`;
+  칩칸.innerHTML = 묶음들.map((g) => `
+    <div class="topic-group">
+      ${g.groupValue ? 칩(g.groupValue, g.group, true) : `<span class="topic-group-name">${escapeHtml(g.group)}</span>`}
+      <span class="topic-subs">${g.items.map((x) => 칩(x.value, x.label)).join("")}</span>
+    </div>`).join("")
+    + (직접.length ? `<div class="topic-group"><span class="topic-group-name">직접 추가·그 밖에 고른 것</span><span class="topic-subs">${직접.map((x) => 칩(x, x)).join("")}</span></div>` : "");
   const 고름 = document.getElementById("topic-picked");
   if (고름) {
     고름.innerHTML = 블로그정보.topics.length
@@ -2187,7 +2190,7 @@ function 주소줄읽기() {
 }
 
 function 주제더하기(이름) {
-  const 말 = (이름 || "").trim().slice(0, 30);
+  const 말 = (이름 || "").trim().slice(0, 40);
   if (!말) return;
   if (블로그정보.topics.includes(말)) return;
   const 최대 = (블로그정보.catalog && 블로그정보.catalog.maxTopics) || 10;

@@ -93,6 +93,17 @@ const 정보 = B.buildBlogProfileBlock({
 참("javascript: 같은 주소는 버린다", !정보.includes("javascript"));
 참("베끼지 말고, 로그인 필요한 곳은 공개 정보만", 정보.includes("베끼지 말고") && 정보.includes("공개된 소개"));
 
+console.log("\n③-1 기업 업종 — 대표 업종 15개 × 세부 업종 5개 안팎");
+참("대표 업종 15개", B.BUSINESS_INDUSTRY_GROUPS.length === 15);
+참("세부 업종은 4~6개씩", B.BUSINESS_INDUSTRY_GROUPS.every((g) => g.subs.length >= 4 && g.subs.length <= 6));
+const 카페 = B.세부업종이름("외식", "카페·디저트");
+참("세부 업종은 «외식 > 카페·디저트» 로 저장", 카페 === "외식 > 카페·디저트");
+const 업종글 = B.buildBlogProfileBlock({ blogType: "business", blogTopic: null,
+  blogTopics: JSON.parse(B.세부주제다듬기([카페, "외식업", B.세부업종이름("전문서비스", "법률(변호사·법무사)")])),
+  postingDirectionInstruction: null, postingDirectionRefinement: null });
+참("긴 업종 이름도 잘리지 않는다", 업종글.includes("전문서비스 > 법률(변호사·법무사)"));
+참("«A > B» 뜻을 AI 에게 알려 준다", 업종글.includes("A 업종 안의 B 세부 업종"));
+
 console.log("\n④ 실제 글쓰기 — 체험 자리의 블로그 정보가 그 사람 글에만 들어가고, 주소가 있으면 열람 도구를 켠다");
 const 체험 = { ownerKey: "KEY-A", role: "client" };
 자리에서(체험, () => {

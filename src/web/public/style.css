@@ -1698,3 +1698,11 @@ body:not(.is-trial) [data-trial-only]{display:none !important}
   .cf-url .url-line,.cf-url .url-line.main-line{grid-template-columns:78px minmax(0,1fr) 30px}
   .url-kind{font-size:11.5px}
 }
+
+/* 기업 업종: [대표 업종 칩] 옆에 세부 업종 칩 */
+.topic-group{align-items:flex-start}
+.topic-subs{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0}
+.topic-chips.is-business .topic-group{padding:6px 0;border-bottom:1px dashed #e4e7ec}
+.topic-chip.group-chip{min-width:150px;text-align:left;font-weight:700;border-color:#c9d6f5;background:#f4f7ff;color:#1d3f99;border-radius:8px}
+.topic-chip.group-chip.on{background:var(--gold);color:#fff;border-color:var(--gold)}
+@media (max-width:640px){.topic-chip.group-chip{min-width:0;width:100%}.topic-chips.is-business .topic-group{flex-direction:column}}
