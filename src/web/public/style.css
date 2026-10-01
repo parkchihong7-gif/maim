@@ -1797,3 +1797,14 @@ body:not(.is-trial) [data-trial-only]{display:none !important}
   #category-table td.gen-status:has(> .gs-none){display:none}
   #category-table .gen-status .gs{text-align:left;align-items:flex-start}
 }
+
+/* ── 수정사항-2: 주제 칸 35% 줄이고(24%→15.6%) 그만큼 주제 키워드에(18%→26.4%) ── */
+#category-table col.c-topic{width:15.6%}
+#category-table col.c-kw{width:26.4%}
+/* 상태 칸 — 한 줄로, 위아래 가운데. «준비된 초안 있음 · 보러 가기 →» 를 붙여 둔다 */
+#category-table td.gen-status{vertical-align:middle}
+#category-table .gen-status .gs-idle,#category-table .gen-status .gs-none{
+  flex-direction:row;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:4px 8px;min-height:0;text-align:left}
+#category-table .gen-status .gs-idle .link-btn{padding:0;white-space:nowrap}
+#category-table .cat-tag{white-space:nowrap;display:inline-block}
+#category-table td.cat-keyword{line-height:1.9}
