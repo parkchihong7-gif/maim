@@ -132,7 +132,7 @@
         <div class="card">
           <table id="category-table">
             <thead>
-              <tr><th>이름</th><th>활성</th><th>하루 편수</th><th>주제 키워드</th><th>동작</th></tr>
+              <tr><th>주제</th><th>주제 키워드</th><th>활성</th><th>하루 포스팅 수</th><th>포스팅 생성</th><th>상태</th></tr>
             </thead>
             <tbody></tbody>
           </table>
@@ -157,11 +157,13 @@
             <h3 id="category-form-title">새 카테고리 추가</h3>
             <p class="muted"><strong>카테고리 하나가 초안 하나</strong>입니다. 칸마다 색으로 나눴습니다 —
               칸 아래 <strong>예시를 누르면 그대로 들어갑니다.</strong> 고쳐 쓰시면 됩니다.</p>
+            <p class="edit-banner">✏️ <strong>수정 모드</strong> — 제일 자주 바꾸는 <strong>③ 주제 키워드</strong>를 맨 위로 올렸습니다.
+              바로 고치고 [수정 저장]. 다른 칸은 흐리게 두었습니다 — 눌러서 고치실 수 있습니다.</p>
             <form id="category-form" class="cf-form">
               <input type="hidden" name="id" />
 
               <div class="cf cf-name">
-                <label class="cf-label">① 이름 <span>블로그 메뉴 이름처럼 짧게</span></label>
+                <label class="cf-label">① 주제 <span>블로그 메뉴 이름처럼 짧게</span></label>
                 <input name="name" placeholder="예: 전세·대출 정보" required maxlength="40" />
                 <div class="cf-chips" data-target="name" data-mode="set">
                   <button type="button">동네 맛집 탐방</button><button type="button">전세·대출 정보</button>
@@ -232,7 +234,7 @@
               </div>
 
               <div class="cf cf-daily">
-                <label class="cf-label">⑦ 하루 편수 <span>0~10 · 0 이면 이 카테고리는 쉽니다</span></label>
+                <label class="cf-label">⑦ 하루 포스팅 수 <span>0~10 · 0 이면 이 카테고리는 쉽니다</span></label>
                 <input name="dailyCount" type="number" min="0" max="10" value="1" />
               </div>
 

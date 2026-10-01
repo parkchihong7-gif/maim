@@ -303,6 +303,10 @@ function buildCopyText(post) {
 }
 
 let categoriesCache = [];
+/** 지금 폼에서 고치고 있는 카테고리. 표의 다른 줄을 흐리게 하는 데 쓴다. */
+let editingFormId = null;
+/** [지금 생성] 상태 — 카테고리 id → { state, start, end, postId, title, msg }. 표를 다시 그려도 남는다. */
+const 생성상태 = new Map();
 // 수정 중인 카테고리 id. null이면 전부 보기 모드, 값이 있으면 그 행만
 // 이름/설명/주제 키워드를 함께 고칠 수 있는 입력 폼으로 바뀐다.
 let editingCategoryId = null;
@@ -368,20 +372,27 @@ function renderCategories(categories) {
   for (const c of categories) {
     const tr = document.createElement("tr");
     {
+      tr.dataset.catId = c.id;
+      if (editingFormId !== null) tr.classList.toggle("is-dim", c.id !== editingFormId);
+      if (c.id === editingFormId) tr.classList.add("is-editing");
+      const 쓰는중 = 생성상태.get(c.id)?.state === "running";
       tr.innerHTML = `
-        <td>${escapeHtml(c.name)}${카테고리꼬리표(c)}</td>
-        <td><span class="badge ${c.active ? "badge-active" : "badge-inactive"}">${c.active ? "활성" : "비활성"}</span></td>
-        <td>${Number(c.daily_count ?? 1) === 0
+        <td class="cat-topic">
+          <strong>${escapeHtml(c.name)}</strong>${카테고리꼬리표(c)}
+          <div class="cat-tools">
+            <button class="link-btn" data-action="edit-category" data-id="${c.id}">✏️ 수정</button>
+            <button class="link-btn danger" data-action="delete-category" data-id="${c.id}">🗑 삭제</button>
+          </div>
+        </td>
+        <td class="cat-keyword" data-label="주제 키워드">${c.topic_keyword
+              ? `<span class="kw-pill">${escapeHtml(c.topic_keyword)}</span>${c.keyword_keep ? ' <span class="cat-tag keep" title="계속 유지">🔁 유지</span>' : ""}`
+              : '<span class="muted">-</span>'}</td>
+        <td class="cat-active" data-label="활성"><span class="badge ${c.active ? "badge-active" : "badge-inactive"}">${c.active ? "활성" : "비활성"}</span></td>
+        <td class="cat-daily" data-label="하루 포스팅 수">${Number(c.daily_count ?? 1) === 0
               ? '<span class="muted">쉼</span>'
               : `<strong>${Number(c.daily_count ?? 1)}</strong>편`}</td>
-        <td>${c.topic_keyword
-              ? `${escapeHtml(c.topic_keyword)}${c.keyword_keep ? ' <span class="cat-tag keep" title="계속 유지">🔁 유지</span>' : ""}`
-              : '<span class="muted">-</span>'}</td>
-        <td>
-          <button class="btn-primary" data-action="generate" data-id="${c.id}">지금 생성</button>
-          <button class="btn-secondary" data-action="edit-category" data-id="${c.id}">수정</button>
-          <button class="btn-danger" data-action="delete-category" data-id="${c.id}">삭제</button>
-        </td>`;
+        <td class="cat-gen"><button class="btn-primary gen-btn" data-action="generate" data-id="${c.id}" ${쓰는중 ? "disabled" : ""}>${쓰는중 ? "쓰는 중…" : "지금 생성"}</button></td>
+        <td class="gen-status" data-status-for="${c.id}">${상태칸(c.id)}</td>`;
     }
     tbody.appendChild(tr);
   }
@@ -514,6 +525,8 @@ async function refreshQueue() {
   const { items } = await api("/api/queue");
 
   readyPosts = items;
+  // 블로그 관리 표의 «상태» 칸이 «준비된 초안 있음» 을 바로 알 수 있게.
+  if (categoriesCache.length) renderCategories(categoriesCache);
   const container = document.getElementById("ready-list");
   container.innerHTML = "";
 
@@ -525,6 +538,7 @@ async function refreshQueue() {
   for (const p of items) {
     const card = document.createElement("div");
     card.className = "post-card";
+    card.dataset.postId = p.id;
     const tags = p.tags_json ? JSON.parse(p.tags_json) : [];
     const imagePaths = getImagePaths(p);
     const imageAlts = getImageAlts(p);
@@ -984,6 +998,7 @@ document.getElementById("category-form").addEventListener("submit", async (e) =>
 
 /** 카테고리 폼을 «새로 추가» 모양으로 되돌린다. */
 function 카테고리폼비우기() {
+  editingFormId = null;
   const form = document.getElementById("category-form");
   form.reset();
   form.id.value = "";
@@ -993,6 +1008,7 @@ function 카테고리폼비우기() {
   document.getElementById("category-submit").textContent = "추가";
   document.getElementById("category-cancel").hidden = true;
   document.getElementById("category-form-box").classList.remove("editing");
+  renderCategories(categoriesCache);
 }
 
 /** [수정] — 표 안에서 고치지 않고 **같은 폼**에 채워 고친다. 칸이 많아 표 한 줄에 안 들어간다. */
@@ -1014,7 +1030,11 @@ function 카테고리폼채우기(c) {
   document.getElementById("category-cancel").hidden = false;
   const 상자 = document.getElementById("category-form-box");
   상자.classList.add("editing");
+  editingFormId = c.id;
+  renderCategories(categoriesCache);
   상자.scrollIntoView({ behavior: "smooth", block: "start" });
+  // 고칠 때 제일 많이 바꾸는 것은 주제 키워드다. 거기에 바로 커서를 둔다.
+  setTimeout(() => { form.topicKeyword.focus(); form.topicKeyword.select(); }, 350);
 }
 
 // 예시 칩 — 누르면 칸에 들어간다. set 은 바꾸고, add 는 쉼표로 더하고, line 은 줄을 더한다.
@@ -1065,22 +1085,24 @@ document.addEventListener("click", async (e) => {
 
   try {
     if (action === "generate") {
+      const 카id = Number(id);
+      if (생성상태.get(카id)?.state === "running") return;     // 이미 쓰는 중
       // AI 가 끊긴 게 분명하면 몇 분 기다려 영문 오류를 받게 하지 않는다.
       if (!(await AI되나())) return;
-      btn.disabled = true;
-      btn.textContent = "생성 중...";
+      생성상태.set(카id, { state: "running", start: Date.now() });
+      상태칸다시그리기(카id);
       const result = await api("/api/run/generate", {
         method: "POST",
-        body: JSON.stringify({ categoryId: Number(id) }),
+        body: JSON.stringify({ categoryId: 카id }),
       });
-      await refreshQueue();
       // 글은 정상적으로 만들어졌지만 이미지 첨부만 실패한 경우, 서버가
-      // 200 OK로 imageError 필드만 실어서 돌려준다 — 이걸 그냥 무시하면
-      // 이미지 없는 초안이 조용히 생겨서 "이미지 생성이 안 된다"처럼 보인다.
-      if (result.imageError) {
-        오류창("글은 만들었지만 이미지를 못 붙였습니다",
-          `${result.imageError}\n\n포스팅 카드의 [이미지 재생성] 버튼으로 다시 시도해 보세요.`);
-      }
+      // 200 OK로 imageError 필드만 실어서 돌려준다. 상태칸에 남겨 둔다.
+      생성상태.set(카id, {
+        state: result.imageError ? "imgwarn" : "done",
+        postId: result.id, title: result.title, end: Date.now(), msg: result.imageError || "",
+      });
+      상태칸다시그리기(카id);
+      await refreshQueue();
     } else if (action === "copy") {
       const post = readyPosts.find((p) => p.id === Number(id));
       if (post) {
@@ -1374,6 +1396,10 @@ document.addEventListener("click", async (e) => {
   } catch (err) {
     // 글 만들기·이미지는 **복사할 수 있는 창**으로. 휴대폰 알림창은 글을
     // 복사할 수 없어서, 쓰시는 분이 무슨 오류인지 전할 길이 없었다.
+    if (action === "generate" && 생성상태.get(Number(id))?.state === "running") {
+      생성상태.set(Number(id), { state: "error", msg: err && err.message ? err.message : String(err), end: Date.now() });
+      상태칸다시그리기(Number(id));
+    }
     if (err && err.data && err.data.needsImages) {
       AI안내창(err.message, "images");
     } else if (err && err.data && err.data.needsAi) {
@@ -1385,10 +1411,7 @@ document.addEventListener("click", async (e) => {
       alert(err.message);
     }
   } finally {
-    if (action === "generate") {
-      btn.disabled = false;
-      btn.textContent = "지금 생성";
-    }
+    if (action === "generate") 상태칸다시그리기(Number(id));
     if (action === "regenerate-image") {
       btn.disabled = false;
       btn.textContent = "이미지 재생성";
@@ -2264,5 +2287,120 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && e.target && e.target.id === "topic-add-input") {
     e.preventDefault();
     주제더하기(e.target.value); e.target.value = ""; 블로그정보그리기();
+  }
+});
+
+
+// ─────────────────────────────────────────── [지금 생성] 상태칸
+//
+// 예전에는 [지금 생성] 을 누르면 단추가 «생성 중...» 이 됐다가, 15초마다 표를
+// 새로 그리면서 «지금 생성» 으로 돌아갔다. 글은 2~5분째 쓰이고 있는데 화면은
+// 아무 일 없는 것처럼 보였다. 그래서 상태를 표 밖(생성상태)에 들고 있고, 표를
+// 다시 그려도 그 값으로 그린다. 시간이 지남에 따라 귀여운 말로 바꿔 준다.
+
+
+/** 시간대별 말. [초기 0~40초] [중간 ~2분 30초] [마지막 그 뒤]. 같은 단계 안에서 8초마다 돈다. */
+const 쓰는중말 = [
+  { until: 40_000, step: "초기", lines: [
+    "✏️ 이제 막 연필 깎는 중이에요",
+    "🔎 자료부터 살짝 찾아보고 있어요",
+    "☕ 커피 한 모금 마시고 시작할게요",
+    "📚 오늘 쓸 이야기를 고르는 중이에요",
+  ] },
+  { until: 150_000, step: "중간", lines: [
+    "📝 시작이 반이래요! 열심히 쓰고 있어요",
+    "🧠 문장 다듬는 중… 머리 굴러가는 소리 들리시죠?",
+    "🖼️ 글에 어울리는 사진도 고르고 있어요",
+    "🐢 꼼꼼하게 쓰느라 조금 느려요, 그래도 잘 가고 있어요",
+  ] },
+  { until: Infinity, step: "마지막", lines: [
+    "🏁 거의 다 왔어요! 조금만 기다려 주세요",
+    "🎀 마지막 리본 묶는 중이에요",
+    "⏳ 진짜 거의 끝! 숨 한 번만 쉬고 오세요",
+    "🍪 쿠키 하나 드시면 딱 끝나 있을 거예요",
+  ] },
+];
+
+function 지난시간(ms) {
+  const 초 = Math.max(0, Math.floor(ms / 1000));
+  return 초 < 60 ? `${초}초째` : `${Math.floor(초 / 60)}분 ${초 % 60}초째`;
+}
+
+function 상태칸(카id) {
+  const s = 생성상태.get(카id);
+  if (!s) {
+    // 쓰는 중이 아니면 이 카테고리의 가장 최근 초안을 보여 준다 — 새로고침해도 «다 됐나» 를 알 수 있게.
+    const 최근 = (readyPosts || []).filter((p) => p.category_id === 카id)
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
+    return 최근
+      ? `<span class="gs gs-idle">🗂️ 준비된 초안 있음</span> <button class="link-btn" data-action="go-post" data-post="${최근.id}">보러 가기 →</button>`
+      : '<span class="muted">-</span>';
+  }
+  if (s.state === "running") {
+    const 지난 = Date.now() - s.start;
+    const 단계 = 쓰는중말.find((x) => 지난 < x.until);
+    const 말 = 단계.lines[Math.floor(지난 / 8000) % 단계.lines.length];
+    const 몇번째 = 쓰는중말.indexOf(단계);
+    return `<div class="gs gs-run" role="status" aria-live="polite">
+        <span class="gs-steps">${쓰는중말.map((x, i) => `<i class="${i < 몇번째 ? "done" : i === 몇번째 ? "now" : ""}">${x.step}</i>`).join("")}</span>
+        <span class="gs-line">${escapeHtml(말)}</span>
+        <span class="gs-time">${지난시간(지난)} · 보통 2~5분</span>
+      </div>`;
+  }
+  const 보러 = s.postId ? ` <button class="link-btn strong" data-action="go-post" data-post="${s.postId}">글 보러 가기 →</button>` : "";
+  if (s.state === "done") {
+    return `<div class="gs gs-done">🎉 짠! 완성됐어요${s.end && s.start ? ` <span class="gs-time">(${Math.round((s.end - s.start) / 1000)}초)</span>` : ""}${보러}</div>`;
+  }
+  if (s.state === "imgwarn") {
+    return `<div class="gs gs-warn">🎉 글은 완성! 사진만 못 붙였어요 — 카드에서 [이미지 재생성]을 눌러 주세요${보러}</div>`;
+  }
+  return `<div class="gs gs-err">😢 앗, 이번엔 못 썼어요
+      <button class="link-btn" data-action="show-gen-error" data-id="${카id}">이유 보기</button></div>`;
+}
+
+function 상태칸다시그리기(카id) {
+  const 칸 = document.querySelector(`[data-status-for="${카id}"]`);
+  if (칸) 칸.innerHTML = 상태칸(카id);
+  const 단추 = document.querySelector(`.gen-btn[data-id="${카id}"]`);
+  if (단추) {
+    const 쓰는중 = 생성상태.get(카id)?.state === "running";
+    단추.disabled = 쓰는중;
+    단추.textContent = 쓰는중 ? "쓰는 중…" : "지금 생성";
+  }
+}
+
+// 쓰는 중인 칸만 4초마다 말을 바꾼다. 표 전체를 다시 그리지 않는다.
+setInterval(() => {
+  for (const [카id, s] of 생성상태) if (s.state === "running") 상태칸다시그리기(카id);
+}, 4000);
+
+// 창을 닫으려 하면 쓰던 글이 멈춘다고 알려 준다 (서버는 끝까지 쓰지만 결과 표시를 못 본다).
+window.addEventListener("beforeunload", (e) => {
+  if ([...생성상태.values()].some((s) => s.state === "running")) { e.preventDefault(); e.returnValue = ""; }
+});
+
+/** 그 초안으로 바로 간다 — [포스팅] 을 열고 카드를 펼쳐 비춘다. */
+async function 초안으로가기(postId) {
+  await switchView("drafts");
+  try { await refreshQueue(); } catch { /* 이미 있는 것으로 */ }
+  const 카드 = document.querySelector(`.post-card[data-post-id="${postId}"]`);
+  if (!카드) { alert("그 초안을 찾지 못했습니다. 이미 [발행 완료]로 옮겼을 수 있습니다 — [발행 이력]을 보세요."); return; }
+  if (!expandedPostIds.has(Number(postId))) {
+    expandedPostIds.add(Number(postId));
+    카드.querySelector(".post-preview")?.classList.remove("collapsed");
+  }
+  카드.scrollIntoView({ behavior: "smooth", block: "start" });
+  카드.classList.add("flash");
+  setTimeout(() => 카드.classList.remove("flash"), 2600);
+}
+
+document.addEventListener("click", async (e) => {
+  const 가기 = e.target.closest && e.target.closest('[data-action="go-post"]');
+  if (가기) { e.preventDefault(); await 초안으로가기(가기.dataset.post); return; }
+  const 이유 = e.target.closest && e.target.closest('[data-action="show-gen-error"]');
+  if (이유) {
+    e.preventDefault();
+    const s = 생성상태.get(Number(이유.dataset.id));
+    오류창("글을 만들지 못했습니다", s && s.msg ? s.msg : "까닭을 받지 못했습니다.");
   }
 });
