@@ -260,7 +260,7 @@ async function 하루치만들기(단추) {
   try {
     for (let i = 0; i < 계획.length; i++) {
       const 것 = 계획[i];
-      말(`${i + 1}/${계획.length} 만드는 중 — ${것.name} … (한 편에 2~4분, 첫 글은 5~10분)`);
+      말(`${i + 1}/${계획.length} 만드는 중 — ${것.name} … (한 편에 3~5분)`);
       const 줄 = document.createElement("li");
       줄.textContent = `${것.name} — 만드는 중…`;
       기록 && 기록.appendChild(줄);
@@ -1102,7 +1102,8 @@ document.addEventListener("click", async (e) => {
       if (!(await AI되나())) return;
       // 자료 메모가 있으면 주소를 다시 안 읽어 빠르다. 기다릴 시간을 다르게 알려 준다.
       const 카 = categoriesCache.find((x) => x.id === 카id);
-      생성상태.set(카id, { state: "running", start: Date.now(), 예상: 메모있나(카) ? 210_000 : 480_000 });
+      // 조사(최대 2분) + 글쓰기 + 사진. 메모가 있으면 조사가 짧다.
+      생성상태.set(카id, { state: "running", start: Date.now(), 예상: 메모있나(카) ? 200_000 : 270_000 });
       상태칸다시그리기(카id);
       const result = await api("/api/run/generate", {
         method: "POST",
@@ -2377,22 +2378,29 @@ function 상태칸(카id) {
     return `<div class="gs gs-run" role="status" aria-live="polite">
         <span class="gs-steps">${쓰는중말.map((x, i) => `<i class="${i < 몇번째 ? "done" : i === 몇번째 ? "now" : ""}">${x.step}</i>`).join("")}</span>
         <span class="gs-line">${escapeHtml(말)}</span>
-        <span class="gs-time">${지난시간(지난)} · ${예상 > 300_000 ? "첫 글은 자료를 읽느라 5~10분" : "📒 자료 메모로 보통 2~4분"}</span>
+        <span class="gs-time">${지난시간(지난)} · 보통 3~5분</span>
       </div>`;
   }
-  const 보러 = s.postId ? ` <button class="link-btn strong" data-action="go-post" data-post="${s.postId}">글 보러 가기 →</button>` : "";
+  const 보러 = s.postId ? `<button class="link-btn strong" data-action="go-post" data-post="${s.postId}">글 보러 가기 →</button>` : "";
   // 무엇에 얼마나 걸렸나 — «글 2분 40초 · 사진 35초». 느릴 때 어디가 느린지 보인다.
   const t = s.timing;
+  // 자세한 것(모델·조사 횟수·다시 쓴 까닭)은 마우스를 올리면 보인다 — 칸을 좁게 쓰려고.
+  const 속 = t ? [
+    t.조사ms ? `조사 ${걸린시간(t.조사ms)}${t.조사횟수 ? ` (도구 ${t.조사횟수}번)` : ""}${t.조사실패 ? " — 시간 넘겨 건너뜀" : ""}` : "조사 없음",
+    `글쓰기 ${걸린시간(t.글ms)}${t.모델 ? ` (${t.모델})` : ""}`,
+    `사진 ${걸린시간(t.사진ms)}`,
+    t.첫글 ? "📒 주소를 읽고 메모를 새로 만듦" : t.메모씀 ? "📒 남겨 둔 메모로 씀" : "",
+    t.다시 && t.다시.length ? `다시: ${t.다시.join(", ")}` : "",
+  ].filter(Boolean).join("\n") : "";
   const 내역 = t
-    ? `<span class="gs-time">${걸린시간(t.전체ms)} · 글 ${걸린시간(t.글ms)} · 사진 ${걸린시간(t.사진ms)}${
-        t.첫글 ? " · 📒 자료 메모 새로 만듦" : t.메모씀 ? " · 📒 메모로 씀" : ""}${
-        t.다시 && t.다시.length ? ` · 다시 쓴 것: ${t.다시.join("·")}` : ""}</span>`
-    : s.end && s.start ? `<span class="gs-time">${걸린시간(s.end - s.start)}</span>` : "";
+    ? `<span class="gs-time" title="${escapeHtml(속)}">⏱ ${걸린시간(t.전체ms)} · ${t.조사ms ? `조사 ${걸린시간(t.조사ms)} · ` : ""}글 ${걸린시간(t.글ms)} · 사진 ${걸린시간(t.사진ms)}${t.조사실패 ? " ⚠" : ""}</span>`
+    : s.end && s.start ? `<span class="gs-time">⏱ ${걸린시간(s.end - s.start)}</span>` : "";
   if (s.state === "done") {
-    return `<div class="gs gs-done"><span class="gs-line">🎉 짠! 완성됐어요${보러}</span>${내역}</div>`;
+    return `<div class="gs gs-done"><span class="gs-line">🎉 짠! 완성됐어요</span><span>${보러}</span>${내역}</div>`;
   }
   if (s.state === "imgwarn") {
-    return `<div class="gs gs-warn"><span class="gs-line">🎉 글은 완성! 사진만 못 붙였어요${보러}</span><span class="gs-time">카드에서 [이미지 재생성]을 눌러 주세요</span>${내역}</div>`;
+    return `<div class="gs gs-warn"><span class="gs-line">🎉 글은 완성!</span>
+      <span class="gs-sub" title="초안 카드에서 [이미지 재생성]을 누르면 다시 붙입니다">📷 사진만 못 붙였어요</span><span>${보러}</span>${내역}</div>`;
   }
   return `<div class="gs gs-err"><span class="gs-line">😢 앗, 이번엔 못 썼어요
       <button class="link-btn" data-action="show-gen-error" data-id="${카id}">이유 보기</button></span></div>`;

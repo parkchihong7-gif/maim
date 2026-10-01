@@ -24,6 +24,8 @@ export async function selectBestImages(
   postSummary: string,
   count: number,
   postTitle = "",
+  /** AI 에게 줄 시간. 0 이면 AI 없이 앞에서부터 고른다. */
+  timeoutMs = 60_000,
 ): Promise<SelectedImage[]> {
   if (candidates.length === 0) {
     throw new Error("이미지 후보가 없습니다.");
@@ -48,9 +50,10 @@ export async function selectBestImages(
   let selectedIndices: number[];
   let altTexts: string[];
   try {
+    if (timeoutMs <= 0) throw new Error("시간이 없어 AI 고르기를 건너뜁니다");
     const dir = path.dirname(candidateFiles[0]);
     const prompt = buildImageSelectPrompt(candidateFiles, postSummary, count, postTitle);
-    const 답 = await runAI({ prompt, readDir: dir, timeoutMs: 150_000 });
+    const 답 = await runAI({ prompt, readDir: dir, timeoutMs });
     const parsed = parseImageSelectResponse(답);
     selectedIndices = parsed.selected_indices;
     altTexts = parsed.alt_texts;

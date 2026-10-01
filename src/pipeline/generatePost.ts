@@ -3,10 +3,11 @@ import type { Category } from "../db/repositories/categories.js";
 import { insertDraftPost, listRecentTitles, type Post } from "../db/repositories/posts.js";
 import { markCategoryUsed } from "../db/repositories/categories.js";
 import { buildPostPrompt, buildExpandPrompt } from "../claude/promptBuilder.js";
-import { 쓸메모, 메모지문, 조사할것이있나 } from "./자료메모.js";
+import { 쓸메모, 메모지문, 카테고리주소있나, 쓸블로그메모, 블로그메모적기, type 자료메모 } from "./자료메모.js";
+import { 조사하기 } from "./조사.js";
 import { 메모적기 } from "../db/repositories/categories.js";
 import { buildBlogProfileBlock, 세부주제읽기, 주소목록읽기, 브랜드읽기 } from "../claude/blogProfile.js";
-import { runAI, 지금엔진, 시간초과인가 } from "../ai/run.js";
+import { runAI, 지금엔진, 시간초과인가, type 부른기록 } from "../ai/run.js";
 import { parsePostResponse } from "../claude/parseResponse.js";
 import { 개인설정들, resolvePostingDirectionInstruction } from "../db/repositories/settings.js";
 import type { PostDirective } from "./directives.js";
@@ -19,20 +20,41 @@ import { 제목고르기 } from "../claude/제목규칙.js";
 // 목표가 4,000자여도 2,100자만 나오면 「기준은 넘었다」 며 통과했다.
 // settings.ts 의 최소분량() 설명을 보라.
 
+/**
+ * **글쓰기 한도.** 도구 없이 자료만 보고 쓰므로 보통 1~3분이면 끝난다.
+ * 이걸 넘기면 모델이 느린 것이다 — [관리자 설정] 1단계에서 모델을 바꿔 보시라고 알린다.
+ */
+export const 글쓰기한도ms = 300_000;
+
+/** 분량 보강은 여기까지 왔을 때만 한다. 넘었으면 짧은 대로 두고 5분 안에 끝낸다. */
+export const 보강마감ms = 150_000;
+
 /** 한 편을 만드는 데 무엇에 얼마나 걸렸나. 화면 상태창에 보여 준다. */
 export interface 생성기록 {
-  /** 글쓰기(AI 부르기) 전체 ms */
+  /** 조사(주소 읽기·검색) ms. 조사가 없었으면 0 */
+  조사ms: number;
+  /** 조사를 못 했으면 그 까닭 */
+  조사실패?: string;
+  /** 글쓰기(AI 부르기, 보강 포함) ms */
   글ms: number;
-  /** 첫 글이라 주소를 읽었나 (참이면 자료 메모를 새로 만들었다) */
+  /** 주소를 새로 읽었나 (참이면 메모를 새로 만들었다) */
   첫글: boolean;
-  /** 지난번 자료 메모를 썼나 */
+  /** 남겨 둔 메모를 썼나 */
   메모씀: boolean;
-  /** 다시 부른 까닭들 — "JSON", "분량" */
+  /** 다시 부른 까닭들 — "JSON", "분량" / 건너뛴 것 — "분량(시간 없어 건너뜀)" */
   다시: string[];
+  /** 글을 쓴 모델 (Claude 만) */
+  모델?: string;
+  /** 조사에서 도구를 오간 횟수 (Claude 만) */
+  조사횟수?: number;
 }
 
-/** 카테고리 1개에 대해 claude -p를 호출해 draft 포스팅 1건을 생성한다. */
-export async function generatePost(category: Category, directive: PostDirective, 기록?: 생성기록): Promise<Post> {
+export function 빈기록(): 생성기록 {
+  return { 조사ms: 0, 글ms: 0, 첫글: false, 메모씀: false, 다시: [] };
+}
+
+/** 카테고리 1개에 대해 조사 → 글쓰기로 draft 포스팅 1건을 생성한다. */
+export async function generatePost(category: Category, directive: PostDirective, 기록: 생성기록 = 빈기록()): Promise<Post> {
   const 시작 = Date.now();
   const today = DateTime.now().setZone(config.timezone).toFormat("yyyy-MM-dd");
   const recentTitles = listRecentTitles(20);
@@ -48,11 +70,43 @@ export async function generatePost(category: Category, directive: PostDirective,
     "blog_brand",
   ]);
   const 참고주소들 = 주소목록읽기(blogSettings.blog_links);
-  // 지난 글에서 주소를 읽고 남긴 메모가 있으면 이번엔 주소를 열지 않는다.
-  const 조사 = 조사할것이있나(category, 참고주소들.length);
-  const 메모 = 조사 ? 쓸메모(category, blogSettings.blog_links) : null;
+
+  // ── 1) 조사 — 필요한 것만, 시간을 못 박아서 ──────────────────
+  let 블로그메모: 자료메모 | null = 참고주소들.length ? 쓸블로그메모(blogSettings.blog_links) : null;
+  let 카테고리메모: 자료메모 | null = 카테고리주소있나(category) ? 쓸메모(category) : null;
+  const 블로그읽기 = 참고주소들.length > 0 && !블로그메모;
+  const 카테고리읽기 = 카테고리주소있나(category) && !카테고리메모;
+  const 소식찾기 = category.requires_search === 1 || !!category.topic_keyword || 카테고리주소있나(category);
+  let 최근소식 = "";
+  let 조사실패 = false;
+  if (블로그읽기 || 카테고리읽기 || 소식찾기) {
+    const 조사 = await 조사하기({
+      category, today, recentTitles,
+      블로그주소: 블로그읽기 ? 참고주소들 : [],
+      카테고리주소읽기: 카테고리읽기,
+      최근소식: 소식찾기,
+    });
+    기록.조사ms = 조사.ms;
+    기록.조사횟수 = 조사.meta.turns;
+    if (조사.실패) { 기록.조사실패 = 조사.실패; 조사실패 = true; }
+    const 지금 = new Date().toISOString();
+    if (블로그읽기 && 조사.블로그메모.length >= 80) {
+      블로그메모적기(blogSettings.blog_links, 조사.블로그메모);
+      블로그메모 = { text: 조사.블로그메모, at: 지금 };
+      기록.첫글 = true;
+    }
+    if (카테고리읽기 && 조사.카테고리메모.length >= 80) {
+      메모적기(category.id, 조사.카테고리메모, 메모지문(category));
+      카테고리메모 = { text: 조사.카테고리메모, at: 지금 };
+      기록.첫글 = true;
+    }
+    최근소식 = 조사.최근소식;
+  }
+  기록.메모씀 = !기록.첫글 && !!(블로그메모 || 카테고리메모);
+
+  // ── 2) 글쓰기 — 도구 없이 자료만 보고 ─────────────────────────
   const blogProfileBlock = buildBlogProfileBlock({
-    주소는메모로: !!메모,
+    주소는메모로: true,
     blogType: blogSettings.blog_type,
     blogTopic: blogSettings.blog_topic,
     blogTopics: 세부주제읽기(blogSettings.blog_topics),
@@ -62,18 +116,14 @@ export async function generatePost(category: Category, directive: PostDirective,
     postingDirectionRefinement: blogSettings.posting_direction_refinement,
   });
   const prompt = buildPostPrompt(category, directive, today, recentTitles, blogProfileBlock,
-    { 메모, 메모요청: 조사 && !메모 });
+    { 블로그메모, 카테고리메모, 최근소식, 조사실패: 조사실패 && (소식찾기 || 블로그읽기 || 카테고리읽기) });
+  const 글시작 = Date.now();
+  const 다시 = 기록.다시;
 
-  // 첫 글: 참고 주소가 있으면 열어 봐야 하므로 검색·열람 도구를 켠다.
-  // 메모가 있으면: 주소는 안 열고(검색만), 최근 소식을 볼 까닭이 있을 때만 검색한다.
-  const 카테고리주소있음 = !!(category.reference_urls ?? "").trim() || !!(category.main_url ?? "").trim();
-  const requiresSearch = 메모
-    ? category.requires_search === 1 || !!category.topic_keyword || 카테고리주소있음
-    : 조사;
-  const 다시 = 기록?.다시 ?? [];
-
-  const attempt = async (p: string, 도구 = true) => {
-    const 답 = await runAI({ prompt: p, needsSearch: 도구 && requiresSearch, searchOnly: !!메모 });
+  const attempt = async (p: string) => {
+    const meta: 부른기록 = {};
+    const 답 = await runAI({ prompt: p, timeoutMs: 글쓰기한도ms, meta });
+    if (meta.model) 기록.모델 = meta.model;
     return parsePostResponse(답);
   };
 
@@ -89,8 +139,8 @@ export async function generatePost(category: Category, directive: PostDirective,
     // 늘어, 쓰시는 분은 8분을 보고 나서야 실패를 들었다.
     if (시간초과인가(firstErr)) {
       throw new Error(`[${category.name}] ${(firstErr as Error).message} `
-                    + `— 뉴스형이 아닌 카테고리로 먼저 해 보시거나, `
-                    + `[관리자 설정] 1단계에서 다른 모델을 적어 보십시오.`);
+                    + `— 글쓰기는 주소·검색 없이 자료만 보고 쓰는 단계라 보통 1~3분입니다. 이보다 오래 걸리면 `
+                    + `모델이 느린 것입니다. [관리자 설정] 1단계 모델 칸에 «sonnet» 을 적어 보십시오.`);
     }
     const retryPrompt = `${prompt}\n\n(주의: 이전 응답이 올바른 JSON 형식이 아니었다. 반드시 다른 텍스트 없이 순수 JSON 객체 하나만 출력하라.)`;
     다시.push("JSON");
@@ -105,14 +155,18 @@ export async function generatePost(category: Category, directive: PostDirective,
   }
 
   const 최소 = 최소분량();
-  if (parsed.post.content.length < 최소) {
+  // 분량 보강은 시간이 남을 때만 — 5분 안에 끝내는 게 먼저다. 짧으면 카드의 «글자수» 표시로 보인다.
+  if (parsed.post.content.length < 최소 && Date.now() - 시작 > 보강마감ms) {
+    다시.push("분량(시간 없어 건너뜀)");
+    console.warn(`[${category.name}] 분량 ${parsed.post.content.length}자 < ${최소}자 — 시간이 없어 보강을 건너뜁니다.`);
+  } else if (parsed.post.content.length < 최소) {
     const shortLength = parsed.post.content.length;
     // 모자란 까닭을 숫자로 못 박아 준다. 「더 길게」 만으로는 잘 안 는다.
     // **다시 조사하지 않는다** — 받은 글을 주고 늘리게만 한다(도구 없음).
     const lengthRetryPrompt = buildExpandPrompt(parsed.post, 최소, directive.targetLength);
     다시.push("분량");
     try {
-      const retryParsed = await attempt(lengthRetryPrompt, false);
+      const retryParsed = await attempt(lengthRetryPrompt);
       console.warn(
         `[${category.name}] 분량 보강 재시도: ${shortLength}자 -> ${retryParsed.post.content.length}자`,
       );
@@ -157,16 +211,6 @@ export async function generatePost(category: Category, directive: PostDirective,
 
   markCategoryUsed(category.id);
 
-  // 첫 글이면 읽은 것을 메모로 남긴다 — 다음 글부터 주소를 다시 안 연다.
-  // 메모를 못 받았으면(짧거나 빠짐) 그냥 둔다. 다음 글이 다시 읽는다.
-  const 받은메모 = (parsed.post.brief ?? "").trim();
-  if (조사 && !메모 && 받은메모.length >= 80) {
-    메모적기(category.id, 받은메모, 메모지문(category, blogSettings.blog_links));
-  }
-  if (기록) {
-    기록.글ms = Date.now() - 시작;
-    기록.첫글 = 조사 && !메모;
-    기록.메모씀 = !!메모;
-  }
+  기록.글ms = Date.now() - 글시작;
   return post;
 }

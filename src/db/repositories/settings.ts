@@ -182,6 +182,9 @@ export const 개인설정키 = [
   "blog_topics",
   "blog_links",
   "blog_brand",
+  // 블로그 참고 주소를 읽고 남긴 메모(JSON {text, sig, at}). 카테고리마다 따로 읽지 않게
+  // 자리에 하나만 둔다. pipeline/자료메모.ts 참고
+  "blog_links_brief",
 ] as const;
 
 export function 개인설정인가(key: string): boolean {

@@ -1808,3 +1808,15 @@ body:not(.is-trial) [data-trial-only]{display:none !important}
 #category-table .gen-status .gs-idle .link-btn{padding:0;white-space:nowrap}
 #category-table .cat-tag{white-space:nowrap;display:inline-block}
 #category-table td.cat-keyword{line-height:1.9}
+
+/* ── 수정사항-3: 상태 칸 좁게(220px), 주제 키워드가 나머지를 다 쓴다 ── */
+#category-table col.c-topic{width:15.6%}
+#category-table col.c-kw{width:auto}
+#category-table col.c-active{width:84px}
+#category-table col.c-gen{width:104px}
+#category-table col.c-status{width:220px}
+#category-table .gen-status .gs{font-size:12.5px;padding:6px 8px}
+#category-table .gen-status .gs-idle,#category-table .gen-status .gs-none{padding:0}
+#category-table .gen-status .gs-sub{display:block;color:#8a5a00;font-size:12px}
+#category-table .gen-status .gs-done .link-btn,#category-table .gen-status .gs-warn .link-btn{padding:0;white-space:nowrap}
+#category-table .gen-status .gs-time{font-size:11.5px;color:#6b7280}

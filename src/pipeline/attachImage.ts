@@ -15,6 +15,21 @@ export interface AttachImageOptions {
   page?: number;
   /** true면 기존 이미지 오른쪽에 추가, false면 전체를 새로 교체(최초 생성). */
   append?: boolean;
+  /** AI 가 사진을 고르는 데 줄 시간. 0 이면 AI 없이 검색 순서대로. 안 주면 60초. */
+  selectTimeoutMs?: number;
+}
+
+/** 한 편 전체 목표 시간 — 5분. */
+export const 한편목표ms = 300_000;
+
+/**
+ * 지금까지 걸린 시간을 보고, 사진 고르기에 줄 시간을 정한다.
+ * 내려받기·가공에 20초쯤 남겨 두고, 최대 60초. 15초도 안 남으면 AI 없이(0).
+ */
+export function 사진고르기시간(지난ms: number): number {
+  const 남은 = 한편목표ms - 지난ms - 20_000;
+  if (남은 < 15_000) return 0;
+  return Math.min(60_000, 남은);
 }
 
 /**
@@ -40,7 +55,7 @@ export async function attachImage(post: Post, options: AttachImageOptions = {}):
     options.page ?? 1,
   );
   const summary = (post.content ?? "").slice(0, 500);
-  const selected = await selectBestImages(candidates, summary, count, post.title ?? "");
+  const selected = await selectBestImages(candidates, summary, count, post.title ?? "", options.selectTimeoutMs ?? 60_000);
 
   fs.mkdirSync(postDir, { recursive: true });
   const existingCount = append ? getImagePaths(post).length : 0;

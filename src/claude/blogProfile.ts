@@ -232,7 +232,7 @@ export interface BlogProfileSettings {
    * resolvePostingDirectionInstruction() 참고). */
   postingDirectionInstruction: string | null;
   postingDirectionRefinement: string | null;
-  /** 참이면 참고 주소를 열라고 하지 않는다 — 이미 읽어 둔 자료 메모로 대신한다. */
+  /** 참이면 참고 주소를 열라고 하지 않는다 — 글쓰기에는 도구가 없고, 조사 단계가 읽어 둔 메모로 대신한다. */
   주소는메모로?: boolean;
 }
 
@@ -269,7 +269,7 @@ export function buildBlogProfileBlock(settings: BlogProfileSettings): string {
   const 주소 = (settings.links ?? []).filter((l) => l && l.url);
   if (주소.length && settings.주소는메모로) {
     lines.push([
-      "[참고 주소 — 이 블로그의 기준 자료. 이미 읽고 정리한 내용이 아래 «자료 메모» 에 있다. 다시 열지 마라]",
+      "[참고 주소 — 이 블로그의 기준 자료. 읽어 둔 내용은 아래 [조사 자료]의 블로그 메모에 있다. 직접 열지 마라]",
       ...주소.map((l) => `- (${LINK_KINDS[l.kind] ?? "기타"}) ${l.url}${l.note ? ` — ${l.note}` : ""}`),
     ].join("\n"));
   } else if (주소.length) {

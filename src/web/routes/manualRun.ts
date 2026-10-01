@@ -4,7 +4,8 @@ import { getPost, markReady } from "../../db/repositories/posts.js";
 import { 체험인가, 지금주인, 체험_하루상한, 상한안내 } from "../../tenancy.js";
 import { todayPostCount } from "../../db/repositories/tenants.js";
 import { assignDirectives } from "../../pipeline/directives.js";
-import { generatePost, type 생성기록 } from "../../pipeline/generatePost.js";
+import { generatePost, 빈기록, type 생성기록 } from "../../pipeline/generatePost.js";
+import { 사진고르기시간 } from "../../pipeline/attachImage.js";
 import { attachImage } from "../../pipeline/attachImage.js";
 import { runDailyJob } from "../../scheduler/dailyJob.js";
 import { 오류적기, 최근오류 } from "../../db/repositories/errorLog.js";
@@ -89,9 +90,10 @@ export async function manualRunRoutes(app: FastifyInstance) {
 
     const [directive] = assignDirectives(1);
     // 무엇에 얼마나 걸렸나 — 상태창에 «글 3분 · 사진 40초» 로 보여 준다.
-    const 기록: 생성기록 = { 글ms: 0, 첫글: false, 메모씀: false, 다시: [] };
+    const 기록: 생성기록 = 빈기록();
     const 시작 = Date.now();
-    const 걸린것 = () => ({ ...기록, 사진ms: Math.max(0, Date.now() - 시작 - 기록.글ms), 전체ms: Date.now() - 시작 });
+    let 사진시작 = 0;
+    const 걸린것 = () => ({ ...기록, 사진ms: 사진시작 ? Date.now() - 사진시작 : 0, 전체ms: Date.now() - 시작 });
     let post;
     try {
       post = await generatePost(category, directive, 기록);
@@ -111,7 +113,10 @@ export async function manualRunRoutes(app: FastifyInstance) {
     }
 
     try {
-      await attachImage(post);
+      사진시작 = Date.now();
+      // 사진 고르기(AI 가 후보를 보고 고름)에 줄 시간 — 전체 5분에서 남은 만큼, 최대 60초.
+      // 남은 게 없으면 AI 없이 검색 순서대로 붙인다.
+      await attachImage(post, { selectTimeoutMs: 사진고르기시간(Date.now() - 시작) });
     } catch (err) {
       오류적기("이미지", category.name, (err as Error).message);
       markReady(post.id);

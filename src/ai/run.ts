@@ -185,8 +185,20 @@ function 실행파일(것: Engine): string {
   return 것.bin;
 }
 
+/** 한 번 부른 것의 속사정 — 느릴 때 어디가 느린지 보려고 남긴다. */
+export interface 부른기록 {
+  /** 도구를 몇 번 오갔나 (Claude 만 알려 준다) */
+  turns?: number;
+  /** 글을 쓴 모델 이름 (Claude 만 알려 준다) */
+  model?: string;
+  /** 실제로 걸린 시간 */
+  ms?: number;
+}
+
 export interface RunOptions extends RunAsk {
   timeoutMs?: number;
+  /** 넘기면 채워 준다 — 걸린 시간·오간 횟수·모델. */
+  meta?: 부른기록;
   /** 저장통의 로그인을 간격과 상관없이 지금 맞춘다 ([연결 테스트]). */
   freshLogin?: boolean;
 }
@@ -300,6 +312,7 @@ export async function runAI(options: RunOptions): Promise<string> {
 
   const 준비 = 준비됐나(것);
   if (!준비.ok) throw new Error(준비.why);
+  const 시작 = Date.now();
 
   // 로그인으로 도는 엔진(Claude·Codex)은 **저장통의 로그인과 먼저 맞춘다.**
   // 사장님이 새로 로그인해 올렸으면 서버를 다시 켜지 않아도 바로 쓴다.
@@ -375,5 +388,25 @@ export async function runAI(options: RunOptions): Promise<string> {
     try { 파일글 = fs.readFileSync(답자리, "utf8"); } catch { /* 비어 있을 수 있다 */ }
     try { fs.rmSync(path.dirname(답자리), { recursive: true, force: true }); } catch { /* 치우다 실패해도 답은 답이다 */ }
   }
+  if (options.meta) {
+    options.meta.ms = Date.now() - 시작;
+    Object.assign(options.meta, 속사정읽기(것.id, stdout));
+  }
   return 것.answer(stdout, 파일글);
+}
+
+/**
+ * Claude 의 답 봉투에는 오간 횟수(num_turns)와 모델별 사용량(modelUsage)이 있다.
+ * 모델은 **가장 많이 쓴 것**을 고른다 — 주소를 열 때 요약에 작은 모델(haiku)이 끼기 때문.
+ */
+function 속사정읽기(엔진: string, stdout: string): 부른기록 {
+  if (엔진 !== "claude") return {};
+  try {
+    const 봉투 = JSON.parse(stdout) as { num_turns?: number; modelUsage?: Record<string, { outputTokens?: number }> };
+    const 모델들 = Object.entries(봉투.modelUsage ?? {})
+      .sort((a, b) => (b[1]?.outputTokens ?? 0) - (a[1]?.outputTokens ?? 0));
+    return { turns: 봉투.num_turns, model: 모델들[0]?.[0] };
+  } catch {
+    return {};
+  }
 }
