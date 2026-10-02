@@ -1027,6 +1027,7 @@ async function switchView(view) {
   if (view === "settings") { await refreshSettings(); await refreshSchedule(); await refreshEngines(); await refreshErrors(); }
   if (view === "home") renderHome();
   if (view === "keywords") refreshKeywords().catch((err) => alert(err.message));
+  if (view === "style") refreshStyle().catch((err) => alert(err.message));
 }
 
 document.getElementById("category-form").addEventListener("submit", async (e) => {
@@ -3168,4 +3169,148 @@ document.addEventListener("click", (e) => {
   if (!b) return;
   e.preventDefault();
   검수창열기(Number(b.dataset.id));
+});
+
+// ─────────────────────────────────────────────────────────────
+// 🎨 내 블로그 분석 — 공개 글 → AI 스타일·진단 → 사람이 고쳐 승인 → [적용] 체크 때만 글쓰기에
+// ─────────────────────────────────────────────────────────────
+let st자료 = null;   // GET /api/style
+let st지금 = null;   // 화면에 펼친 버전
+
+const st날짜 = (s) => (s ? new Date(s.replace(" ", "T") + (s.includes("Z") ? "" : "Z")).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
+
+async function refreshStyle() {
+  st자료 = await api("/api/style");
+  document.getElementById("st-fake").hidden = !st자료.fake;
+  const 주소 = document.getElementById("st-url");
+  if (!주소.value) 주소.value = st자료.blogUrl || "";
+  document.getElementById("st-remaining").textContent = st자료.remaining === null ? "" : ` · 체험 키는 오늘 ${st자료.remaining}번 더`;
+  스타일그리기(st자료.current);
+  스타일적용그리기();
+}
+
+function 스타일그리기(v) {
+  st지금 = v;
+  const 있음 = !!v;
+  document.getElementById("st-empty").hidden = 있음;
+  document.getElementById("st-body").hidden = !있음;
+  if (!있음) { document.getElementById("st-ver").textContent = ""; return; }
+  const 쓰는 = st자료 && st자료.activeId === v.id;
+  document.getElementById("st-ver").innerHTML = `v${v.ver} · ${v.approvedAt ? `<b class="ok">승인 ${escapeHtml(st날짜(v.approvedAt))}</b>` : "<b class=\"draft\">승인 전 초안</b>"}`
+    + (쓰는 ? " · 글쓰기에 쓰는 버전" : "") + ` · 글 ${v.postCount}편 · ${escapeHtml(st날짜(v.createdAt))} 분석`;
+  const s = v.stats || {};
+  const 칩 = (이름, 값) => (값 === null || 값 === undefined || 값 === "" ? "" : `<span class="st-chip"><small>${이름}</small>${escapeHtml(String(값))}</span>`);
+  document.getElementById("st-stats").innerHTML = [
+    칩("읽은 글", s.글수 !== undefined ? `${s.글수}편 (본문 ${s.본문수}편)` : ""),
+    칩("기간", s.기간), 칩("주당", s.주당 !== null && s.주당 !== undefined ? `${s.주당}편` : ""),
+    칩("제목 평균", s.제목평균 ? `${s.제목평균}자` : ""), 칩("숫자 든 제목", s.제목숫자 !== undefined ? `${s.제목숫자}%` : ""),
+    칩("본문 평균", s.본문평균 ? `${Number(s.본문평균).toLocaleString()}자` : ""), 칩("«~요» 끝맺음", s.요체 !== null && s.요체 !== undefined ? `${s.요체}%` : ""),
+    칩("이모지 쓰는 글", s.이모지 !== null && s.이모지 !== undefined ? `${s.이모지}%` : ""),
+    칩("AI 확실도", v.analysis.confidence !== null ? `${Math.round(v.analysis.confidence * 100)}%` : ""),
+    (s.카테고리 || []).length ? `<span class="st-chip wide"><small>카테고리</small>${s.카테고리.map((c) => `${escapeHtml(c.이름)} ${c.수}`).join(" · ")}</span>` : "",
+  ].join("");
+  const 이름들 = (st자료 && st자료.labels) || {};
+  document.getElementById("st-fields").innerHTML = Object.keys(이름들).map((k) => `<label class="st-field"><span>${escapeHtml(이름들[k])}</span>
+    <textarea data-st-key="${k}" rows="2">${escapeHtml(v.analysis.style[k] || "")}</textarea></label>`).join("");
+  document.getElementById("st-confirm").checked = false;
+  document.getElementById("st-approve").disabled = true;
+  document.getElementById("st-approve").textContent = v.approvedAt ? "✔ 고친 내용으로 다시 승인" : "✔ 이대로 승인";
+  document.getElementById("st-state").textContent = "";
+  진단그리기(v.analysis);
+}
+
+function 진단그리기(a) {
+  const 칸 = document.getElementById("st-diag");
+  if (!a || (!a.strengths.length && !a.improvements.length)) { 칸.className = "muted"; 칸.textContent = "진단 내용이 없습니다."; return; }
+  칸.className = "st-diag";
+  칸.innerHTML = (a.summary ? `<p class="st-sum">${escapeHtml(a.summary)}</p>` : "")
+    + `<div class="st-dgrid"><div><h4>👍 강점</h4><ol>${a.strengths.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ol></div>`
+    + `<div><h4>🎯 먼저 할 것</h4><ol>${a.priority.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ol></div></div>`
+    + `<h4>🔧 개선할 점</h4><div class="st-imps">${a.improvements.map((x, i) => `<div class="st-imp"><b>${i + 1}. ${escapeHtml(x.title)}</b>`
+      + (x.why ? `<div class="muted">왜: ${escapeHtml(x.why)}</div>` : "") + (x.how ? `<div>→ ${escapeHtml(x.how)}</div>` : "") + "</div>").join("")}</div>`
+    + `<p class="muted st-note">진단은 화면에만 보입니다(글쓰기에는 들어가지 않습니다). AI 의견이니 참고만 하세요.</p>`;
+}
+
+function 스타일적용그리기() {
+  const d = st자료 || {};
+  const 승인들 = (d.versions || []).filter((v) => v.approvedAt);
+  const 쓰는 = 승인들.find((v) => v.id === d.activeId);
+  const 상자 = document.getElementById("st-apply");
+  상자.checked = !!d.apply && !!쓰는;
+  상자.disabled = !쓰는;
+  document.getElementById("st-apply-label").innerHTML = 쓰는
+    ? `승인한 스타일 <b>v${쓰는.ver}</b> 을 글쓰기(아침 자동 글·지금 생성)에 적용`
+    : "승인한 스타일을 글쓰기에 적용 <span class=\"muted\">— 먼저 ②에서 승인해 주세요</span>";
+  document.getElementById("st-versions").innerHTML = 승인들.length
+    ? `<div class="st-vers"><b>승인한 버전</b>${승인들.map((v) => `<div class="st-verrow">v${v.ver} · 승인 ${escapeHtml(st날짜(v.approvedAt))} · 글 ${v.postCount}편 `
+      + (v.id === d.activeId ? "<span class=\"st-on\">쓰는 중</span>" : `<button class="btn-secondary" data-action="st-use" data-id="${v.id}">이 버전 쓰기</button>`)
+      + ` <button class="btn-link" data-action="st-show" data-id="${v.id}">보기</button></div>`).join("")}</div>`
+    : "";
+}
+
+function 스타일칸모으기() {
+  const style = {};
+  document.querySelectorAll("#st-fields [data-st-key]").forEach((t) => { style[t.dataset.stKey] = t.value.trim(); });
+  return { ...st지금.analysis, style };
+}
+
+async function 스타일분석시작() {
+  const 주소 = document.getElementById("st-url").value.trim();
+  if (!주소) { alert("블로그 주소를 넣어 주세요."); return; }
+  if (st지금 && !st지금.approvedAt && !confirm("승인하지 않은 초안이 있습니다. 새로 분석하면 새 초안이 생깁니다(지난 초안은 기록에 남습니다). 계속할까요?")) return;
+  const 단추 = document.getElementById("st-run");
+  const 진행 = document.getElementById("st-progress");
+  단추.disabled = true;
+  진행.hidden = false;
+  const 시작 = Date.now();
+  const 틱 = setInterval(() => {
+    const 초 = Math.round((Date.now() - 시작) / 1000);
+    진행.textContent = 초 < 30 ? `⏳ 공개 글을 읽는 중… ${초}초` : `🤖 AI 가 스타일을 정리하는 중… ${초}초 (최대 3분)`;
+  }, 1000);
+  try {
+    const v = await api("/api/style/analyze", { method: "POST", body: JSON.stringify({ url: 주소 }) });
+    진행.textContent = `✅ 분석 끝 — ${Math.round((Date.now() - 시작) / 1000)}초. 아래 ②를 확인하고 고쳐서 승인해 주세요.`;
+    await refreshStyle();
+    스타일그리기(v);
+    document.getElementById("st-body").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (err) {
+    진행.textContent = `⚠ ${err.message}`;
+  } finally {
+    clearInterval(틱);
+    단추.disabled = false;
+  }
+}
+
+document.addEventListener("change", async (e) => {
+  if (e.target.id === "st-confirm") document.getElementById("st-approve").disabled = !e.target.checked;
+  if (e.target.id === "st-apply") {
+    try {
+      await api("/api/style/apply", { method: "PUT", body: JSON.stringify({ on: e.target.checked }) });
+      await refreshStyle();
+    } catch (err) { e.target.checked = !e.target.checked; alert(err.message); }
+  }
+});
+
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-action]");
+  if (!btn || !btn.dataset.action.startsWith("st-")) return;
+  e.preventDefault();
+  const 할일 = btn.dataset.action;
+  try {
+    if (할일 === "st-run") await 스타일분석시작();
+    else if (할일 === "st-approve") {
+      const v = await api(`/api/style/${st지금.id}/approve`, { method: "PUT", body: JSON.stringify({ analysis: 스타일칸모으기(), confirmed: true }) });
+      await refreshStyle();
+      스타일그리기(v);
+      document.getElementById("st-state").textContent = "승인했습니다. ④에서 글쓰기에 적용할 수 있습니다.";
+    } else if (할일 === "st-use") {
+      await api("/api/style/active", { method: "PUT", body: JSON.stringify({ id: Number(btn.dataset.id) }) });
+      await refreshStyle();
+    } else if (할일 === "st-show") {
+      스타일그리기(await api(`/api/style/${btn.dataset.id}`));
+      document.getElementById("st-body").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  } catch (err) {
+    alert(err.message);
+  }
 });

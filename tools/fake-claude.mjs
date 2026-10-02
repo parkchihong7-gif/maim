@@ -7,6 +7,21 @@ const 잠 = Number(process.env.FAKE_SLEEP||0); if (잠) Atomics.wait(new Int32Ar
 { const a=process.argv.slice(2); const q=a[a.indexOf("-p")+1]||"";
   if (q.includes("자료만 빠르게")) { process.stdout.write(JSON.stringify({ is_error:false, num_turns:4, result: JSON.stringify({ blog_brief: q.includes("■ blog_brief") ? "(블로그) 생활 정보. ".repeat(10) : "", brief: q.includes("■ brief") ? "(KOSIS) 물가 2.1% 상승. ".repeat(8) : "", news: q.includes("■ news") ? "(2026-09-30, 연합뉴스) 물가 둔화" : "" }) })); process.exit(0); } }
 { const a=process.argv.slice(2); const q=a[a.indexOf("-p")+1]||"";
+  if (q.includes("[스타일 분석 요청]")) { process.stdout.write(JSON.stringify({ is_error:false, result: JSON.stringify({
+    style: { topic:"전세·월세 계약과 대출 등 세입자 실무 정보", readers:"처음 전세 계약을 앞둔 20~30대 세입자", tone:"친근한 구어체 «~해요», 독자에게 말 걸듯",
+      title_style:"핵심 대상 + 숫자(3가지·10가지) 또는 «이렇게 보세요» 같은 안내형", sentence_style:"짧은 문장, 결론 먼저, 물음으로 이어 가기",
+      paragraph_style:"📌·✅ 이모지로 소제목·목록을 열고 문단은 2~3줄", experience_style:"«저도 헷갈렸는데요» 처럼 가벼운 공감, 구체 경험은 적음",
+      habits:"«정리해 볼게요», «결론부터 말씀드리면», «댓글로 남겨 주세요»", avoid:"법률 단정, 과장된 숫자", conditions:"서류 이름은 정확히, 바뀐 제도는 연도를 밝히기" },
+    summary:"세입자 눈높이로 계약·대출 실무를 쉽게 풀어 주는 정보형 블로그예요.",
+    strengths:["결론을 먼저 말해 읽기 쉽다","체크리스트 형식이 많아 저장·공유하기 좋다","말투가 일정해 신뢰감이 있다"],
+    improvements:[{title:"본문 길이가 짧은 글이 있다",why:"검색한 사람이 다른 글로 넘어간다",how:"사례·예외 조건 문단을 하나 더"},
+      {title:"출처 표시가 적다",why:"제도 숫자는 바뀐다",how:"기관명·기준일을 한 줄로"},
+      {title:"제목이 비슷하다",why:"같은 키워드끼리 겹친다",how:"대상·상황을 제목 앞에"},
+      {title:"직접 경험이 적다",why:"차별화가 약하다",how:"실제 겪은 장면 한 단락"},
+      {title:"카테고리 쏠림",why:"부동산 기초에 몰림",how:"대출·생활 글도 주기적으로"},
+      {title:"마무리가 같다",why:"반복 표현",how:"다음 글 안내·요약 박스로 바꿔 보기"}],
+    priority:["출처·기준일 한 줄 넣기","글마다 예외 조건 문단 추가","제목에 대상·상황 넣기"], confidence:0.72 }) })); process.exit(0); } }
+{ const a=process.argv.slice(2); const q=a[a.indexOf("-p")+1]||"";
   if (q.includes("[검수 요청]")) { process.stdout.write(JSON.stringify({ is_error:false, result: JSON.stringify({ summary: "사실 확인이 필요한 숫자 2곳과 단정 표현 1곳이 있어요.", items: [
     { kind:"fact", quote:"전년보다 40% 늘었다", why:"조사 자료에 없는 숫자입니다.", fix:"출처를 넣거나 숫자를 빼세요." },
     { kind:"fact", quote:"2025년 기준", why:"오늘 기준으로 낡았을 수 있습니다.", fix:"최신 연도인지 확인하세요." },

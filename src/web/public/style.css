@@ -1927,3 +1927,32 @@ body:not(.is-trial) [data-trial-only]{display:none !important}
 .rv-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid #eef0f3}
 .badge-final{background:#e8f6ee;color:#17663a}
 @media(max-width:900px){.rv-grid{grid-template-columns:1fr}.rv-sum{grid-template-columns:repeat(3,1fr)}.rv-edit,.rv-mpv .mpv-frame{height:320px}}
+
+/* 🎨 내 블로그 분석 */
+.st-url{flex:1 1 260px;min-width:0;max-width:420px;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px}
+.st-note{font-size:13px;margin-top:8px}
+.st-progress{margin-top:10px;padding:8px 12px;border-radius:8px;background:#f3f4f6;font-size:14px}
+.st-head{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;justify-content:space-between}
+.st-ver{font-size:13px;color:#6b7280}
+.st-ver .ok{color:#17663a}.st-ver .draft{color:#8a4b00}
+.st-stats{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+.st-chip{display:inline-flex;flex-direction:column;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:5px 10px;font-size:13.5px;font-weight:600;min-width:0}
+.st-chip small{font-size:11px;color:#6b7280;font-weight:400}
+.st-chip.wide{flex:1 1 100%}
+.st-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-top:10px}
+.st-field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:#374151;min-width:0}
+.st-field textarea{width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:8px;padding:7px 9px;font-size:13.5px;line-height:1.6;resize:vertical;font-family:inherit}
+.st-foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px;font-size:14px}
+.st-foot label{display:flex;gap:6px;align-items:center}
+.st-sum{font-weight:600;margin:0 0 10px}
+.st-diag h4{margin:12px 0 6px;font-size:14px}
+.st-diag ol{margin:0;padding-left:20px;line-height:1.7;font-size:14px}
+.st-dgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.st-imps{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.st-imp{border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;font-size:13.5px;line-height:1.6}
+.st-apply{display:flex;gap:8px;align-items:center;font-size:15px}
+.st-vers{margin-top:12px;font-size:13.5px;display:flex;flex-direction:column;gap:6px}
+.st-verrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.st-on{background:#e8f6ee;color:#17663a;border-radius:6px;padding:2px 8px;font-size:12px}
+.btn-link{background:none;border:0;color:#2563eb;cursor:pointer;padding:0;font-size:13px}
+@media(max-width:760px){.st-fields,.st-dgrid,.st-imps{grid-template-columns:1fr}}

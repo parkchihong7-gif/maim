@@ -19,6 +19,8 @@ export interface 글옵션 {
   조사실패?: boolean;
   /** 🔎 보관함에서 고른 키워드의 [키워드 데이터] 블록 (src/naver/보관함사용.ts). 없으면 예전과 같다 */
   키워드자료?: string;
+  /** 🎨 승인한 내 블로그 스타일 블록 (src/pipeline/내스타일.ts). [적용] 체크했을 때만. 없으면 예전과 같다 */
+  내스타일?: string;
 }
 
 export function buildPostPrompt(
@@ -118,7 +120,7 @@ ${topicKeywordBlock}
 ${옵션.키워드자료 ? `${옵션.키워드자료}\n` : ""}${categoryUrlBlock}
 ${recentTitlesBlock}
 ${buildStyleRulesBlock(directive)}
-${글방식블록(category)}
+${옵션.내스타일 ? `${옵션.내스타일}\n` : ""}${글방식블록(category)}
 ${buildTitleRuleBlock()}
 ${buildSeoRuleBlock(directive)}
 ${titleVariantsInstruction}

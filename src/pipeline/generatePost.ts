@@ -15,6 +15,7 @@ import { config } from "../config.js";
 import { 최소분량 } from "../db/repositories/settings.js";
 import { 제목고르기 } from "../claude/제목규칙.js";
 import { 보관함키워드고르기 } from "../naver/보관함사용.js";
+import { 적용할스타일블록 } from "./내스타일.js";
 import { 키워드썼음 } from "../db/repositories/keywordPool.js";
 import { 분량고르기 } from "../claude/글방식.js";
 
@@ -54,6 +55,8 @@ export interface 생성기록 {
   키워드출처?: "직접" | "보관함" | "AI";
   /** 보관함에서 왔으면 그 키워드 */
   보관키워드?: string;
+  /** 🎨 승인한 내 블로그 스타일을 넣었으면 그 버전 번호 */
+  스타일버전?: number;
 }
 
 export function 빈기록(): 생성기록 {
@@ -136,9 +139,11 @@ export async function generatePost(category: Category, directive: PostDirective,
   // 카테고리 폼 ⑦ 의 분량 — 짧게/길게를 골랐으면 목표·최소 글자수를 그것으로.
   const 고른분량 = 분량고르기(category.length_pref);
   if (고른분량.목표) directive = { ...directive, targetLength: 고른분량.목표 };
+  const 내스타일 = 적용할스타일블록();
+  if (내스타일) 기록.스타일버전 = 내스타일.ver;
   const prompt = buildPostPrompt(category, directive, today, recentTitles, blogProfileBlock,
     { 블로그메모, 카테고리메모, 최근소식, 조사실패: 조사실패 && (소식찾기 || 블로그읽기 || 카테고리읽기),
-      키워드자료: 보관?.자료 });
+      키워드자료: 보관?.자료, 내스타일: 내스타일?.블록 });
   const 글시작 = Date.now();
   const 다시 = 기록.다시;
 

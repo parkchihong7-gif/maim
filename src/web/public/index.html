@@ -51,6 +51,7 @@
         <button class="sidebar-nav-item" data-action="switch-view" data-view="drafts">📝 <span>포스팅</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="history">📜 <span>발행 이력</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="keywords" data-owner-only>🔎 <span>네이버 키워드</span></button>
+        <button class="sidebar-nav-item" data-action="switch-view" data-view="style">🎨 <span>내 블로그 분석</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="settings">⚙️ <span id="nav-settings-label">관리자 설정</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="guide">📖 <span>사용법</span></button>
       </nav>
@@ -453,6 +454,57 @@
           <p class="muted">체크한 카테고리만 보관함 키워드로 씁니다. <strong>처음에는 모두 꺼져 있습니다.</strong>
             [블로그 관리] ③ 주제 키워드를 직접 적었으면 그것이 먼저이고, 보관함이 비면 예전 방식으로 씁니다.</p>
           <div id="kw-apply-list"></div>
+        </div>
+      </section>
+
+      <section data-view-panel="style" hidden>
+        <div class="page-header">
+          <div>
+            <h1>🎨 내 블로그 분석</h1>
+            <p class="muted">공개 글을 읽고 <strong>내 블로그 스타일</strong>을 정리합니다 → <strong>직접 고쳐서 승인</strong> → 원할 때만 글쓰기에 적용합니다.</p>
+          </div>
+        </div>
+        <div class="kw-safe">✔ <strong>지금 포스팅에는 영향이 없습니다.</strong> ④를 체크하기 전에는 <strong>예전과 똑같이</strong> 씁니다.
+          공개 글만 읽고, 원문은 저장하지 않습니다(분석 결과만 남깁니다).</div>
+        <p class="kw-fake" id="st-fake" hidden>🧪 시험용 가짜 모드입니다 — 실제 블로그 대신 예시 글을 씁니다.</p>
+
+        <div class="card">
+          <h3>① 내 블로그 불러와 분석하기</h3>
+          <div class="kw-row">
+            <input type="text" id="st-url" class="st-url" placeholder="blog.naver.com/내아이디" autocomplete="off">
+            <button class="btn-primary" data-action="st-run" id="st-run">불러와 분석하기</button>
+          </div>
+          <p class="muted st-note">공개 글 목록 최대 30편 + 최근 8편 본문을 읽습니다 · 1~3분 걸립니다 · 사장님 AI 사용량을 씁니다
+            <span id="st-remaining"></span></p>
+          <div class="st-progress" id="st-progress" hidden></div>
+        </div>
+
+        <div class="card">
+          <div class="st-head"><h3>② 내 블로그 스타일</h3><span class="st-ver" id="st-ver"></span></div>
+          <div id="st-empty" class="muted">아직 분석한 적이 없습니다. ①에서 블로그 주소를 넣고 눌러 주세요.</div>
+          <div id="st-body" hidden>
+            <div class="st-stats" id="st-stats"></div>
+            <p class="muted st-note">AI 가 정리한 것입니다. <strong>틀린 곳은 직접 고치고</strong> 승인하세요. 승인한 내용만 글쓰기에 쓰입니다.</p>
+            <div class="st-fields" id="st-fields"></div>
+            <div class="st-foot">
+              <label><input type="checkbox" id="st-confirm"> 내용을 <strong>직접 확인했습니다</strong></label>
+              <button class="btn-success" data-action="st-approve" id="st-approve" disabled>✔ 이대로 승인</button>
+              <span class="muted" id="st-state"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>③ 블로그 진단</h3>
+          <div id="st-diag" class="muted">분석하면 강점 3 · 개선할 점 6 · 먼저 할 것 3 이 여기에 보입니다.</div>
+        </div>
+
+        <div class="card">
+          <h3>④ 글쓰기에 적용</h3>
+          <label class="st-apply"><input type="checkbox" id="st-apply"> <span id="st-apply-label">승인한 스타일을 글쓰기(아침 자동 글·지금 생성)에 적용</span></label>
+          <p class="muted st-note">체크하면 승인한 스타일이 AI 지시문에 더해집니다(시간은 그대로). 최종 검수의 «내 블로그 스타일» 항목도 이것을 기준으로 봅니다.
+            체크를 끄면 바로 예전처럼 씁니다.</p>
+          <div id="st-versions"></div>
         </div>
       </section>
 

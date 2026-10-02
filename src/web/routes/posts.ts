@@ -10,6 +10,8 @@ import { attachImage } from "../../pipeline/attachImage.js";
 import { downloadFileIfMissing } from "../../persistence/gcsState.js";
 import { config } from "../../config.js";
 import { 오류적기 } from "../../db/repositories/errorLog.js";
+import { 쓰는스타일 } from "../../pipeline/내스타일.js";
+import { 검수용스타일 } from "../../claude/스타일분석.js";
 
 const MIME_BY_EXT: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -114,7 +116,9 @@ export async function postsRoutes(app: FastifyInstance) {
       const 결과 = await 검수하기({
         title: post.title ?? "",
         content: 글.slice(0, 12_000),
-        말투: resolvePostingDirectionInstruction(스타일.posting_direction_preset),
+        // 승인한 내 블로그 스타일이 있으면 그것을 기준으로 본다.
+        말투: [resolvePostingDirectionInstruction(스타일.posting_direction_preset), 쓰는스타일() ? 검수용스타일(쓰는스타일()!.분석.style) : ""]
+          .filter(Boolean).join("\n"),
         보강: 스타일.posting_direction_refinement,
       });
       검수적기(id, 결과);
