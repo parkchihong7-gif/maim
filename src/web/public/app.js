@@ -2953,7 +2953,7 @@ function 검수결과그리기(결과) {
     return `<div>${escapeHtml(n)}<br><span class="rv-tag ${c ? 검수색[k] : "rv-ok"}">${c ? `⚠ ${c}` : "✅"}</span></div>`;
   }).join("");
   const 줄 = (결과.items || []).map((i) => `<div class="rv-it"><span class="rv-tag ${검수색[i.kind] || "rv-warn"}">${escapeHtml(검수이름[i.kind] || i.kind)}</span>`
-    + `<span class="rv-q" data-rv-find="${escapeHtml(i.quote)}" title="누르면 글에서 찾아 줍니다">${escapeHtml(i.quote)}</span><br>`
+    + `<span class="rv-q" data-rv-find="${escapeHtml(i.quote)}" title="누르면 왼쪽 글에서 그 자리로 옮겨 칠해 줍니다">${escapeHtml(i.quote)}</span><br>`
     + `${escapeHtml(i.why)}${i.fix ? `<br><span class="muted">→ ${escapeHtml(i.fix)}</span>` : ""}</div>`).join("");
   const 키워드 = 검수글 ? buildQualityChecklist({ ...검수글, content: document.getElementById("rv-edit").value }) : [];
   칸.innerHTML = (결과.summary ? `<p><strong>${escapeHtml(결과.summary)}</strong></p>` : "")
@@ -3004,7 +3004,7 @@ function 검수창열기(postId) {
       <button class="btn-success" data-rv="save" id="rv-save" disabled>✔ 최종본으로 저장</button>
       <button class="btn-secondary" data-rv="copy-rich">서식째 복사</button>
       <button class="btn-secondary" data-rv="txt">TXT 내려받기</button>
-      <button class="btn-secondary" data-rv="img" title="ChatGPT 등에 붙여넣어 글에 맞는 이미지를 만들 때 — 이 프로그램은 이미지를 만들지 않습니다">🖼️ 이미지 프롬프트 복사</button>
+      <button class="btn-secondary" data-rv="img" title="쓰고 계신 이미지 생성 AI(ChatGPT·Gemini·Copilot 등)에 붙여넣어 쓰세요 — 이 프로그램은 이미지를 만들지 않습니다">🖼️ 이미지 프롬프트 복사</button>
       <span class="muted" id="rv-state"></span>
       <button class="btn-secondary" data-rv="close" style="margin-left:auto">닫기</button>
     </div></div>`;
@@ -3046,16 +3046,54 @@ function 이미지프롬프트(제목, 본문) {
   ].join("\n");
 }
 
+/** 검수 결과의 문장 → 왼쪽 글에서 그 자리를 찾아 **화면을 그곳으로 옮기고** 칠해 둔다. */
+function 검수글위치(글, 말) {
+  let i = 글.indexOf(말);
+  if (i >= 0) return { i, n: 말.length };
+  // AI 가 띄어쓰기·따옴표를 조금 바꿔 옮겨도 찾는다: 공백을 무시하고 맞춘다.
+  const 뼈 = 말.replace(/\s+/g, "");
+  if (!뼈) return null;
+  const 자리 = []; let 납작 = "";
+  for (let k = 0; k < 글.length; k++) if (!/\s/.test(글[k])) { 자리.push(k); 납작 += 글[k]; }
+  for (const 길이 of [뼈.length, Math.min(뼈.length, 12)]) {
+    const j = 납작.indexOf(뼈.slice(0, 길이));
+    if (j >= 0) return { i: 자리[j], n: 자리[j + 길이 - 1] - 자리[j] + 1 };
+  }
+  return null;
+}
+
+function 검수문장찾기(찾기) {
+  const 창 = document.getElementById("rv-dialog");
+  const 칸 = document.getElementById("rv-edit");
+  if (칸.hidden) 창.querySelector('[data-rv="tab-edit"]').click();
+  const 곳 = 검수글위치(칸.value, 찾기.dataset.rvFind || "");
+  const 줄 = document.getElementById("rv-state");
+  if (!곳) { 줄.textContent = "글에서 그 문장을 찾지 못했습니다 — 이미 고쳤을 수 있어요."; return; }
+  // 같은 글꼴·폭의 보이지 않는 복사본에 앞부분을 넣어 문장이 몇 px 아래에 있는지 잰다.
+  const 꼴 = getComputedStyle(칸);
+  const 거울 = document.createElement("div");
+  for (const k of ["boxSizing", "width", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "borderTopWidth",
+    "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "wordSpacing"]) 거울.style[k] = 꼴[k];
+  Object.assign(거울.style, { position: "absolute", visibility: "hidden", top: "0", left: "-9999px", whiteSpace: "pre-wrap", overflowWrap: "break-word", height: "auto", borderStyle: "solid" });
+  거울.textContent = 칸.value.slice(0, 곳.i);
+  const 표 = document.createElement("span"); 표.textContent = "|"; 거울.appendChild(표);
+  document.body.appendChild(거울);
+  const 높이 = 표.offsetTop;
+  거울.remove();
+  칸.scrollTop = Math.max(0, 높이 - 칸.clientHeight / 3);
+  칸.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  칸.focus({ preventScroll: true });
+  칸.setSelectionRange(곳.i, 곳.i + 곳.n);
+  창.querySelectorAll(".rv-q.on").forEach((x) => x.classList.remove("on"));
+  찾기.classList.add("on");
+  줄.textContent = "글에서 찾은 자리를 칠해 두었습니다.";
+}
+
 async function 검수창누름(e) {
   const 창 = document.getElementById("rv-dialog");
   if (e.target === 창) { 창.hidden = true; return; }
   const 찾기 = e.target.closest("[data-rv-find]");
-  if (찾기) {
-    const 칸 = document.getElementById("rv-edit");
-    const i = 칸.value.indexOf(찾기.dataset.rvFind);
-    if (i >= 0) { 칸.focus(); 칸.setSelectionRange(i, i + 찾기.dataset.rvFind.length); }
-    return;
-  }
+  if (찾기) { 검수문장찾기(찾기); return; }
   const b = e.target.closest("[data-rv]");
   if (!b) return;
   const 할일 = b.dataset.rv;
@@ -3117,7 +3155,7 @@ async function 검수창누름(e) {
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     } else if (할일 === "img") {
       await navigator.clipboard.writeText(이미지프롬프트(p.title || "", 검수글본문()));
-      b.textContent = "복사됨! ChatGPT 에 붙여넣으세요";
+      b.textContent = "복사됨! 쓰시는 AI 에 붙여넣으세요";
       setTimeout(() => { b.textContent = "🖼️ 이미지 프롬프트 복사"; }, 2500);
     }
   } catch (err) {

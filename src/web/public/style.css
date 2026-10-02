@@ -1920,6 +1920,8 @@ body:not(.is-trial) [data-trial-only]{display:none !important}
 .rv-it{border-bottom:1px solid #eef0f3;padding:8px 0;font-size:13.5px;line-height:1.6}
 .rv-it:last-child{border:0}
 .rv-q{background:#fff7e6;border-radius:4px;padding:1px 4px;cursor:pointer}
+.rv-q.on{background:#fde68a;outline:2px solid #f59e0b}
+.rv-edit::selection{background:#fde68a;color:#111}
 .rv-tag{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:1px 8px;margin-right:6px}
 .rv-ok{background:#e8f6ee;color:#17663a}.rv-warn{background:#fff3cd;color:#8a6100}.rv-bad{background:#fdecec;color:#a12828}
 .rv-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid #eef0f3}
