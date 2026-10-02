@@ -14,6 +14,8 @@ import type { PostDirective } from "./directives.js";
 import { config } from "../config.js";
 import { 최소분량 } from "../db/repositories/settings.js";
 import { 제목고르기 } from "../claude/제목규칙.js";
+import { 보관함키워드고르기 } from "../naver/보관함사용.js";
+import { 키워드썼음 } from "../db/repositories/keywordPool.js";
 
 // 목표 분량(2500~4500자)에 못 미치더라도 최소한 이 정도는 되어야 재시도 없이 통과시킨다.
 // 최소 분량은 **화면에서 정하신다.** 예전에는 2000 이 코드에 박혀 있어서,
@@ -47,6 +49,10 @@ export interface 생성기록 {
   모델?: string;
   /** 조사에서 도구를 오간 횟수 (Claude 만) */
   조사횟수?: number;
+  /** 이번 글의 키워드가 어디서 왔나 — 직접(주제 키워드 칸) / 보관함(🔎 네이버 키워드) / AI */
+  키워드출처?: "직접" | "보관함" | "AI";
+  /** 보관함에서 왔으면 그 키워드 */
+  보관키워드?: string;
 }
 
 export function 빈기록(): 생성기록 {
@@ -56,6 +62,17 @@ export function 빈기록(): 생성기록 {
 /** 카테고리 1개에 대해 조사 → 글쓰기로 draft 포스팅 1건을 생성한다. */
 export async function generatePost(category: Category, directive: PostDirective, 기록: 생성기록 = 빈기록()): Promise<Post> {
   const 시작 = Date.now();
+
+  // ── 0) 🔎 보관함 키워드 — [포스팅에 적용] 을 켠 카테고리만 ──────────
+  // 네이버를 부르지 않고 미리 모아 둔 표만 읽는다. 끈 카테고리·주제 키워드를
+  // 직접 적은 카테고리·보관함이 빈 카테고리는 null 이 와서 예전과 똑같다.
+  // 고른 키워드는 **이 글에서만** 주제 키워드 자리에 넣는다(카테고리 칸은 그대로).
+  const 보관 = 보관함키워드고르기(category);
+  기록.키워드출처 = 보관 ? "보관함" : (category.topic_keyword ?? "").trim() ? "직접" : "AI";
+  if (보관) {
+    기록.보관키워드 = 보관.kw.keyword;
+    category = { ...category, topic_keyword: 보관.kw.keyword };
+  }
   const today = DateTime.now().setZone(config.timezone).toFormat("yyyy-MM-dd");
   const recentTitles = listRecentTitles(20);
   // 글 스타일은 **이 글을 만드는 자리의 것**이다. 체험 키로 만든 글은 그
@@ -116,7 +133,8 @@ export async function generatePost(category: Category, directive: PostDirective,
     postingDirectionRefinement: blogSettings.posting_direction_refinement,
   });
   const prompt = buildPostPrompt(category, directive, today, recentTitles, blogProfileBlock,
-    { 블로그메모, 카테고리메모, 최근소식, 조사실패: 조사실패 && (소식찾기 || 블로그읽기 || 카테고리읽기) });
+    { 블로그메모, 카테고리메모, 최근소식, 조사실패: 조사실패 && (소식찾기 || 블로그읽기 || 카테고리읽기),
+      키워드자료: 보관?.자료 });
   const 글시작 = Date.now();
   const 다시 = 기록.다시;
 
@@ -210,6 +228,11 @@ export async function generatePost(category: Category, directive: PostDirective,
   });
 
   markCategoryUsed(category.id);
+  // 글이 나왔으니 그 키워드는 «씀» — 다음 글은 그다음 키워드로. 여기서 탈이
+  // 나도 글은 이미 저장됐다. 놓치면 다음에 같은 키워드가 한 번 더 나올 뿐이다.
+  if (보관) {
+    try { 키워드썼음(보관.kw.id); } catch (err) { console.warn(`[보관함] «씀» 표시 실패: ${(err as Error).message}`); }
+  }
 
   기록.글ms = Date.now() - 글시작;
   return post;

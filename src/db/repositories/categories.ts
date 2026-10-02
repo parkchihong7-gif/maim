@@ -28,6 +28,11 @@ export interface Category {
   research_brief: string | null;
   brief_sig: string | null;
   brief_at: string | null;
+  /** 1 이면 글을 쓸 때 🔎 보관함 키워드를 쓴다 (주제 키워드가 비었을 때만). 기본 0 */
+  kw_apply?: 0 | 1;
+  kw_refreshed_at?: string | null;
+  kw_error?: string | null;
+  kw_job?: string | null;
 }
 
 /** 참고 주소를 다듬는다 — http(s) 만, 줄마다 하나, 10개까지. */
@@ -141,4 +146,15 @@ export function markCategoryUsed(id: number): void {
   getDb()
     .prepare("UPDATE categories SET last_used_at = datetime('now') WHERE id = ? AND owner_key = ?")
     .run(id, 지금주인());
+}
+
+/** 🔎 네이버 키워드 칸만 바꾼다. 건네지 않은 칸은 그대로. */
+export function 키워드칸적기(id: number, 값: Partial<{
+  kw_apply: 0 | 1; kw_refreshed_at: string | null; kw_error: string | null; kw_job: string | null;
+}>): void {
+  const 칸들 = (["kw_apply", "kw_refreshed_at", "kw_error", "kw_job"] as const).filter((k) => k in 값);
+  if (!칸들.length) return;
+  getDb().prepare(
+    `UPDATE categories SET ${칸들.map((k) => `${k} = @${k}`).join(", ")} WHERE id = @id AND owner_key = @owner`,
+  ).run({ ...값, id, owner: 지금주인() });
 }

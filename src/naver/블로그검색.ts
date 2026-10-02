@@ -43,6 +43,11 @@ export async function 블로그검색(query: string, display = 10): Promise<블�
   if (가짜모드()) {
     const 자료 = 가짜자료();
     if (자료?.blog?.fail) return { ok: false, why: String(자료.blog.fail) };
+    const 따로 = 자료?.blogTotals ?? {};
+    if (말 in 따로) {
+      if (따로[말] === null) return { ok: false, why: "가짜 모드: 이 키워드는 문서 수를 못 받은 것으로 흉내 냅니다." };
+      return 다듬기({ ...자료.blog, total: 따로[말] });
+    }
     return 다듬기(자료?.blog ?? {});
   }
 

@@ -363,6 +363,7 @@ function 카테고리꼬리표(c) {
   if (함께) 조각.push(`<span class="cat-tag must" title="${escapeHtml(c.must_keywords)}">+함께 ${함께}</span>`);
   if (빼기) 조각.push(`<span class="cat-tag exclude" title="${escapeHtml(c.exclude_keywords)}">−빼기 ${빼기}</span>`);
   if (주소) 조각.push(`<span class="cat-tag url" title="${escapeHtml([c.main_url ? `대표: ${c.main_url}` : "", c.reference_urls || ""].filter(Boolean).join("\n"))}">🔗 ${주소}</span>`);
+  if (c.kw_apply) 조각.push(`<span class="cat-tag kw" title="🔎 네이버 키워드 탭에서 «포스팅에 적용» 을 켠 카테고리 — 주제 키워드가 비면 보관함 키워드로 씁니다">🔑 보관함</span>`);
   if (메모있나(c)) {
     조각.push(`<span class="cat-tag memo" title="${escapeHtml(`${메모날(c)}에 주소를 읽고 정리한 자료 메모가 있습니다. 다음 글부터 주소를 다시 안 열고 이 메모로 빠르게 씁니다 (7일마다 새로 읽음).`)}">📒 메모 ${메모날(c)}</span>`);
   }
@@ -529,6 +530,20 @@ function findSimilarHistoryTitle(post) {
 
 const BANNED_FORMATTING_REGEX = /(^#{1,6}\s)|(^\*\s)|■|▶/m;
 
+/** 같은 소제목이 두 번 나오면 ⚠ — 네이버는 반복 구성을 낮게 본다. */
+function 중복소제목검사(content) {
+  const 본 = new Map();
+  for (const 줄 of (content || "").split(/\n+/)) {
+    if (!소제목인가(줄)) continue;
+    const 키 = 줄.replace(/^\p{Extended_Pictographic}\uFE0F?\s*/u, "").replace(/\s+/g, "");
+    본.set(키, (본.get(키) || 0) + 1);
+  }
+  const 겹친 = [...본.entries()].filter(([, n]) => n > 1).map(([k]) => k);
+  return 겹친.length
+    ? { ok: false, label: `같은 소제목 반복: ${겹친.slice(0, 2).join(", ")}` }
+    : { ok: true, label: "소제목 중복 없음" };
+}
+
 function buildQualityChecklist(post) {
   const content = post.content ?? "";
   const len = content.length;
@@ -550,6 +565,8 @@ function buildQualityChecklist(post) {
       ok: !isDuplicate,
       label: isDuplicate ? `최근 글과 주제 유사: "${similar.title}"` : "최근 글과 주제 중복 없음",
     },
+    중복소제목검사(content),
+    ...(keyword && keywordCount > 8 ? [{ ok: false, label: `키워드 "${keyword}" ${keywordCount}회 — 너무 많음 (3~5회 권장)` }] : []),
   ];
 }
 
@@ -655,6 +672,7 @@ async function refreshQueue() {
       <div class="post-card-actions">
         <button class="btn-secondary" data-action="copy" data-id="${p.id}" title="제목 + 본문 + 태그를 한꺼번에">전체 복사하기</button>
         <button class="btn-secondary" data-action="regenerate-image" data-id="${p.id}">이미지 재생성</button>
+        <button class="btn-secondary" data-action="mobile-preview" data-id="${p.id}" title="휴대폰 네이버 앱에서 대략 어떻게 보일지">📱 미리보기</button>
         <button class="btn-success" data-action="mark-published" data-id="${p.id}">발행 완료로 표시</button>
       </div>
       ${checklistHtml}
@@ -934,15 +952,8 @@ async function refreshSettings() {
     ? `현재 저장된 값: ${s.pixabay_api_key}`
     : "아직 설정되지 않았습니다.";
 
-  // 5) 네이버 키워드 — 체험 자리에는 값이 안 온다(칸도 숨겨져 있다).
-  const 네이버 = s.naver || {};
-  for (const [칸, 것] of Object.entries(네이버)) {
-    const el = document.querySelector(`[data-current="${칸}"]`);
-    if (el) el.textContent = 것.set ? `현재 저장된 값: ${것.value}` : "아직 설정되지 않았습니다.";
-  }
-  const 다있나 = (칸들) => 칸들.every((칸) => 네이버[칸] && 네이버[칸].set);
-  setStepBadge("naver-search", 다있나(["naver_search_client_id", "naver_search_client_secret"]));
-  setStepBadge("naver-ad", 다있나(["naver_ad_api_key", "naver_ad_secret", "naver_ad_customer_id"]));
+  // 🔎 네이버 키워드 탭의 키 칸 — 체험 자리에는 값이 안 온다(탭도 숨겨져 있다).
+  네이버칸채우기(s);
 
   setStepBadge("claude", claudeTestedOk);
   updateSetupProgress();
@@ -1007,6 +1018,7 @@ async function switchView(view) {
   });
   if (view === "settings") { await refreshSettings(); await refreshSchedule(); await refreshEngines(); await refreshErrors(); }
   if (view === "home") renderHome();
+  if (view === "keywords") refreshKeywords().catch((err) => alert(err.message));
 }
 
 document.getElementById("category-form").addEventListener("submit", async (e) => {
@@ -1312,6 +1324,7 @@ document.addEventListener("click", async (e) => {
       input.value = "";
       await refreshSettings();
       AI막대그리기().catch(() => {});   // 이미지 키가 생겼으면 막대도 풀어 준다
+      if (currentView === "keywords") refreshKeywords().catch(() => {});
       const original = btn.textContent;
       btn.textContent = "저장됨!";
       setTimeout(() => {
@@ -1349,6 +1362,7 @@ document.addEventListener("click", async (e) => {
           + (res.fake ? "<br><span class=\"muted\">(시험용 가짜 모드 — 실제 네이버를 부르지 않았습니다)</span>" : "");
         box.className = "naver-test-result " + (res.ok ? "ok" : "bad");
         box.hidden = false;
+        if (currentView === "keywords") refreshKeywords().catch(() => {});
       } finally {
         btn.disabled = false;
         btn.textContent = original;
@@ -2440,9 +2454,10 @@ function 상태칸(카id) {
     `사진 ${걸린시간(t.사진ms)}`,
     t.첫글 ? "📒 주소를 읽고 메모를 새로 만듦" : t.메모씀 ? "📒 남겨 둔 메모로 씀" : "",
     t.다시 && t.다시.length ? `다시: ${t.다시.join(", ")}` : "",
+    t.키워드출처 ? `키워드: ${t.키워드출처}${t.보관키워드 ? ` «${t.보관키워드}»` : ""}` : "",
   ].filter(Boolean).join("\n") : "";
   const 내역 = t
-    ? `<span class="gs-time" title="${escapeHtml(속)}">⏱ ${걸린시간(t.전체ms)} · ${t.조사ms ? `조사 ${걸린시간(t.조사ms)} · ` : ""}글 ${걸린시간(t.글ms)} · 사진 ${걸린시간(t.사진ms)}${t.조사실패 ? " ⚠" : ""}</span>`
+    ? `<span class="gs-time" title="${escapeHtml(속)}">⏱ ${걸린시간(t.전체ms)} · ${t.조사ms ? `조사 ${걸린시간(t.조사ms)} · ` : ""}글 ${걸린시간(t.글ms)} · 사진 ${걸린시간(t.사진ms)}${t.조사실패 ? " ⚠" : ""}${t.키워드출처 === "보관함" ? " · 🔑" : ""}</span>`
     : s.end && s.start ? `<span class="gs-time">⏱ ${걸린시간(s.end - s.start)}</span>` : "";
   if (s.state === "done") {
     return `<div class="gs gs-done"><span class="gs-line">🎉 짠! 완성됐어요</span><span>${보러}</span>${내역}</div>`;
@@ -2503,3 +2518,348 @@ document.addEventListener("click", async (e) => {
     오류창("글을 만들지 못했습니다", s && s.msg ? s.msg : "까닭을 받지 못했습니다.");
   }
 });
+
+// ════════════════════════════════════════════════════════════════
+// 🔎 네이버 키워드 탭
+//
+// 시간이 걸리는 «키워드 모으기» 를 글쓰기와 따로 여기서 미리 한다.
+// 글쓰기는 ④ 에서 체크한 카테고리만 보관함을 읽는다 — 네이버를 부르지 않는다.
+// ════════════════════════════════════════════════════════════════
+const 등급글 = { gold: "골드", silver: "실버", bronze: "브론즈", etc: "그 외", unknown: "미확인" };
+const 등급메달 = { gold: "🥇 ", silver: "🥈 ", bronze: "🥉 ", etc: "", unknown: "" };
+let kw목록 = null;          // GET /api/keywords
+let kw고른카 = null;        // 고른 카테고리 id
+let kw보관 = null;          // GET /api/keywords/:id
+let kw거르개 = "all";
+let kw고른줄 = null;        // 근거 칸에 보일 키워드 id
+let kw진행타이머 = null;
+let kw모으는중 = false;
+
+/** 저장해 둔 네이버 키를 칸 아래에 «현재 저장된 값» 으로. 관리자 설정·키워드 탭이 같이 쓴다. */
+function 네이버칸채우기(s) {
+  const 네이버 = (s && s.naver) || {};
+  for (const [칸, 것] of Object.entries(네이버)) {
+    const el = document.querySelector(`[data-current="${칸}"]`);
+    if (el) el.textContent = 것.set ? `현재 저장된 값: ${것.value}` : "아직 설정되지 않았습니다.";
+  }
+  const 다있나 = (칸들) => 칸들.every((칸) => 네이버[칸] && 네이버[칸].set);
+  setStepBadge("naver-search", 다있나(["naver_search_client_id", "naver_search_client_secret"]));
+  setStepBadge("naver-ad", 다있나(["naver_ad_api_key", "naver_ad_secret", "naver_ad_customer_id"]));
+}
+
+const 숫자 = (n) => (n === null || n === undefined ? "–" : Number(n).toLocaleString());
+const 짧은날 = (iso) => (iso ? new Date(iso).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" }).replace(/\s/g, "").replace(/\.$/, "") : "");
+function 남은날(iso, 유효) {
+  if (!iso) return null;
+  return 유효 - Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
+}
+
+async function refreshKeywords() {
+  const [목록, s] = await Promise.all([api("/api/keywords"), api("/api/settings")]);
+  kw목록 = 목록;
+  네이버칸채우기(s);
+  document.getElementById("kw-fake").hidden = !목록.fake;
+
+  // ① 연결 요약
+  const c = 목록.connection;
+  const t = c.lastTest;
+  const 표 = (켜짐, 시험, 이름) => {
+    if (시험) return 시험.ok ? `✅ ${이름}` : `⚠ ${이름}`;
+    return 켜짐 ? `🔑 ${이름} (키 있음, 테스트 전)` : `○ ${이름} (키 없음)`;
+  };
+  document.getElementById("kw-conn-summary").innerHTML = [
+    표(c.searchSet, t && t.search, "블로그 검색 API"),
+    표(c.adSet, t && t.ad, "검색광고 API"),
+    t ? `<span class="muted">마지막 확인 ${escapeHtml(new Date(t.at).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }))}</span>` : "",
+  ].filter(Boolean).map((x) => `<span>${x}</span>`).join("");
+  // 키가 하나도 없으면 입력 칸을 펼쳐 둔다 — 무엇을 해야 하는지 바로 보이게.
+  if (!c.searchSet && !c.adSet && !목록.fake) {
+    document.getElementById("kw-keys").hidden = false;
+    document.getElementById("kw-toggle-keys").textContent = "키 칸 접기";
+  }
+
+  // ② 카테고리 고르기
+  const 칸 = document.getElementById("kw-cat");
+  const 카들 = 목록.categories;
+  if (!카들.length) {
+    칸.innerHTML = `<option>카테고리가 없습니다 — [블로그 관리]에서 먼저 만드세요</option>`;
+    kw고른카 = null;
+  } else {
+    if (!카들.some((x) => x.id === kw고른카)) kw고른카 = 카들[0].id;
+    칸.innerHTML = 카들.map((x) => {
+      const 남 = 남은날(x.refreshedAt, 목록.validDays);
+      const 꼬리 = x.counts.all ? ` — ${x.counts.all}개 · ${짧은날(x.refreshedAt)}${남 !== null && 남 < 0 ? " (30일 지남)" : ""}` : x.paused ? " — 모으다 멈춤" : " — 아직 안 모음";
+      return `<option value="${x.id}"${x.id === kw고른카 ? " selected" : ""}>${escapeHtml(x.name)}${escapeHtml(꼬리)}</option>`;
+    }).join("");
+  }
+  키워드적용그리기();
+  if (kw고른카) await 보관함불러오기(kw고른카);
+  else 보관함그리기();
+}
+
+function 고른카() { return kw목록 ? kw목록.categories.find((x) => x.id === kw고른카) : null; }
+
+async function 보관함불러오기(id) {
+  kw보관 = await api(`/api/keywords/${id}`);
+  보관함그리기();
+}
+
+function 보관함그리기() {
+  const 카 = 고른카();
+  const 씨앗 = document.getElementById("kw-seeds");
+  씨앗.innerHTML = 카 && 카.seeds.length
+    ? `씨앗: <strong>${카.seeds.map(escapeHtml).join(" · ")}</strong> <span class="muted">(카테고리 이름·주제 키워드·함께 들어갈 말에서)</span>`
+    : "";
+  const 진행 = (kw보관 && kw보관.progress) || (카 && 카.progress);
+  모으기단추그리기(카, 진행);
+  진행그리기(진행, 카);
+
+  const n = (kw보관 && kw보관.counts) || { all: 0, gold: 0, silver: 0, bronze: 0, etc: 0, unknown: 0, hold: 0, used: 0 };
+  document.getElementById("kw-cards").innerHTML = [
+    ["", "전체 후보", n.all], ["gold", "🥇 골드", n.gold], ["silver", "🥈 실버", n.silver],
+    ["bronze", "🥉 브론즈", n.bronze], ["etc", "그 외·미확인", n.etc + n.unknown],
+  ].map(([k, 이름, 수]) => `<div class="kw-card ${k}">${이름}<b>${수}</b></div>`).join("");
+
+  document.getElementById("kw-pool-title").textContent = `③ 보관함${카 ? ` — ${카.name}` : ""}`;
+  const 줄들 = (kw보관 && kw보관.items) || [];
+  const 거르기 = {
+    all: () => true,
+    gold: (r) => r.status === "candidate" && r.grade === "gold",
+    silver: (r) => r.status === "candidate" && r.grade === "silver",
+    bronze: (r) => r.status === "candidate" && r.grade === "bronze",
+    hold: (r) => r.status === "hold",
+    used: (r) => r.status === "used",
+  };
+  document.getElementById("kw-chips").innerHTML = [
+    ["all", `전체 ${줄들.length}`], ["gold", `🥇 골드 ${n.gold}`], ["silver", `🥈 실버 ${n.silver}`],
+    ["bronze", `🥉 브론즈 ${n.bronze}`], ["hold", `보류 ${n.hold}`], ["used", `✔ 씀 ${n.used}`],
+  ].map(([k, 글]) => `<button class="kw-chip${kw거르개 === k ? " on" : ""}" data-action="kw-filter" data-filter="${k}">${글}</button>`).join("");
+
+  const 보일것 = 줄들.filter(거르기[kw거르개] || 거르기.all);
+  const 표 = document.getElementById("kw-table");
+  if (!줄들.length) {
+    표.innerHTML = `<tbody><tr><td class="kw-empty">아직 모은 키워드가 없습니다. 위 ② 에서 [지금 모으기]를 눌러 주세요.</td></tr></tbody>`;
+  } else {
+    const 다음 = 카 && 카.next;
+    표.innerHTML = `<thead><tr><th>키워드</th><th>등급</th><th class="num">월 검색량</th><th class="num">블로그 문서</th>`
+      + `<th class="num">비율</th><th>경쟁</th><th>상태</th></tr></thead><tbody>`
+      + 보일것.map((r) => {
+        const 상태 = r.status === "used" ? `✔ ${escapeHtml(짧은날(r.usedAt))} 씀`
+          : r.status === "hold" ? `보류 <button class="btn-secondary kw-mini" data-action="kw-unhold" data-id="${r.id}">후보로</button>`
+          : `${r.keyword === 다음 ? "<strong>다음에 씀</strong>" : "대기"} <button class="btn-secondary kw-mini" data-action="kw-hold" data-id="${r.id}">보류</button>`;
+        return `<tr data-action="kw-row" data-id="${r.id}" class="${r.id === kw고른줄 ? "sel" : ""}${r.status === "used" ? " used" : ""}">
+          <td><strong>${escapeHtml(r.keyword)}</strong></td>
+          <td><span class="kw-g ${r.grade}">${등급글[r.grade] || r.grade}</span></td>
+          <td class="num">${숫자(r.pc + r.mobile)}</td>
+          <td class="num">${r.docTotal === null ? '<span class="muted">미확인</span>' : 숫자(r.docTotal)}</td>
+          <td class="num">${r.ratio === null ? "–" : Number(r.ratio).toFixed(2)}</td>
+          <td>${escapeHtml(r.comp || "")}</td>
+          <td>${상태}</td></tr>`;
+      }).join("") + "</tbody>";
+  }
+  근거그리기();
+}
+
+function 근거그리기() {
+  const 칸 = document.getElementById("kw-why");
+  const r = kw보관 && kw보관.items.find((x) => x.id === kw고른줄);
+  if (!r) { 칸.hidden = true; return; }
+  칸.hidden = false;
+  const 남 = 남은날(r.fetchedAt, (kw목록 && kw목록.validDays) || 30);
+  칸.innerHTML = `<strong>왜 «${escapeHtml(r.keyword)}» 인가</strong><br>
+    · 월 검색량 <strong>${숫자(r.pc + r.mobile)}</strong> (PC ${숫자(r.pc)} · 모바일 ${숫자(r.mobile)}) /
+      블로그 문서 <strong>${r.docTotal === null ? "미확인" : 숫자(r.docTotal)}</strong>
+      → 비율 <strong>${r.ratio === null ? "–" : r.ratio}</strong> = <strong>${등급글[r.grade]}</strong><br>
+    · 경쟁 정도 ${escapeHtml(r.comp || "–")} · 씨앗 «${escapeHtml(r.seed || "")}» 에서 나옴 · 모은 날 ${escapeHtml(짧은날(r.fetchedAt))}${남 !== null ? (남 >= 0 ? ` (${남}일 더 씀)` : " (30일 지남)") : ""}<br>
+    ${r.top.length ? `· 상위 글 제목 <span class="muted">(형식·길이 참고용 — 문장은 베끼지 않습니다)</span>
+      <ol>${r.top.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ol>` : "· 상위 글 제목을 못 받았습니다"}`;
+}
+
+function 모으기단추그리기(카, 진행) {
+  const 도는중 = !!(진행 && 진행.state === "running");
+  const 모으기 = document.getElementById("kw-collect");
+  모으기.disabled = !카 || 도는중;
+  모으기.textContent = 도는중 ? "모으는 중…" : 카 && 카.counts.all ? "다시 모으기" : "지금 모으기";
+  document.getElementById("kw-resume").hidden = 도는중 || !(카 && 카.paused);
+  document.getElementById("kw-stop").hidden = !도는중;
+}
+
+function 진행그리기(진행, 카) {
+  const 칸 = document.getElementById("kw-prog");
+  if (!진행) {
+    if (카 && 카.error) {
+      칸.hidden = false; 칸.className = "kw-prog err";
+      칸.textContent = `⚠ 지난번에 모으다 멈췄습니다 — ${카.error}`;
+    } else 칸.hidden = true;
+    return;
+  }
+  칸.hidden = false;
+  const 비율막대 = 진행.stage === 1 ? 8 : 진행.stage === 3 ? 100 : 10 + Math.round(85 * (진행.toCheck ? 진행.checked / 진행.toCheck : 0));
+  const 숫자줄 = `연관 키워드 <strong>${숫자(진행.received)}개</strong> 받음 → 검색량 100 이상 <strong>${숫자(진행.filtered)}개</strong>
+    → 문서 수 확인 <strong>${진행.checked}/${진행.toCheck}</strong> → 이미 쓴·보류한 키워드 제외 <strong>${진행.excludedUsed}개</strong>
+    · 확인 못 함 <strong>${진행.unknown}개</strong>(미확인으로 표시)`;
+  const 시간 = 걸린시간(진행.elapsedMs || 0);
+  if (진행.state === "running") {
+    칸.className = "kw-prog";
+    칸.innerHTML = `<strong>⏳ ${시간}째</strong> — 3단계 중 ${진행.stage}단계: ${escapeHtml(진행.stageName)}
+      <div class="kw-bar"><i style="width:${비율막대}%"></i></div>${숫자줄}`;
+  } else if (진행.state === "done") {
+    칸.className = "kw-prog done";
+    칸.innerHTML = `✅ 완료 · ${시간} — ${escapeHtml(진행.message)}<br>${숫자줄}`;
+  } else {
+    칸.className = "kw-prog err";
+    칸.innerHTML = `${진행.state === "error" ? "⚠" : "⏸"} ${시간} — ${escapeHtml(진행.message)}${진행.received ? `<br>${숫자줄}` : ""}`;
+  }
+}
+
+function 키워드적용그리기() {
+  const 칸 = document.getElementById("kw-apply-list");
+  const 카들 = (kw목록 && kw목록.categories) || [];
+  if (!카들.length) { 칸.innerHTML = `<p class="muted">카테고리가 없습니다.</p>`; return; }
+  칸.innerHTML = 카들.map((x) => {
+    const 쓸것 = x.counts.gold + x.counts.silver + x.counts.bronze;
+    const 막힘 = !x.apply && 쓸것 === 0;
+    const 설명 = x.topicKeyword
+      ? `주제 키워드 «${escapeHtml(x.topicKeyword)}» 를 직접 적어 두셔서 그것이 먼저입니다${x.apply ? " (비면 보관함을 씁니다)" : ""}`
+      : x.apply
+        ? (x.next ? `골드 → 실버 → 브론즈 순으로 씀 · 다음 글: «${escapeHtml(x.next)}»` : "켜져 있지만 쓸 키워드가 다 떨어졌습니다 — 예전 방식으로 씁니다. ② 에서 다시 모아 주세요")
+        : 막힘 ? "키워드를 먼저 모아야 켤 수 있어요 (②)" : `꺼짐 — 지금처럼 AI 가 키워드를 정합니다 · 쓸 키워드 ${쓸것}개 있음`;
+    return `<label class="kw-apply${막힘 ? " off" : ""}">
+      <input type="checkbox" data-kw-apply="${x.id}"${x.apply ? " checked" : ""}${막힘 ? " disabled" : ""}>
+      <div><strong>${escapeHtml(x.name)}</strong>${x.active ? "" : ' <span class="muted">(꺼진 카테고리)</span>'}<br>
+      <span class="muted">${설명}</span></div></label>`;
+  }).join("");
+}
+
+function kw진행지켜보기(id) {
+  clearInterval(kw진행타이머);
+  kw진행타이머 = setInterval(async () => {
+    try {
+      const { progress } = await api(`/api/keywords/${id}/progress`);
+      if (kw고른카 === id && progress) { 진행그리기(progress, 고른카()); 모으기단추그리기(고른카(), progress); }
+    } catch { /* 다음 번에 다시 본다 */ }
+  }, 1500);
+}
+
+async function 키워드모으기시작(이어서) {
+  const id = kw고른카;
+  if (!id || kw모으는중) return;
+  kw모으는중 = true;
+  진행그리기({ state: "running", stage: 1, stageName: "연관 키워드 받기", elapsedMs: 0, received: 0, filtered: 0, checked: 0, toCheck: 0, excludedUsed: 0, unknown: 0 }, 고른카());
+  모으기단추그리기(고른카(), { state: "running" });
+  kw진행지켜보기(id);
+  try {
+    // 끝날 때까지(최대 5분) 기다린다 — 서버는 요청이 열려 있어야 일한다.
+    await api(`/api/keywords/${id}/collect`, { method: "POST", body: JSON.stringify({ resume: !!이어서 }) });
+  } catch (err) {
+    오류창("키워드를 모으지 못했습니다", err.message);
+  } finally {
+    clearInterval(kw진행타이머);
+    kw모으는중 = false;
+    kw거르개 = "all";
+    await refreshKeywords().catch(() => {});
+  }
+}
+
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-action]");
+  if (!btn) return;
+  const 할일 = btn.dataset.action;
+  if (!할일.startsWith("kw-") && 할일 !== "mobile-preview") return;
+  e.preventDefault();
+  try {
+    if (할일 === "kw-toggle-keys") {
+      const 칸 = document.getElementById("kw-keys");
+      칸.hidden = !칸.hidden;
+      btn.textContent = 칸.hidden ? "키 보기·바꾸기" : "키 칸 접기";
+    } else if (할일 === "kw-collect") {
+      await 키워드모으기시작(false);
+    } else if (할일 === "kw-resume") {
+      await 키워드모으기시작(true);
+    } else if (할일 === "kw-stop") {
+      await api(`/api/keywords/${kw고른카}/stop`, { method: "POST" });
+      btn.textContent = "멈추는 중…";
+    } else if (할일 === "kw-filter") {
+      kw거르개 = btn.dataset.filter;
+      보관함그리기();
+    } else if (할일 === "kw-hold" || 할일 === "kw-unhold") {
+      e.stopPropagation();
+      await api(`/api/keywords/item/${btn.dataset.id}`, { method: "PUT", body: JSON.stringify({ status: 할일 === "kw-hold" ? "hold" : "candidate" }) });
+      await refreshKeywords();
+    } else if (할일 === "kw-row") {
+      kw고른줄 = Number(btn.dataset.id);
+      document.querySelectorAll("#kw-table tr.sel").forEach((tr) => tr.classList.remove("sel"));
+      btn.classList.add("sel");
+      근거그리기();
+    } else if (할일 === "mobile-preview") {
+      모바일미리보기(Number(btn.dataset.id));
+    }
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+document.addEventListener("change", async (e) => {
+  if (e.target.id === "kw-cat") {
+    kw고른카 = Number(e.target.value);
+    kw고른줄 = null;
+    kw거르개 = "all";
+    await 보관함불러오기(kw고른카).catch((err) => alert(err.message));
+    return;
+  }
+  const 카id = e.target.dataset && e.target.dataset.kwApply;
+  if (!카id) return;
+  const 켜기 = e.target.checked;
+  try {
+    await api(`/api/keywords/${카id}/apply`, { method: "PUT", body: JSON.stringify({ on: 켜기 }) });
+  } catch (err) {
+    e.target.checked = !켜기;
+    alert(err.message);
+  }
+  await refreshKeywords().catch(() => {});
+  if (categoriesCache.length) refreshCategories().catch(() => {});
+});
+
+// ════════════════════════════════════════════════════════════════
+// 📱 모바일 미리보기 — 네이버 앱에서 대략 어떻게 보일지(본문 15px · 소제목 19px)
+// 실제 네이버 화면과는 조금 다를 수 있다. 네이버를 부르지 않는다.
+// ════════════════════════════════════════════════════════════════
+/** 이모지로 시작하는 짧은 줄 = 소제목으로 본다 (글쓰기 규칙: 소제목은 이모지로 시작). */
+function 소제목인가(줄) {
+  const t = (줄 || "").trim();
+  return t.length > 0 && t.length <= 45 && /^\p{Extended_Pictographic}/u.test(t) && !/[.。]$/.test(t);
+}
+
+function 모바일미리보기(postId) {
+  const p = readyPosts.find((x) => x.id === postId);
+  if (!p) return;
+  const 토큰 = getDashboardToken();
+  const 첫사진 = getImagePaths(p).length
+    ? `<img src="${escapeHtml(`/api/posts/${p.id}/image/0${토큰 ? `?token=${encodeURIComponent(토큰)}` : ""}`)}" alt="">` : "";
+  const 문단 = (p.content || "").split(/\n+/).map((x) => x.trim()).filter(Boolean)
+    .map((x) => `<p class="${소제목인가(x) ? "sub" : ""}">${escapeHtml(x)}</p>`).join("");
+  let 창 = document.getElementById("mpv-dialog");
+  if (!창) {
+    창 = document.createElement("div");
+    창.id = "mpv-dialog";
+    창.className = "error-dialog";
+    document.body.appendChild(창);
+    창.addEventListener("click", (e) => {
+      if (e.target === 창 || e.target.closest("[data-mpv-close]")) { 창.hidden = true; return; }
+      if (e.target.closest("[data-mpv-center]")) {
+        const 틀 = 창.querySelector(".mpv-frame");
+        틀.classList.toggle("center");
+        e.target.textContent = 틀.classList.contains("center") ? "왼쪽 정렬로 보기" : "가운데 정렬로 보기";
+      }
+    });
+  }
+  창.innerHTML = `<div class="error-dialog-box" role="dialog" aria-modal="true" aria-label="모바일 미리보기">
+      <h3>📱 모바일 미리보기</h3>
+      <p class="muted">본문 15px · 소제목 19px 기준입니다. 실제 네이버 화면과는 조금 다를 수 있어요.</p>
+      <div class="mpv-frame"><h1>${escapeHtml(p.title || "")}</h1>${첫사진}${문단}</div>
+      <div class="mpv-tools">
+        <button class="btn-secondary" type="button" data-mpv-center>가운데 정렬로 보기</button>
+        <button class="btn-primary" type="button" data-mpv-close>닫기</button>
+      </div></div>`;
+  창.hidden = false;
+}

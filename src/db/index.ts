@@ -129,6 +129,15 @@ function runMigrations(database: Database.Database) {
   칸붙이기(database, "categories", "brief_sig", "TEXT");        // 메모를 만들 때의 주소·설명 지문
   칸붙이기(database, "categories", "brief_at", "TEXT");         // 메모를 만든 때 (ISO)
 
+  // ── 네이버 키워드 (🔎 탭) ─────────────────────────────────────
+  //
+  // 키워드는 탭에서 **미리** 모은다. 글쓰기는 kw_apply 를 켠 카테고리에서만
+  // 보관함을 읽는다 — 기본은 꺼짐(0), 꺼져 있으면 예전과 똑같다.
+  칸붙이기(database, "categories", "kw_apply", "INTEGER NOT NULL DEFAULT 0");
+  칸붙이기(database, "categories", "kw_refreshed_at", "TEXT");  // 마지막으로 다 모은 때 (ISO)
+  칸붙이기(database, "categories", "kw_error", "TEXT");         // 마지막으로 모으다 난 탈
+  칸붙이기(database, "categories", "kw_job", "TEXT");           // 모으다 멈춘 자리 (JSON) — [이어서 모으기]
+
   database.exec(`
     CREATE INDEX IF NOT EXISTS idx_categories_owner ON categories (owner_key);
     CREATE INDEX IF NOT EXISTS idx_posts_owner ON posts (owner_key);

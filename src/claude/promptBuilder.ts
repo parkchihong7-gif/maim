@@ -16,6 +16,8 @@ export interface 글옵션 {
   최근소식?: string;
   /** 조사를 했어야 했는데 못 했다(시간 초과 등) — 최신 숫자를 지어내지 말라고 한다 */
   조사실패?: boolean;
+  /** 🔎 보관함에서 고른 키워드의 [키워드 데이터] 블록 (src/naver/보관함사용.ts). 없으면 예전과 같다 */
+  키워드자료?: string;
 }
 
 export function buildPostPrompt(
@@ -112,7 +114,7 @@ ${blogProfileBlock}
 카테고리 설명: ${category.prompt_hint}
 ${searchInstruction}
 ${topicKeywordBlock}
-${categoryUrlBlock}
+${옵션.키워드자료 ? `${옵션.키워드자료}\n` : ""}${categoryUrlBlock}
 ${recentTitlesBlock}
 ${buildStyleRulesBlock(directive)}
 ${buildTitleRuleBlock()}

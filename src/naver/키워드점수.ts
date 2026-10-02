@@ -1,32 +1,43 @@
 /**
- * **키워드 점수** — 찾는 사람은 있고 글은 적은 키워드가 위로 오게.
+ * **키워드 등급** — 찾는 사람에 비해 글이 적은 키워드가 위로 오게.
  *
- * 순수 함수다(네트워크 없음). 2단계 보관함이 이것으로 줄을 세운다.
- * 아래 숫자는 첫 출발값이다. 배포 뒤 실제 결과를 보며 고친다.
+ *     비율 = 블로그 문서 수 ÷ 월 검색량      (낮을수록 좋다)
+ *     골드 0.5 미만 · 실버 0.5~1 · 브론즈 1~3 · 그 외 3 초과
+ *     문서 수를 못 받았으면 «미확인» — 0 이 아니다.
  *
- *     점수   = log10(검색량) × 경쟁가중 × 포화가중
- *     포화도 = 문서 수 ÷ 검색량
+ * 화면에 기준을 그대로 적는다. 처음에는 점수식(로그·가중치)을 쓰려 했는데,
+ * 사장님이 보시고 «왜 이 순서인지» 를 알 수가 없었다. 등급은 한눈에 읽힌다.
+ * 순수 함수다(네트워크 없음).
  */
-export const 경쟁가중: Record<string, number> = { 낮음: 1.2, 중간: 1.0, 높음: 0.8 };
+export type 등급 = "gold" | "silver" | "bronze" | "etc" | "unknown";
 
-export function 포화가중(포화도: number): number {
-  if (포화도 <= 5) return 1.3;
-  if (포화도 <= 20) return 1.0;
-  if (포화도 <= 50) return 0.7;
-  return 0.4;
+export const 등급이름: Record<등급, string> = {
+  gold: "골드", silver: "실버", bronze: "브론즈", etc: "그 외", unknown: "미확인",
+};
+
+/** 글쓰기에 쓰는 차례. 그 외·미확인은 자동으로 쓰지 않는다. */
+export const 쓰는등급: 등급[] = ["gold", "silver", "bronze"];
+
+export function 비율(문서수: number | null | undefined, 검색량: number): number | null {
+  if (문서수 === null || 문서수 === undefined || !Number.isFinite(문서수)) return null;
+  if (검색량 <= 0) return null;
+  return Math.round((문서수 / 검색량) * 1000) / 1000;
 }
 
-export function 포화도(문서수: number, 검색량: number): number {
-  if (검색량 <= 0) return Infinity;
-  return 문서수 / 검색량;
+export function 등급매기기(값: number | null): 등급 {
+  if (값 === null) return "unknown";
+  if (값 < 0.5) return "gold";
+  if (값 < 1) return "silver";
+  if (값 <= 3) return "bronze";
+  return "etc";
 }
 
-export function 키워드점수(입력: { pc: number; mobile: number; comp: string; docTotal: number }): number {
-  const 검색량 = Math.max(0, (입력.pc || 0) + (입력.mobile || 0));
-  if (검색량 < 1) return 0;
-  const 경쟁 = 경쟁가중[입력.comp] ?? 1.0;
-  const 점수 = Math.log10(검색량) * 경쟁 * 포화가중(포화도(입력.docTotal || 0, 검색량));
-  return Math.round(점수 * 100) / 100;
+/** 줄 세우기: 등급 차례 → 같은 등급이면 검색량 많은 순. */
+export function 등급순(a: { grade: 등급; pc: number; mobile: number }, b: { grade: 등급; pc: number; mobile: number }): number {
+  const 차례: 등급[] = ["gold", "silver", "bronze", "etc", "unknown"];
+  const d = 차례.indexOf(a.grade) - 차례.indexOf(b.grade);
+  if (d !== 0) return d;
+  return (b.pc + b.mobile) - (a.pc + a.mobile);
 }
 
 /** 월간 검색량 등급 — 지시문에 숫자 대신 넣는다. */
