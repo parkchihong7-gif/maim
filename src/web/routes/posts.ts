@@ -1,7 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import fs from "node:fs";
 import path from "node:path";
-import { getPost, getImagePaths, markPublished } from "../../db/repositories/posts.js";
+import { getPost, getImagePaths, markPublished, 검수적기, 최종본적기, 오늘검수수, 검수기록 } from "../../db/repositories/posts.js";
+import { 검수하기, 체험_검수하루, 검수항목 } from "../../pipeline/최종검수.js";
+import { 체험인가 } from "../../tenancy.js";
+import { 개인설정들, resolvePostingDirectionInstruction } from "../../db/repositories/settings.js";
+import { 쓸수있나 } from "../../ai/run.js";
 import { attachImage } from "../../pipeline/attachImage.js";
 import { downloadFileIfMissing } from "../../persistence/gcsState.js";
 import { config } from "../../config.js";
@@ -86,5 +90,55 @@ export async function postsRoutes(app: FastifyInstance) {
     }
 
     return getPost(id);
+  });
+
+  // ── 최종 검수 ─────────────────────────────────────────────────
+  // 사람이 [AI 검수하기] 를 누를 때만. 고쳐 쓰지 않고 표시만 한다.
+  // 체험 자리는 하루 5번까지 — 사장님 AI 한도를 쓴다.
+  app.post("/api/posts/:id/review", async (req, reply) => {
+    const id = Number((req.params as { id: string }).id);
+    const post = getPost(id);
+    if (!post) { reply.code(404); return { error: "포스팅을 찾을 수 없습니다." }; }
+    const 체험 = 체험인가();
+    if (체험 && 오늘검수수() >= 체험_검수하루) {
+      reply.code(429);
+      return { error: `체험 키로는 AI 검수를 하루 ${체험_검수하루}번까지 하실 수 있습니다. 내일 다시 해 주세요.` };
+    }
+    const 상태 = await 쓸수있나();
+    if (상태.ok === false) { reply.code(409); return { error: "AI 연결이 끊겨 있어 검수할 수 없습니다. 맨 위 상태 막대를 확인해 주세요.", needsAi: true }; }
+    const body = (req.body ?? {}) as { content?: string };
+    const 글 = String(body.content ?? post.final_content ?? post.content ?? "").trim();
+    if (글.length < 50) { reply.code(400); return { error: "검수할 글이 너무 짧습니다." }; }
+    const 스타일 = 개인설정들(["posting_direction_preset", "posting_direction_refinement"]);
+    try {
+      const 결과 = await 검수하기({
+        title: post.title ?? "",
+        content: 글.slice(0, 12_000),
+        말투: resolvePostingDirectionInstruction(스타일.posting_direction_preset),
+        보강: 스타일.posting_direction_refinement,
+      });
+      검수적기(id, 결과);
+      검수기록(id);
+      const 한 = getPost(id);
+      return { ...결과, labels: 검수항목, reviewCount: 한?.review_count ?? 1,
+               remaining: 체험 ? Math.max(0, 체험_검수하루 - 오늘검수수()) : null };
+    } catch (err) {
+      오류적기("검수", "", (err as Error).message);
+      reply.code(502);
+      return { error: `검수하지 못했습니다 — ${(err as Error).message}` };
+    }
+  });
+
+  // [최종본으로 저장] — «직접 확인했습니다» 를 체크해야 한다. 원래 초안은 그대로.
+  app.post("/api/posts/:id/final", async (req, reply) => {
+    const id = Number((req.params as { id: string }).id);
+    const post = getPost(id);
+    if (!post) { reply.code(404); return { error: "포스팅을 찾을 수 없습니다." }; }
+    const body = (req.body ?? {}) as { content?: string; confirmed?: boolean };
+    if (body.confirmed !== true) { reply.code(400); return { error: "«글과 검수 결과를 직접 확인했습니다» 를 체크해 주세요." }; }
+    const 글 = String(body.content ?? "").trim();
+    if (글.length < 50) { reply.code(400); return { error: "최종본이 너무 짧습니다." }; }
+    최종본적기(id, 글.slice(0, 20_000));
+    return { ok: true, finalAt: getPost(id)?.final_at ?? null };
   });
 }

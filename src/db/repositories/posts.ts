@@ -21,6 +21,11 @@ export interface Post {
   error_message: string | null;
   /** 누구의 자리인가. 빈 값이면 주인 것. tenancy.ts 참고 */
   owner_key: string;
+  /** 최종 검수 — 최종본(원래 초안은 content 에 그대로) */
+  final_content?: string | null;
+  final_at?: string | null;
+  review_json?: string | null;
+  review_count?: number;
 }
 
 export function insertDraftPost(input: {
@@ -133,4 +138,26 @@ export function listRecentTitles(limit = 20): string[] {
     )
     .all(지금주인(), limit) as { title: string }[];
   return rows.map((r) => r.title);
+}
+
+/** 최종 검수 결과(JSON)를 적고 검수 횟수를 올린다. */
+export function 검수적기(id: number, 결과: unknown): void {
+  getDb().prepare("UPDATE posts SET review_json = ?, review_count = COALESCE(review_count,0) + 1 WHERE id = ? AND owner_key = ?")
+    .run(JSON.stringify(결과), id, 지금주인());
+}
+
+/** 최종본 — 원래 초안(content)은 그대로 두고 따로 저장한다. */
+export function 최종본적기(id: number, 글: string): void {
+  getDb().prepare("UPDATE posts SET final_content = ?, final_at = ? WHERE id = ? AND owner_key = ?")
+    .run(글, new Date().toISOString(), id, 지금주인());
+}
+
+/** 오늘(UTC 날짜) 이 자리가 검수를 몇 번 했나 — 체험 하루 한도용. */
+export function 오늘검수수(): number {
+  const r = getDb().prepare("SELECT COUNT(*) AS n FROM review_log WHERE owner_key = ? AND at >= date('now')").get(지금주인()) as { n: number };
+  return r.n;
+}
+
+export function 검수기록(postId: number): void {
+  getDb().prepare("INSERT INTO review_log (owner_key, post_id) VALUES (?, ?)").run(지금주인(), postId);
 }

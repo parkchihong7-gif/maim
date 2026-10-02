@@ -16,6 +16,7 @@ import { 최소분량 } from "../db/repositories/settings.js";
 import { 제목고르기 } from "../claude/제목규칙.js";
 import { 보관함키워드고르기 } from "../naver/보관함사용.js";
 import { 키워드썼음 } from "../db/repositories/keywordPool.js";
+import { 분량고르기 } from "../claude/글방식.js";
 
 // 목표 분량(2500~4500자)에 못 미치더라도 최소한 이 정도는 되어야 재시도 없이 통과시킨다.
 // 최소 분량은 **화면에서 정하신다.** 예전에는 2000 이 코드에 박혀 있어서,
@@ -132,6 +133,9 @@ export async function generatePost(category: Category, directive: PostDirective,
     postingDirectionInstruction: resolvePostingDirectionInstruction(blogSettings.posting_direction_preset),
     postingDirectionRefinement: blogSettings.posting_direction_refinement,
   });
+  // 카테고리 폼 ⑦ 의 분량 — 짧게/길게를 골랐으면 목표·최소 글자수를 그것으로.
+  const 고른분량 = 분량고르기(category.length_pref);
+  if (고른분량.목표) directive = { ...directive, targetLength: 고른분량.목표 };
   const prompt = buildPostPrompt(category, directive, today, recentTitles, blogProfileBlock,
     { 블로그메모, 카테고리메모, 최근소식, 조사실패: 조사실패 && (소식찾기 || 블로그읽기 || 카테고리읽기),
       키워드자료: 보관?.자료 });
@@ -172,7 +176,7 @@ export async function generatePost(category: Category, directive: PostDirective,
     }
   }
 
-  const 최소 = 최소분량();
+  const 최소 = 고른분량.최소 ?? 최소분량();
   // 분량 보강은 시간이 남을 때만 — 5분 안에 끝내는 게 먼저다. 짧으면 카드의 «글자수» 표시로 보인다.
   if (parsed.post.content.length < 최소 && Date.now() - 시작 > 보강마감ms) {
     다시.push("분량(시간 없어 건너뜀)");

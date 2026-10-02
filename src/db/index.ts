@@ -138,6 +138,19 @@ function runMigrations(database: Database.Database) {
   칸붙이기(database, "categories", "kw_error", "TEXT");         // 마지막으로 모으다 난 탈
   칸붙이기(database, "categories", "kw_job", "TEXT");           // 모으다 멈춘 자리 (JSON) — [이어서 모으기]
 
+  // ── 글 쓰는 방식 (카테고리 폼 ⑦) — 비워 두면 예전처럼 자동. src/claude/글방식.ts ──
+  칸붙이기(database, "categories", "write_mode", "TEXT");      // info / experience
+  칸붙이기(database, "categories", "structure", "TEXT");       // auto / 1~10
+  칸붙이기(database, "categories", "length_pref", "TEXT");     // short / default / long
+  칸붙이기(database, "categories", "tone_strength", "INTEGER"); // 0 / 50 / 100
+  칸붙이기(database, "categories", "my_note", "TEXT");         // 내 경험·요청
+
+  // ── 최종 검수 — 원래 초안(content)은 그대로 두고 최종본을 따로 ──
+  칸붙이기(database, "posts", "final_content", "TEXT");
+  칸붙이기(database, "posts", "final_at", "TEXT");
+  칸붙이기(database, "posts", "review_json", "TEXT");
+  칸붙이기(database, "posts", "review_count", "INTEGER NOT NULL DEFAULT 0");
+
   database.exec(`
     CREATE INDEX IF NOT EXISTS idx_categories_owner ON categories (owner_key);
     CREATE INDEX IF NOT EXISTS idx_posts_owner ON posts (owner_key);

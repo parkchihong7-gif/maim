@@ -4,6 +4,7 @@ import { buildStyleRulesBlock } from "./styleRules.js";
 import { buildTitleRuleBlock, 목표최소, 목표최대 } from "./제목규칙.js";
 import { buildSeoRuleBlock } from "./검색노출규칙.js";
 import type { 자료메모 } from "../pipeline/자료메모.js";
+import { 글방식블록 } from "./글방식.js";
 
 /**
  * 글쓰기 단계가 받는 자료. **글쓰기에는 도구가 없다** — 주소를 열거나 검색하지
@@ -117,6 +118,7 @@ ${topicKeywordBlock}
 ${옵션.키워드자료 ? `${옵션.키워드자료}\n` : ""}${categoryUrlBlock}
 ${recentTitlesBlock}
 ${buildStyleRulesBlock(directive)}
+${글방식블록(category)}
 ${buildTitleRuleBlock()}
 ${buildSeoRuleBlock(directive)}
 ${titleVariantsInstruction}

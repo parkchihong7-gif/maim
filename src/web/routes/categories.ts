@@ -3,7 +3,8 @@ import {
   listAllCategories,
   createCategory,
   updateCategory,
-  deleteCategory, 메모적기 } from "../../db/repositories/categories.js";
+  deleteCategory, 메모적기, 글방식적기 } from "../../db/repositories/categories.js";
+import { 글방식다듬기 } from "../../claude/글방식.js";
 import {
   오늘목록, 오늘몇편, 지금차례, 차례정하기, 차례이름, 하루최대, 지금상한, 상한정하기, 카테고리상한,
   지금시각, 크론식,
@@ -141,6 +142,7 @@ export async function categoriesRoutes(app: FastifyInstance) {
       return { error: "이름과 카테고리 설명은 비워 둘 수 없습니다." };
     }
     const category = createCategory(body);
+    글방식적기(category.id, 글방식다듬기(body as Record<string, unknown>));
     reply.code(201);
     return category;
   });
@@ -162,6 +164,7 @@ export async function categoriesRoutes(app: FastifyInstance) {
         keywordKeep: boolean;
       }>,
     );
+    글방식적기(id, 글방식다듬기((req.body ?? {}) as Record<string, unknown>));
     return { ok: true };
   });
 

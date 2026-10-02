@@ -33,6 +33,12 @@ export interface Category {
   kw_refreshed_at?: string | null;
   kw_error?: string | null;
   kw_job?: string | null;
+  /** 글 쓰는 방식 (폼 ⑦). 비면 자동. src/claude/글방식.ts */
+  write_mode?: string | null;
+  structure?: string | null;
+  length_pref?: string | null;
+  tone_strength?: number | null;
+  my_note?: string | null;
 }
 
 /** 참고 주소를 다듬는다 — http(s) 만, 줄마다 하나, 10개까지. */
@@ -153,6 +159,15 @@ export function 키워드칸적기(id: number, 값: Partial<{
   kw_apply: 0 | 1; kw_refreshed_at: string | null; kw_error: string | null; kw_job: string | null;
 }>): void {
   const 칸들 = (["kw_apply", "kw_refreshed_at", "kw_error", "kw_job"] as const).filter((k) => k in 값);
+  if (!칸들.length) return;
+  getDb().prepare(
+    `UPDATE categories SET ${칸들.map((k) => `${k} = @${k}`).join(", ")} WHERE id = @id AND owner_key = @owner`,
+  ).run({ ...값, id, owner: 지금주인() });
+}
+
+/** 글 쓰는 방식 칸만 바꾼다(폼 ⑦). 건네지 않은 칸은 그대로. 값은 글방식다듬기() 를 거친 것. */
+export function 글방식적기(id: number, 값: Partial<Record<"write_mode" | "structure" | "length_pref" | "tone_strength" | "my_note", string | number | null>>): void {
+  const 칸들 = (["write_mode", "structure", "length_pref", "tone_strength", "my_note"] as const).filter((k) => k in 값);
   if (!칸들.length) return;
   getDb().prepare(
     `UPDATE categories SET ${칸들.map((k) => `${k} = @${k}`).join(", ")} WHERE id = @id AND owner_key = @owner`,

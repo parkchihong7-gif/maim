@@ -297,7 +297,8 @@ function escapeHtml(text) {
 
 function buildCopyText(post) {
   const tags = post.tags_json ? JSON.parse(post.tags_json) : [];
-  const parts = [post.title ?? "", "", post.content ?? ""];
+  // 최종본을 저장했으면 그것을 복사한다(원래 초안은 그대로 남아 있다).
+  const parts = [post.title ?? "", "", post.final_content || post.content || ""];
   if (tags.length > 0) parts.push("", tags.join(" "));
   return parts.join("\n");
 }
@@ -363,6 +364,11 @@ function 카테고리꼬리표(c) {
   if (함께) 조각.push(`<span class="cat-tag must" title="${escapeHtml(c.must_keywords)}">+함께 ${함께}</span>`);
   if (빼기) 조각.push(`<span class="cat-tag exclude" title="${escapeHtml(c.exclude_keywords)}">−빼기 ${빼기}</span>`);
   if (주소) 조각.push(`<span class="cat-tag url" title="${escapeHtml([c.main_url ? `대표: ${c.main_url}` : "", c.reference_urls || ""].filter(Boolean).join("\n"))}">🔗 ${주소}</span>`);
+  if (c.structure || c.write_mode || c.my_note) {
+    const 구 = 글구성[c.structure];
+    const 말 = [c.write_mode === "experience" ? "경험형" : c.write_mode === "info" ? "정보형" : "", 구 ? 구.이름 : c.structure === "auto" ? "구성 자동 추천" : "", c.my_note ? "내 경험" : ""].filter(Boolean).join(" · ");
+    조각.push(`<span class="cat-tag ws" title="⑦ 글 쓰는 방식">✍️ ${escapeHtml(말)}</span>`);
+  }
   if (c.kw_apply) 조각.push(`<span class="cat-tag kw" title="🔎 네이버 키워드 탭에서 «포스팅에 적용» 을 켠 카테고리 — 주제 키워드가 비면 보관함 키워드로 씁니다">🔑 보관함</span>`);
   if (메모있나(c)) {
     조각.push(`<span class="cat-tag memo" title="${escapeHtml(`${메모날(c)}에 주소를 읽고 정리한 자료 메모가 있습니다. 다음 글부터 주소를 다시 안 열고 이 메모로 빠르게 씁니다 (7일마다 새로 읽음).`)}">📒 메모 ${메모날(c)}</span>`);
@@ -673,6 +679,8 @@ async function refreshQueue() {
         <button class="btn-secondary" data-action="copy" data-id="${p.id}" title="제목 + 본문 + 태그를 한꺼번에">전체 복사하기</button>
         <button class="btn-secondary" data-action="regenerate-image" data-id="${p.id}">이미지 재생성</button>
         <button class="btn-secondary" data-action="mobile-preview" data-id="${p.id}" title="휴대폰 네이버 앱에서 대략 어떻게 보일지">📱 미리보기</button>
+        <button class="btn-secondary" data-action="review-open" data-id="${p.id}" title="AI 가 사실·숫자·경험·과장을 표시 → 고쳐서 최종본으로">🔎 최종 검수</button>
+        ${p.final_content ? `<span class="badge badge-final" title="[전체 복사하기]는 최종본을 복사합니다">✔ 최종본 ${escapeHtml(짧은날(p.final_at))}</span>` : ""}
         <button class="btn-success" data-action="mark-published" data-id="${p.id}">발행 완료로 표시</button>
       </div>
       ${checklistHtml}
@@ -1035,6 +1043,12 @@ document.getElementById("category-form").addEventListener("submit", async (e) =>
     excludeKeywords: form.excludeKeywords.value.trim() || null,
     mainUrl: form.mainUrl.value.trim() || null,
     referenceUrls: 참고주소줄읽기().join("\n") || null,
+    // ⑦ 글 쓰는 방식 — 빈 값은 «자동(지금처럼)»
+    writeMode: form.writeMode.value || null,
+    structure: form.structure.value || null,
+    lengthPref: form.lengthPref.value || null,
+    toneStrength: form.toneStrength.value === "" ? null : Number(form.toneStrength.value),
+    myNote: form.myNote.value.trim() || null,
   };
   if (!값.name || !값.promptHint) { alert("이름과 카테고리 설명은 비워 둘 수 없습니다."); return; }
   try {
@@ -1058,6 +1072,8 @@ function 카테고리폼비우기() {
   form.reset();
   form.id.value = "";
   참고주소줄그리기([""]);
+  글방식표시();
+  document.getElementById("cf-style").open = false;
   document.getElementById("category-form-title").textContent = "새 카테고리 추가";
   document.getElementById("category-submit").textContent = "추가";
   document.getElementById("category-cancel").hidden = true;
@@ -1078,6 +1094,13 @@ function 카테고리폼채우기(c) {
   form.mainUrl.value = c.main_url || "";
   const 참고 = (c.reference_urls || "").split(/\s+/).filter(Boolean);
   참고주소줄그리기(참고.length ? 참고 : [""]);
+  form.writeMode.value = c.write_mode || "";
+  form.structure.value = c.structure || "";
+  form.lengthPref.value = c.length_pref || "";
+  form.toneStrength.value = c.tone_strength === null || c.tone_strength === undefined ? "" : String(c.tone_strength);
+  form.myNote.value = c.my_note || "";
+  글방식표시();
+  document.getElementById("cf-style").open = !!(c.write_mode || c.structure || c.length_pref || c.tone_strength !== null && c.tone_strength !== undefined || c.my_note);
   document.getElementById("category-form-title").textContent = `카테고리 수정 — ${c.name}`;
   document.getElementById("category-submit").textContent = "수정 저장";
   document.getElementById("category-cancel").hidden = false;
@@ -2863,3 +2886,248 @@ function 모바일미리보기(postId) {
       </div></div>`;
   창.hidden = false;
 }
+
+// ════════════════════════════════════════════════════════════════
+// ⑦ 글 쓰는 방식 — 카테고리 폼. 서버 src/claude/글방식.ts 와 같은 목록.
+// ════════════════════════════════════════════════════════════════
+const 글구성 = {
+  "1": { 이름: "결론 먼저형", 한줄: "독자가 원하는 답을 먼저 보여 주고 이유를 풀어 갑니다.", 전개: "가장 궁금한 질문의 답 → 그렇게 본 이유 → 자료·사례로 뒷받침 → 답이 달라지는 조건" },
+  "2": { 이름: "궁금증 추적형", 한줄: "독자의 궁금증을 하나씩 따라가며 풀어 갑니다.", 전개: "처음 드는 궁금증 → 알아보니 나온 사실 → 다음 궁금증 → 정리" },
+  "3": { 이름: "문제 해결형", 한줄: "독자가 겪는 문제와 해결 방법을 차례로 보여 줍니다.", 전개: "흔히 겪는 문제 → 원인 → 해결 방법 단계별 → 안 될 때 대안" },
+  "4": { 이름: "비교·선택형", 한줄: "선택지를 나란히 놓고 고르는 기준을 줍니다.", 전개: "비교 대상 소개 → 기준별 차이 → 누구에게 무엇이 맞나 → 결론" },
+  "5": { 이름: "장면 출발형", 한줄: "구체적인 장면 하나로 시작해 주제로 넓혀 갑니다.", 전개: "한 장면 → 그 장면에서 생기는 질문 → 정보 → 다시 장면으로 마무리" },
+  "6": { 이름: "오해 바로잡기형", 한줄: "흔한 오해를 짚고 맞는 정보로 바로잡습니다.", 전개: "흔히 믿는 것 → 실제로는 → 왜 헷갈리나 → 제대로 아는 법" },
+  "7": { 이름: "과정 따라가기형", 한줄: "처음부터 끝까지 순서대로 따라 하게 합니다.", 전개: "준비물·조건 → 1단계 → 2단계 → … → 확인할 것" },
+  "8": { 이름: "핵심 발견 확장형", 한줄: "핵심 발견 하나를 먼저 말하고 넓혀 갑니다.", 전개: "알게 된 핵심 한 가지 → 그 의미 → 관련된 것들 → 독자에게 주는 시사점" },
+  "9": { 이름: "질문 연결형", 한줄: "독자가 실제로 묻는 질문들을 이어 답합니다.", 전개: "질문 1 → 답 → 이어지는 질문 2 → 답 → … (Q&A 흐름)" },
+  "10": { 이름: "관점 제시형", 한줄: "하나의 관점을 분명히 내놓고 근거로 설득합니다.", 전개: "내 관점 한 문장 → 근거 1·2·3 → 반대 의견과 답 → 정리" },
+};
+
+/** 고른 구성의 설명과 접힌 제목 줄의 요약을 다시 그린다. */
+function 글방식표시() {
+  const form = document.getElementById("category-form");
+  if (!form || !form.structure) return;
+  const 칸 = document.getElementById("cf-structure-desc");
+  const v = form.structure.value;
+  const 구 = 글구성[v];
+  if (구) {
+    칸.hidden = false;
+    칸.innerHTML = `<strong>${escapeHtml(구.한줄)}</strong><br>전개 예: ${escapeHtml(구.전개)}<br><span class="muted">고정 목차가 아닙니다. 소제목·문단 수는 자료에 맞게 조정합니다.</span>`;
+  } else if (v === "auto") {
+    칸.hidden = false;
+    칸.innerHTML = "글마다 주제·자료를 보고 AI 가 10가지 중 가장 맞는 구성을 고릅니다.";
+  } else 칸.hidden = true;
+  const 요약 = [
+    form.writeMode.value === "info" ? "정보·해석" : form.writeMode.value === "experience" ? "후기·경험형" : "",
+    구 ? 구.이름 : v === "auto" ? "구성 자동 추천" : "",
+    form.lengthPref.value === "short" ? "짧게" : form.lengthPref.value === "long" ? "길게" : "",
+    form.toneStrength.value !== "" ? `말투 ${form.toneStrength.value}%` : "",
+    form.myNote.value.trim() ? "내 경험 있음" : "",
+  ].filter(Boolean);
+  document.getElementById("cf-style-sum").textContent = 요약.length ? 요약.join(" · ") : "선택 · 비워 두면 지금처럼 자동";
+}
+document.addEventListener("change", (e) => {
+  if (e.target.closest && e.target.closest("#cf-style")) 글방식표시();
+});
+document.addEventListener("input", (e) => {
+  if (e.target.name === "myNote") 글방식표시();
+});
+
+// ════════════════════════════════════════════════════════════════
+// 🔎 최종 검수 — AI 는 표시만, 고치는 것과 최종본 저장은 사람이.
+// ════════════════════════════════════════════════════════════════
+const 검수이름 = { style: "내 블로그 스타일", principle: "작성 원칙", fact: "사실·숫자·출처", experience: "경험 표현", similar: "참고 자료와 비슷한 표현", exaggeration: "과장·단정·민감" };
+const 검수색 = { fact: "rv-bad", experience: "rv-warn", exaggeration: "rv-warn", similar: "rv-warn", style: "rv-warn", principle: "rv-warn" };
+let 검수글 = null;   // 지금 검수 창의 글(post)
+
+function 검수결과그리기(결과) {
+  const 요약 = document.getElementById("rv-sum");
+  const 칸 = document.getElementById("rv-res");
+  if (!결과) {
+    요약.innerHTML = Object.values(검수이름).map((n) => `<div>${escapeHtml(n)}<br><span class="muted">–</span></div>`).join("");
+    칸.innerHTML = `<p class="muted">[AI 검수하기]를 누르면 문제 되는 문장을 여기에 표시합니다. 글을 대신 고치지는 않습니다.</p>`;
+    return;
+  }
+  요약.innerHTML = Object.entries(검수이름).map(([k, n]) => {
+    const c = (결과.counts && 결과.counts[k]) || 0;
+    return `<div>${escapeHtml(n)}<br><span class="rv-tag ${c ? 검수색[k] : "rv-ok"}">${c ? `⚠ ${c}` : "✅"}</span></div>`;
+  }).join("");
+  const 줄 = (결과.items || []).map((i) => `<div class="rv-it"><span class="rv-tag ${검수색[i.kind] || "rv-warn"}">${escapeHtml(검수이름[i.kind] || i.kind)}</span>`
+    + `<span class="rv-q" data-rv-find="${escapeHtml(i.quote)}" title="누르면 글에서 찾아 줍니다">${escapeHtml(i.quote)}</span><br>`
+    + `${escapeHtml(i.why)}${i.fix ? `<br><span class="muted">→ ${escapeHtml(i.fix)}</span>` : ""}</div>`).join("");
+  const 키워드 = 검수글 ? buildQualityChecklist({ ...검수글, content: document.getElementById("rv-edit").value }) : [];
+  칸.innerHTML = (결과.summary ? `<p><strong>${escapeHtml(결과.summary)}</strong></p>` : "")
+    + (줄 || `<p class="muted">표시할 문제가 없습니다.</p>`)
+    + `<div class="rv-it"><span class="rv-tag rv-ok">화면 점검</span>${키워드.map((x) => `${x.ok ? "✅" : "⚠"} ${escapeHtml(x.label)}`).join(" · ")}</div>`
+    + `<p class="muted" style="margin-top:8px">AI 검수는 도구 없이 글만 봅니다 — 사실 확인을 대신하지 못합니다.</p>`;
+}
+
+function 검수상태줄() {
+  const p = 검수글;
+  const 줄 = document.getElementById("rv-state");
+  if (!p || !줄) return;
+  줄.textContent = `${p.final_content ? `최종본 저장됨 ${new Date(p.final_at).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}` : "최종본 미저장"} · 검수 ${p.review_count || 0}회`;
+  document.getElementById("rv-run").textContent = (p.review_count || 0) > 0 ? "고친 글 다시 검수" : "AI 검수하기";
+}
+
+function 검수창열기(postId) {
+  const p = readyPosts.find((x) => x.id === postId);
+  if (!p) return;
+  검수글 = p;
+  let 창 = document.getElementById("rv-dialog");
+  if (!창) {
+    창 = document.createElement("div");
+    창.id = "rv-dialog";
+    창.className = "error-dialog";
+    document.body.appendChild(창);
+    창.addEventListener("click", 검수창누름);
+    창.addEventListener("change", (e) => {
+      if (e.target.id === "rv-confirm") document.getElementById("rv-save").disabled = !e.target.checked;
+    });
+  }
+  창.innerHTML = `<div class="error-dialog-box rv-box" role="dialog" aria-modal="true" aria-label="최종 검수">
+    <h3>🔎 최종 검수 — «${escapeHtml(p.title || "")}»</h3>
+    <p class="rv-sub">원래 초안은 그대로 두고, 고친 글을 <strong>최종본</strong>으로 따로 저장합니다. AI 는 표시만 하고 고치지 않습니다.</p>
+    <div class="rv-bar">
+      <button class="btn-primary" data-rv="run" id="rv-run">AI 검수하기</button>
+      <span class="muted" id="rv-run-note">1분 안팎 · 최대 2분 · 도구 없이 글만 봅니다</span>
+    </div>
+    <div class="rv-sum" id="rv-sum"></div>
+    <div class="rv-grid">
+      <div><div class="rv-tabs"><button class="on" data-rv="tab-edit">검수본·수정</button><button data-rv="tab-mpv">📱 모바일 미리보기</button></div>
+        <textarea class="rv-edit" id="rv-edit" spellcheck="false"></textarea>
+        <div class="rv-mpv" id="rv-mpv" hidden></div></div>
+      <div><div class="rv-tabs"><button class="on" type="button">검수 결과</button></div><div class="rv-res" id="rv-res"></div></div>
+    </div>
+    <div class="rv-foot">
+      <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="rv-confirm"> 글과 검수 결과를 <strong>직접 확인했습니다</strong></label>
+      <button class="btn-success" data-rv="save" id="rv-save" disabled>✔ 최종본으로 저장</button>
+      <button class="btn-secondary" data-rv="copy-rich">서식째 복사</button>
+      <button class="btn-secondary" data-rv="txt">TXT 내려받기</button>
+      <button class="btn-secondary" data-rv="img" title="ChatGPT 등에 붙여넣어 글에 맞는 이미지를 만들 때 — 이 프로그램은 이미지를 만들지 않습니다">🖼️ 이미지 프롬프트 복사</button>
+      <span class="muted" id="rv-state"></span>
+      <button class="btn-secondary" data-rv="close" style="margin-left:auto">닫기</button>
+    </div></div>`;
+  document.getElementById("rv-edit").value = p.final_content || p.content || "";
+  let 지난결과 = null;
+  try { 지난결과 = p.review_json ? JSON.parse(p.review_json) : null; } catch { 지난결과 = null; }
+  검수결과그리기(지난결과);
+  검수상태줄();
+  창.hidden = false;
+}
+
+function 검수글본문() { return document.getElementById("rv-edit").value; }
+
+function 서식HTML(제목, 본문) {
+  const 문단 = 본문.split(/\n+/).map((x) => x.trim()).filter(Boolean).map((x) => 소제목인가(x)
+    ? `<p><b><span style="font-size:19px">${escapeHtml(x)}</span></b></p>`
+    : `<p><span style="font-size:15px">${escapeHtml(x)}</span></p>`).join("");
+  return `<h2>${escapeHtml(제목)}</h2>${문단}`;
+}
+
+function 이미지프롬프트(제목, 본문) {
+  const 소제목 = 본문.split(/\n+/).map((x) => x.trim()).filter(소제목인가).slice(0, 5);
+  const 요약 = 본문.replace(/\s+/g, " ").slice(0, 500);
+  return [
+    "아래 네이버 블로그 글에 넣을 이미지를 만들어 주세요.",
+    "",
+    `[글 제목] ${제목}`,
+    "",
+    "1. 먼저 표로 정리해 주세요: 번호 · 역할 · 넣을 위치 · 표현 방식 · 비율",
+    "2. 대표 이미지 1장: 1080×1080, 제목의 핵심을 한눈에 (짧은 한글 문구 크게)",
+    `3. 본문 이미지 ${Math.max(3, Math.min(소제목.length, 4))}장: 아래 소제목 자리마다 하나씩, 비율은 4:3·3:4·9:16 을 섞어서`,
+    ...소제목.map((x, i) => `   ${i + 1}) ${x}`),
+    "4. 실제 화면·제품·인물·기관 자료처럼 보이게 지어내지 마세요. 설명용 개념 이미지(삽화·도식)로 만들고,",
+    "   실제 자료가 필요한 자리는 «실제 자료 확인 필요» 라고 표시만 해 주세요.",
+    "5. 모든 이미지 구석에 작게 «AI 생성 이미지» 라고 표시해 주세요.",
+    "6. 이미지 안 글자는 한글로, 짧고 크게.",
+    "",
+    `[글 앞부분] ${요약}`,
+  ].join("\n");
+}
+
+async function 검수창누름(e) {
+  const 창 = document.getElementById("rv-dialog");
+  if (e.target === 창) { 창.hidden = true; return; }
+  const 찾기 = e.target.closest("[data-rv-find]");
+  if (찾기) {
+    const 칸 = document.getElementById("rv-edit");
+    const i = 칸.value.indexOf(찾기.dataset.rvFind);
+    if (i >= 0) { 칸.focus(); 칸.setSelectionRange(i, i + 찾기.dataset.rvFind.length); }
+    return;
+  }
+  const b = e.target.closest("[data-rv]");
+  if (!b) return;
+  const 할일 = b.dataset.rv;
+  const p = 검수글;
+  try {
+    if (할일 === "close") { 창.hidden = true; await refreshQueue().catch(() => {}); }
+    else if (할일 === "tab-edit" || 할일 === "tab-mpv") {
+      창.querySelectorAll('[data-rv^="tab-"]').forEach((x) => x.classList.toggle("on", x === b));
+      const mpv = 할일 === "tab-mpv";
+      document.getElementById("rv-edit").hidden = mpv;
+      const 칸 = document.getElementById("rv-mpv");
+      칸.hidden = !mpv;
+      if (mpv) {
+        칸.innerHTML = `<div class="mpv-frame center"><h1>${escapeHtml(p.title || "")}</h1>`
+          + 검수글본문().split(/\n+/).map((x) => x.trim()).filter(Boolean).map((x) => `<p class="${소제목인가(x) ? "sub" : ""}">${escapeHtml(x)}</p>`).join("")
+          + "</div><p class=\"muted\">가운데 정렬 · 본문 15px · 소제목 19px — 실제 네이버 화면과 조금 다를 수 있어요.</p>";
+      }
+    } else if (할일 === "run") {
+      b.disabled = true;
+      const 원래 = b.textContent;
+      b.textContent = "검수 중…";
+      const 시작 = Date.now();
+      const 째 = setInterval(() => { document.getElementById("rv-run-note").textContent = `${걸린시간(Date.now() - 시작)}째 · 최대 2분`; }, 1000);
+      try {
+        const 결과 = await api(`/api/posts/${p.id}/review`, { method: "POST", body: JSON.stringify({ content: 검수글본문() }) });
+        p.review_count = 결과.reviewCount;
+        p.review_json = JSON.stringify(결과);
+        검수결과그리기(결과);
+        document.getElementById("rv-run-note").textContent = `검수 ${결과.reviewCount}회 · ${걸린시간(Date.now() - 시작)}${결과.remaining !== null && 결과.remaining !== undefined ? ` · 오늘 남은 검수 ${결과.remaining}번` : ""}`;
+      } finally {
+        clearInterval(째);
+        b.disabled = false;
+        b.textContent = 원래;
+        검수상태줄();
+      }
+    } else if (할일 === "save") {
+      const 답 = await api(`/api/posts/${p.id}/final`, { method: "POST", body: JSON.stringify({ content: 검수글본문(), confirmed: document.getElementById("rv-confirm").checked }) });
+      p.final_content = 검수글본문();
+      p.final_at = 답.finalAt;
+      검수상태줄();
+      b.textContent = "저장됨!";
+      setTimeout(() => { b.textContent = "✔ 최종본으로 저장"; }, 1500);
+    } else if (할일 === "copy-rich") {
+      const 글 = [p.title || "", "", 검수글본문()].join("\n");
+      try {
+        await navigator.clipboard.write([new ClipboardItem({
+          "text/html": new Blob([서식HTML(p.title || "", 검수글본문())], { type: "text/html" }),
+          "text/plain": new Blob([글], { type: "text/plain" }),
+        })]);
+      } catch { await navigator.clipboard.writeText(글); }
+      b.textContent = "복사됨!";
+      setTimeout(() => { b.textContent = "서식째 복사"; }, 1500);
+    } else if (할일 === "txt") {
+      const 글 = [p.title || "", "", 검수글본문()].join("\n");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([글], { type: "text/plain;charset=utf-8" }));
+      a.download = `${(p.title || "초안").replace(/[\\/:*?"<>|]/g, "").slice(0, 40)}.txt`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    } else if (할일 === "img") {
+      await navigator.clipboard.writeText(이미지프롬프트(p.title || "", 검수글본문()));
+      b.textContent = "복사됨! ChatGPT 에 붙여넣으세요";
+      setTimeout(() => { b.textContent = "🖼️ 이미지 프롬프트 복사"; }, 2500);
+    }
+  } catch (err) {
+    오류창("검수 창에서 문제가 생겼습니다", err && err.message ? err.message : String(err));
+  }
+}
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest('[data-action="review-open"]');
+  if (!b) return;
+  e.preventDefault();
+  검수창열기(Number(b.dataset.id));
+});

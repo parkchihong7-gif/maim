@@ -235,6 +235,51 @@
                   대표 주소에서 소재를 먼저 찾고, 참고 주소로 사실·숫자를 보강합니다. 문장은 베끼지 않습니다.</p>
               </div>
 
+              <details class="cf cf-style" id="cf-style">
+                <summary class="cf-label">⑦ 글 쓰는 방식 <span id="cf-style-sum">선택 · 비워 두면 지금처럼 자동</span></summary>
+                <div class="ws-row"><span class="ws-k">작성 모드</span>
+                  <div><div class="ws-seg">
+                    <label><input type="radio" name="writeMode" value="" checked><span>자동</span></label>
+                    <label><input type="radio" name="writeMode" value="info"><span>정보·해석 중심</span></label>
+                    <label><input type="radio" name="writeMode" value="experience"><span>지식 기반 후기·경험형</span></label>
+                  </div>
+                  <p class="cf-tip">후기·경험형은 «써 본 사람» 시선으로 쓰지만 실제 경험을 증명하지 않습니다. 발행 전에 내 경험으로 꼭 고치세요.</p></div></div>
+                <div class="ws-row"><span class="ws-k">글 구성</span>
+                  <div><select name="structure" id="cf-structure">
+                    <option value="">자동 (지금처럼)</option>
+                    <option value="auto">자동 추천 — AI 가 10가지 중 고름</option>
+                    <option value="1">① 결론 먼저형</option><option value="2">② 궁금증 추적형</option>
+                    <option value="3">③ 문제 해결형</option><option value="4">④ 비교·선택형</option>
+                    <option value="5">⑤ 장면 출발형</option><option value="6">⑥ 오해 바로잡기형</option>
+                    <option value="7">⑦ 과정 따라가기형</option><option value="8">⑧ 핵심 발견 확장형</option>
+                    <option value="9">⑨ 질문 연결형</option><option value="10">⑩ 관점 제시형</option>
+                  </select>
+                  <div class="ws-desc" id="cf-structure-desc" hidden></div></div></div>
+                <div class="ws-row"><span class="ws-k">분량</span>
+                  <div class="ws-seg">
+                    <label><input type="radio" name="lengthPref" value="" checked><span>기본 · 관리자 설정</span></label>
+                    <label><input type="radio" name="lengthPref" value="short"><span>짧게 · 1,500~2,000자</span></label>
+                    <label><input type="radio" name="lengthPref" value="long"><span>길게 · 4,000자 안팎</span></label>
+                  </div></div>
+                <div class="ws-row"><span class="ws-k">말투 강도</span>
+                  <div><div class="ws-seg">
+                    <label><input type="radio" name="toneStrength" value="" checked><span>자동</span></label>
+                    <label><input type="radio" name="toneStrength" value="0"><span>0% 중립</span></label>
+                    <label><input type="radio" name="toneStrength" value="50"><span>50% 균형</span></label>
+                    <label><input type="radio" name="toneStrength" value="100"><span>100% 내 말투 강조</span></label>
+                  </div>
+                  <p class="cf-tip">«내 말투» 는 [관리자 설정 → 3) 포스팅 방향] 의 프리셋·보강 문구입니다.</p></div></div>
+                <div class="ws-row"><span class="ws-k">내 경험·요청</span>
+                  <div><textarea name="myNote" rows="2" maxlength="800" placeholder="예) 지난달 직접 계약해 보니 특약 한 줄로 보증금을 지켰다 · 표 1개 넣어 주세요"></textarea>
+                  <p class="cf-tip">적으면 글에 녹입니다. 여기 적은 것만 «실제 경험» 으로 씁니다. 없는 경험은 지어내지 않습니다.</p></div></div>
+                <div class="ws-row"><span class="ws-k">작성 관점</span>
+                  <div><div class="ws-views">
+                    <div><b>개인화</b>독자·말투·요청 반영</div><div><b>차별화</b>흔한 글이 안 다룬 쪽</div>
+                    <div><b>SEO</b>검색한 사람이 궁금한 순서</div><div><b>GEO</b>답 먼저·근거·조건 분명</div>
+                    <div><b>반복 점검</b>같은 말 되풀이 금지</div></div>
+                  <p class="cf-tip">모든 글에 늘 적용됩니다(고르는 칸 아님).</p></div></div>
+              </details>
+
               <div class="cf-actions">
                 <button type="submit" class="btn-primary" id="category-submit">추가</button>
                 <button type="button" class="btn-secondary" id="category-cancel" data-action="cancel-category-form" hidden>취소</button>
