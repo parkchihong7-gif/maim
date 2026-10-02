@@ -77,7 +77,10 @@ export async function 연관키워드(seeds: string[]): Promise<키워드도구�
   }
 
   const timestamp = String(Date.now());
-  const url = `${바탕}${경로}?hintKeywords=${encodeURIComponent(씨앗.join(","))}&showDetail=1`;
+  // 씨앗은 «하나씩» 인코딩하고 쉼표는 그대로 둔다. 통째로 인코딩하면 쉼표가 %2C 가 되어
+  // 네이버가 한 덩어리 키워드로 읽고 400(잘못된 파라미터)을 준다 — 씨앗 1개인 연결 테스트는
+  // 통과하고 씨앗이 여럿인 [지금 모으기] 만 3초 만에 끝나던 까닭.
+  const url = `${바탕}${경로}?hintKeywords=${씨앗.map(encodeURIComponent).join(",")}&showDetail=1`;
   try {
     const res = await fetch(url, {
       headers: {
@@ -89,11 +92,28 @@ export async function 연관키워드(seeds: string[]): Promise<키워드도구�
       signal: AbortSignal.timeout(네이버한도ms),
     });
     const 본문 = await res.text();
-    if (!res.ok) return { ok: false, status: res.status, why: 코드사유(res.status, 본문) };
+    if (!res.ok) {
+      // 씨앗 여럿을 한 번에 못 받아 주면(400) 하나씩 따로 묻고 합친다.
+      // 씨앗 하나가 이상한 글자라 통째로 막히는 일도 이것으로 피한다.
+      if (res.status === 400 && 씨앗.length > 1) return 하나씩물어합치기(씨앗, 코드사유(res.status, 본문));
+      return { ok: false, status: res.status, why: 코드사유(res.status, 본문) };
+    }
     return 다듬기(JSON.parse(본문));
   } catch (err) {
     const e = err as Error;
     if (e.name === "TimeoutError" || e.name === "AbortError") return { ok: false, why: "네이버가 10초 안에 답하지 않았습니다." };
     return { ok: false, why: `네이버에 닿지 못했습니다 — ${e.message}` };
   }
+}
+
+async function 하나씩물어합치기(씨앗: string[], 처음까닭: string): Promise<키워드도구결과> {
+  const 본 = new Map<string, 연관어>();
+  const 까닭들: string[] = [];
+  for (const 하나 of 씨앗) {
+    const 답 = await 연관키워드([하나]);
+    if (!답.ok) { 까닭들.push(`«${하나}»: ${답.why}`); continue; }
+    for (const 줄 of 답.rows) if (!본.has(줄.keyword)) 본.set(줄.keyword, 줄);
+  }
+  if (!본.size) return { ok: false, why: `연관 키워드를 받지 못했습니다 — ${까닭들[0] ?? 처음까닭}` };
+  return { ok: true, rows: [...본.values()] };
 }
