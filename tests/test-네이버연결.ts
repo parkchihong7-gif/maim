@@ -65,6 +65,48 @@ const 없음2 = await 광고.연관키워드(["블로그"]);
 참("블로그 검색: ok=false, «아직 없습니다»", !없음1.ok && 없음1.why.includes("아직 없습니다"));
 참("검색광고: ok=false, «아직 다 들어 있지 않습니다»", !없음2.ok && 없음2.why.includes("들어 있지 않습니다"));
 
+console.log("\n④-2 창구 — API HUB 먼저, 키가 안 맞으면 옛 개발자센터");
+{
+  const 블검 = await import("../src/naver/블로그검색.js");
+  const 원래 = globalThis.fetch;
+  const 부른것: { url: string; h: Record<string, string> }[] = [];
+  const 흉내 = (hub: number, legacy: number) => (async (url: any, init: any) => {
+    const u = String(url);
+    부른것.push({ url: u, h: init.headers });
+    const 코드 = u.includes("naverapihub") ? hub : legacy;
+    return new Response(코드 === 200 ? JSON.stringify({ total: 77, items: [] }) : "{}", { status: 코드 });
+  }) as typeof fetch;
+  process.env.NAVER_SEARCH_CLIENT_ID = "hubclientid0123456789";
+  process.env.NAVER_SEARCH_CLIENT_SECRET = "hubsecret12";
+
+  globalThis.fetch = 흉내(200, 500);
+  블검.창구기억지우기();
+  const 허브 = await 블검.블로그검색("블로그", 1);
+  참("HUB 가 맞으면 HUB 하나만 부른다", 허브.ok && 부른것.length === 1 && 부른것[0].url.startsWith("https://naverapihub.apigw.ntruss.com/search/v1/blog?"));
+  참("HUB 헤더는 X-NCP-APIGW-API-KEY-ID / KEY", 부른것[0].h["X-NCP-APIGW-API-KEY-ID"] === "hubclientid0123456789" && 부른것[0].h["X-NCP-APIGW-API-KEY"] === "hubsecret12");
+
+  부른것.length = 0;
+  globalThis.fetch = 흉내(401, 200);
+  블검.창구기억지우기();
+  const 옛 = await 블검.블로그검색("블로그", 1);
+  참("HUB 가 401 이면 옛 창구로 넘어가 받는다", 옛.ok && 부른것.length === 2 && 부른것[1].url.startsWith("https://openapi.naver.com/"));
+  참("옛 창구 헤더는 X-Naver-Client-Id / Secret", 부른것[1].h["X-Naver-Client-Id"] === "hubclientid0123456789");
+  부른것.length = 0;
+  await 블검.블로그검색("블로그", 1);
+  참("맞은 창구를 기억해 다음엔 바로 간다", 부른것.length === 1 && 부른것[0].url.startsWith("https://openapi.naver.com/"));
+
+  부른것.length = 0;
+  globalThis.fetch = 흉내(403, 401);
+  블검.창구기억지우기();
+  const 둘다 = await 블검.블로그검색("블로그", 1);
+  참("둘 다 안 맞으면 API HUB 인증 정보를 보라고 한다", !둘다.ok && 둘다.why.includes("API HUB"));
+
+  globalThis.fetch = 원래;
+  블검.창구기억지우기();
+  delete process.env.NAVER_SEARCH_CLIENT_ID;
+  delete process.env.NAVER_SEARCH_CLIENT_SECRET;
+}
+
 console.log("\n⑤ 가짜 모드(NAVER_FAKE=1)");
 process.env.NAVER_FAKE = "1";
 const 블 = await 블로그검색("전세 계약", 10);

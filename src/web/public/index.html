@@ -308,10 +308,11 @@
           <div class="setup-step" data-step="naver-search">
             <div class="setup-step-header">
               <span class="setup-step-badge" data-badge="naver-search">○</span>
-              <strong>가. 네이버 블로그 검색 API</strong>
+              <strong>가. 네이버 블로그 검색 API (NAVER API HUB)</strong>
               <a href="#" class="manual-toggle" data-action="toggle-manual" data-manual="naver-search" data-label="발급 방법">[발급 방법 보기]</a>
             </div>
-            <p class="muted">이미 쓰인 글 수와 상위 글 제목을 봅니다. <strong>네이버 개발자센터</strong> → 애플리케이션 등록 → «검색» 선택.</p>
+            <p class="muted">이미 쓰인 글 수와 상위 글 제목을 봅니다. 검색 API는 2026년 8월부터 <strong>네이버 클라우드 플랫폼의 «NAVER API HUB»</strong>에서 받습니다
+              (예전 네이버 개발자센터 키도 2027년 6월까지는 그대로 됩니다 — 프로그램이 알아서 맞는 쪽으로 부릅니다).</p>
             <div class="setup-input-row">
               <input type="text" id="naver_search_client_id-input" placeholder="Client ID 붙여넣기" autocomplete="off" />
               <button class="btn-primary" data-action="save-setting" data-key="naver_search_client_id" data-input="naver_search_client_id-input">저장</button>
@@ -325,16 +326,15 @@
 
             <div class="setup-manual" data-manual-panel="naver-search" hidden>
               <ol>
-                <li><a href="https://developers.naver.com/apps/#/register" target="_blank" rel="noopener">네이버 개발자센터 → 애플리케이션 등록</a> 접속 (평소 쓰는 네이버 아이디로 로그인)</li>
-                <li><strong>애플리케이션 이름</strong>: 아무 이름이나 (예: 내 블로그 키워드)</li>
-                <li><strong>사용 API</strong> 칸을 누르고, 펼쳐진 목록 <strong>안에서 마우스 휠로 아래로 내려</strong> <strong>«검색»</strong> 선택 (처음엔 «네이버 로그인»~«캡차»만 보이고 «검색»은 그 아래에 있습니다)</li>
-                <li><strong>비로그인 오픈 API 서비스 환경</strong> → <strong>«WEB 설정»</strong> 고르고, 웹 서비스 URL 에 <strong>내 블로그 주소</strong>
-                  (예: https://blog.naver.com/내아이디) 입력</li>
-                <li>맨 아래 <strong>[등록하기]</strong></li>
-                <li>[내 애플리케이션] → 방금 만든 앱 → <strong>개요</strong> 탭에 보이는 <strong>Client ID</strong>와 <strong>Client Secret</strong>(보기 클릭)을 복사</li>
-                <li>위 두 칸에 각각 붙여넣고 [저장]</li>
+                <li><a href="https://www.ncloud.com/product/applicationService/naverApiHub" target="_blank" rel="noopener">NAVER API HUB 소개 화면</a> 접속 → 오른쪽 위 <strong>로그인</strong>(네이버 아이디로 됨) → <strong>[신청하기]</strong></li>
+                <li>처음이면 회원 정보와 <strong>결제 수단</strong>을 등록합니다 (쓴 만큼 내는 종량제 — [요금] 탭에서 금액을 먼저 확인하세요)</li>
+                <li><strong>콘솔</strong> → Services → Application Services → <strong>NAVER API HUB</strong> → <strong>Application 등록</strong></li>
+                <li>쓸 API 에서 <strong>«검색 › 블로그»</strong> 를 고르고 등록</li>
+                <li>Application 목록에서 방금 만든 앱 → <strong>[인증 정보]</strong> → <strong>Client ID</strong>와 <strong>Client Secret</strong>을 복사</li>
+                <li>위 두 칸에 각각 붙여넣고 [저장] → 아래 [연결 테스트]</li>
               </ol>
-              <p class="muted">※ 무료입니다. 하루 25,000번까지 부를 수 있어 넉넉합니다. 카드 등록이 필요 없습니다.</p>
+              <p class="muted">※ 키워드 하나 모을 때 블로그 검색을 50번쯤 부릅니다(카테고리 하나 = 약 50번, 30일에 한 번).
+                메뉴 이름은 네이버가 가끔 바꿉니다. 다르면 캡처를 보내 주세요.</p>
             </div>
           </div>
 
