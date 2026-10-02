@@ -934,6 +934,16 @@ async function refreshSettings() {
     ? `현재 저장된 값: ${s.pixabay_api_key}`
     : "아직 설정되지 않았습니다.";
 
+  // 5) 네이버 키워드 — 체험 자리에는 값이 안 온다(칸도 숨겨져 있다).
+  const 네이버 = s.naver || {};
+  for (const [칸, 것] of Object.entries(네이버)) {
+    const el = document.querySelector(`[data-current="${칸}"]`);
+    if (el) el.textContent = 것.set ? `현재 저장된 값: ${것.value}` : "아직 설정되지 않았습니다.";
+  }
+  const 다있나 = (칸들) => 칸들.every((칸) => 네이버[칸] && 네이버[칸].set);
+  setStepBadge("naver-search", 다있나(["naver_search_client_id", "naver_search_client_secret"]));
+  setStepBadge("naver-ad", 다있나(["naver_ad_api_key", "naver_ad_secret", "naver_ad_customer_id"]));
+
   setStepBadge("claude", claudeTestedOk);
   updateSetupProgress();
 
@@ -1325,6 +1335,24 @@ document.addEventListener("click", async (e) => {
         btn.disabled = false;
         btn.textContent = original;
       }
+    } else if (action === "test-naver") {
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = "테스트 중...";
+      const box = document.getElementById("naver-test-result");
+      try {
+        const res = await api("/api/settings/test-naver", { method: "POST" });
+        const 줄 = (이름, r) => r && r.ok
+          ? `✅ ${이름} — 연결됨 (${escapeHtml(r.detail || "")})`
+          : `⚠ ${이름} — ${escapeHtml((r && r.why) || "알 수 없는 오류")}`;
+        box.innerHTML = [줄("블로그 검색 API", res.search), 줄("검색광고 API", res.ad)].join("<br>")
+          + (res.fake ? "<br><span class=\"muted\">(시험용 가짜 모드 — 실제 네이버를 부르지 않았습니다)</span>" : "");
+        box.className = "naver-test-result " + (res.ok ? "ok" : "bad");
+        box.hidden = false;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
     } else if (action === "select-preset") {
       selectedPreset = btn.dataset.preset;
       await api("/api/settings", {
@@ -1372,7 +1400,8 @@ document.addEventListener("click", async (e) => {
       const panel = document.querySelector(`[data-manual-panel="${key}"]`);
       if (!panel) return;
       panel.hidden = !panel.hidden;
-      btn.textContent = panel.hidden ? "[매뉴얼 보기]" : "[매뉴얼 닫기]";
+      const 이름 = btn.dataset.label || "매뉴얼";
+      btn.textContent = panel.hidden ? `[${이름} 보기]` : `[${이름} 닫기]`;
     } else if (action === "copy-code") {
       // `data-target` 으로 짚어 둔 것이 있으면 그것을, 없으면 **바로 위
       // 명령칸**을 집는다. 명령마다 id 를 붙여 두면 하나 빠뜨릴 때 그

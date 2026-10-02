@@ -16,6 +16,8 @@ import { settingsRoutes } from "./routes/settings.js";
 import { authRoutes } from "./routes/auth.js";
 import { imageDownloadsRoutes } from "./routes/imageDownloads.js";
 import { tenantsRoutes } from "./routes/tenants.js";
+import { keywordsRoutes } from "./routes/keywords.js";
+import { 네이버환경키들 } from "../naver/키.js";
 import { findSession } from "../db/repositories/keyserverSessions.js";
 import { 자리에서, 주인, 체험역할, type 쓰는이 } from "../tenancy.js";
 /**
@@ -60,6 +62,7 @@ function 비밀들(): string[] {
     const v = process.env[ENGINES[id].auth.envVar];
     if (v) 것들.push(v.trim());
   }
+  것들.push(...네이버환경키들());
   if (config.dashboardToken) 것들.push(config.dashboardToken);
   return 것들;
 }
@@ -219,6 +222,7 @@ export async function buildServer() {
   await app.register(authRoutes);
   await app.register(imageDownloadsRoutes);
   await app.register(tenantsRoutes);
+  await app.register(keywordsRoutes);
 
   await app.register(fastifyStatic, {
     root: path.join(import.meta.dirname, "public"),

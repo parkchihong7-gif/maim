@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { config } from "../../config.js";
 import { 주인자리인가, 체험은못함, 체험_하루상한 } from "../../tenancy.js";
+import { 네이버키, 네이버키검사, 네이버키칸 } from "../../naver/키.js";
 import {
   setSetting,
   getUnsplashKey,
@@ -48,6 +49,8 @@ const SETTINGS_KEYS = [
   "unsplash_access_key",
   "pexels_api_key",
   "pixabay_api_key",
+  // 네이버 키워드 키 다섯 개. 주인만 (개인설정이 아니라 체험 PUT 은 403).
+  ...네이버키칸,
   ...STYLE_KEYS,
 ];
 
@@ -73,6 +76,11 @@ export async function settingsRoutes(app: FastifyInstance) {
       pexels_api_key_set: !!getPexelsKey(),
       pixabay_api_key: 가림(getPixabayKey()),
       pixabay_api_key_set: !!getPixabayKey(),
+      // 네이버 키워드 키. 체험 자리에는 값도, 있는지 여부도 보이지 않는다.
+      naver: Object.fromEntries(네이버키칸.map((칸) => {
+        const 값 = 네이버키(칸);
+        return [칸, { set: 주인 ? !!값 : false, value: 가림(값) }];
+      })),
       // 화면이 «이 자리에서 무엇을 바꿀 수 있나» 를 이걸로 가른다.
       seat: 주인 ? "owner" : "trial",
       // 체험 회원이 자기 스타일을 한 번이라도 정했는가. 안 정했으면 화면이
@@ -142,6 +150,15 @@ export async function settingsRoutes(app: FastifyInstance) {
       if (!(key in body) || 값 === null || 값 === "") continue;
       const 탈 = 키검사(String(값));
       if (탈) { reply.code(400); return { error: 탈 }; }
+    }
+
+    // 네이버 키도 저장하기 전에 본다. 칸마다 길이가 달라 따로 검사한다.
+    for (const key of 네이버키칸) {
+      const 값 = body[key];
+      if (!(key in body) || 값 === null || 값 === "") continue;
+      const 탈 = 네이버키검사(key, String(값));
+      if (탈) { reply.code(400); return { error: 탈 }; }
+      body[key] = String(값).trim();
     }
 
     // 글자수는 숫자이고 범위가 있어서 따로 받는다.

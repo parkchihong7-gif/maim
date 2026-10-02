@@ -418,6 +418,9 @@ export const ENGINE_KEY_SETTINGS = ENGINE_IDS.map((id) => ENGINES[id].auth.setti
 export const SECRET_SETTINGS = [
   ...ENGINE_IDS.map((id) => ENGINES[id].auth.settingKey),
   "unsplash_access_key", "pexels_api_key", "pixabay_api_key",
+  // 네이버 키워드 (src/naver/키.ts 의 네이버키칸과 같은 이름)
+  "naver_search_client_id", "naver_search_client_secret",
+  "naver_ad_api_key", "naver_ad_secret", "naver_ad_customer_id",
 ];
 
 /** 모델을 적어 두는 칸 이름 전부. */

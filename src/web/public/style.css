@@ -1824,3 +1824,9 @@ body:not(.is-trial) [data-trial-only]{display:none !important}
 #category-table col.c-topic{width:150px}
 #category-table td.cat-topic > strong{overflow-wrap:anywhere}
 @media (max-width:700px){ #category-table td.cat-topic > strong{white-space:normal} }
+
+/* 5) 네이버 키워드 연결 */
+.naver-optional{font-size:13px;font-weight:400}
+.naver-test-result{margin-top:8px;line-height:1.8;padding:10px 14px;border-radius:8px;word-break:keep-all;overflow-wrap:anywhere}
+.naver-test-result.ok{background:#e8f6ee;color:#17663a;border-left:4px solid #1f8a4c}
+.naver-test-result.bad{background:#fff4e5;color:#8a4b00;border-left:4px solid #e08a00}

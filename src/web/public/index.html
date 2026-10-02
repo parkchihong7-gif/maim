@@ -751,6 +751,89 @@
           <ol class="schedule-preview" id="schedule-preview"></ol>
         </div>
 
+        <!-- 5) 네이버 키워드 연결 — 없어도 글은 써진다. 진행 표시(4단계 중 N)에는 넣지 않는다. -->
+        <div class="card" data-owner-only>
+          <h3>5) 네이버 키워드 연결 <span class="muted naver-optional">(선택 — 없어도 글은 써집니다)</span></h3>
+          <p class="muted">네이버가 직접 알려 주는 <strong>검색량·경쟁 정도·이미 쓰인 글 수</strong>를 받아,
+            <strong>찾는 사람은 있고 글은 적은 키워드</strong>로 쓰게 합니다. 키는 무료이고, 두 곳에서 받습니다.
+            <strong>키는 채팅에 붙여넣지 마시고 이 칸에만 넣으세요.</strong></p>
+
+          <div class="setup-step" data-step="naver-search">
+            <div class="setup-step-header">
+              <span class="setup-step-badge" data-badge="naver-search">○</span>
+              <strong>가. 네이버 블로그 검색 API</strong>
+              <a href="#" class="manual-toggle" data-action="toggle-manual" data-manual="naver-search" data-label="발급 방법">[발급 방법 보기]</a>
+            </div>
+            <p class="muted">이미 쓰인 글 수와 상위 글 제목을 봅니다. <strong>네이버 개발자센터</strong> → 애플리케이션 등록 → «검색» 선택.</p>
+            <div class="setup-input-row">
+              <input type="text" id="naver_search_client_id-input" placeholder="Client ID 붙여넣기" autocomplete="off" />
+              <button class="btn-primary" data-action="save-setting" data-key="naver_search_client_id" data-input="naver_search_client_id-input">저장</button>
+            </div>
+            <p class="muted setup-current-value" data-current="naver_search_client_id"></p>
+            <div class="setup-input-row">
+              <input type="text" id="naver_search_client_secret-input" placeholder="Client Secret 붙여넣기" autocomplete="off" />
+              <button class="btn-primary" data-action="save-setting" data-key="naver_search_client_secret" data-input="naver_search_client_secret-input">저장</button>
+            </div>
+            <p class="muted setup-current-value" data-current="naver_search_client_secret"></p>
+
+            <div class="setup-manual" data-manual-panel="naver-search" hidden>
+              <ol>
+                <li><a href="https://developers.naver.com/apps/#/register" target="_blank" rel="noopener">네이버 개발자센터 → 애플리케이션 등록</a> 접속 (평소 쓰는 네이버 아이디로 로그인)</li>
+                <li><strong>애플리케이션 이름</strong>: 아무 이름이나 (예: 내 블로그 키워드)</li>
+                <li><strong>사용 API</strong>에서 <strong>«검색»</strong> 선택</li>
+                <li><strong>비로그인 오픈 API 서비스 환경</strong> → <strong>«WEB 설정»</strong> 고르고, 웹 서비스 URL 에 <strong>내 블로그 주소</strong>
+                  (예: https://blog.naver.com/내아이디) 입력</li>
+                <li>맨 아래 <strong>[등록하기]</strong></li>
+                <li>[내 애플리케이션] → 방금 만든 앱 → <strong>개요</strong> 탭에 보이는 <strong>Client ID</strong>와 <strong>Client Secret</strong>(보기 클릭)을 복사</li>
+                <li>위 두 칸에 각각 붙여넣고 [저장]</li>
+              </ol>
+              <p class="muted">※ 무료입니다. 하루 25,000번까지 부를 수 있어 넉넉합니다. 카드 등록이 필요 없습니다.</p>
+            </div>
+          </div>
+
+          <div class="setup-step" data-step="naver-ad">
+            <div class="setup-step-header">
+              <span class="setup-step-badge" data-badge="naver-ad">○</span>
+              <strong>나. 네이버 검색광고 API (키워드 도구)</strong>
+              <a href="#" class="manual-toggle" data-action="toggle-manual" data-manual="naver-ad" data-label="발급 방법">[발급 방법 보기]</a>
+            </div>
+            <p class="muted">월간 검색량과 경쟁 정도를 봅니다. <strong>네이버 검색광고</strong> 가입(광고비 결제 없이 무료) → 도구 → API 사용 관리.</p>
+            <div class="setup-input-row">
+              <input type="text" id="naver_ad_api_key-input" placeholder="엑세스라이선스(API Key) 붙여넣기" autocomplete="off" />
+              <button class="btn-primary" data-action="save-setting" data-key="naver_ad_api_key" data-input="naver_ad_api_key-input">저장</button>
+            </div>
+            <p class="muted setup-current-value" data-current="naver_ad_api_key"></p>
+            <div class="setup-input-row">
+              <input type="text" id="naver_ad_secret-input" placeholder="비밀키(Secret Key) 붙여넣기" autocomplete="off" />
+              <button class="btn-primary" data-action="save-setting" data-key="naver_ad_secret" data-input="naver_ad_secret-input">저장</button>
+            </div>
+            <p class="muted setup-current-value" data-current="naver_ad_secret"></p>
+            <div class="setup-input-row">
+              <input type="text" id="naver_ad_customer_id-input" placeholder="CUSTOMER_ID (숫자)" autocomplete="off" />
+              <button class="btn-primary" data-action="save-setting" data-key="naver_ad_customer_id" data-input="naver_ad_customer_id-input">저장</button>
+            </div>
+            <p class="muted setup-current-value" data-current="naver_ad_customer_id"></p>
+
+            <div class="setup-manual" data-manual-panel="naver-ad" hidden>
+              <ol>
+                <li><a href="https://searchad.naver.com" target="_blank" rel="noopener">네이버 검색광고</a> 접속 → <strong>네이버 아이디로 회원가입</strong>(광고주 가입, 무료)</li>
+                <li>로그인 후 <strong>[광고시스템]</strong> 들어가기</li>
+                <li>위쪽 메뉴 <strong>[도구] → [API 사용 관리]</strong></li>
+                <li><strong>[네이버 검색광고 API 서비스 신청]</strong> → 약관 동의</li>
+                <li>화면에 나오는 세 가지를 복사: <strong>엑세스라이선스</strong> · <strong>비밀키</strong>([보기] 클릭) · <strong>CUSTOMER_ID</strong>(숫자)</li>
+                <li>위 세 칸에 각각 붙여넣고 [저장]</li>
+              </ol>
+              <p class="muted">※ <strong>광고를 하지 않아도, 광고비(비즈머니)를 충전하지 않아도</strong> 키는 무료로 나옵니다.
+                여기서는 «키워드 도구» 숫자(검색량·경쟁 정도)만 읽습니다. 광고를 만들거나 돈이 나가는 일은 하지 않습니다.</p>
+            </div>
+          </div>
+
+          <p style="margin-top:14px"><button class="btn-primary" data-action="test-naver">연결 테스트</button></p>
+          <div id="naver-test-result" class="naver-test-result" hidden></div>
+          <p class="muted" style="margin-top:8px">키가 틀리면 위에 «키를 다시 확인하세요(401)» 처럼 <strong>무엇이 문제인지</strong> 한 줄로 나옵니다.
+            저장한 키는 앞 4자만 보이고 나머지는 가려집니다.</p>
+        </div>
+
       </section>
 
       <!-- ============ 사용법 ============ -->

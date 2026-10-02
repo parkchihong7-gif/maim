@@ -1,0 +1,19 @@
+{
+  "_설명": "NAVER_FAKE=1 일 때 네이버 대신 쓰는 고정 답. 숫자는 예시다. blog.fail / ad.fail 에 문구를 넣으면 실패를 흉내 낸다.",
+  "blog": {
+    "total": 48210,
+    "items": [
+      { "title": "<b>전세 계약</b> 주의사항 7가지 정리", "description": "<b>전세</b> 계약 전에 꼭 볼 것", "postdate": "20260915" },
+      { "title": "전세 계약 특약 이렇게 쓰세요", "description": "특약 예시와 &quot;확정일자&quot;", "postdate": "20260910" },
+      { "title": "전세 사기 피하는 법 체크리스트", "description": "등기부등본 보는 법", "postdate": "20260901" }
+    ]
+  },
+  "ad": {
+    "keywordList": [
+      { "relKeyword": "전세계약주의사항", "monthlyPcQcCnt": 2400, "monthlyMobileQcCnt": 9800, "compIdx": "중간" },
+      { "relKeyword": "전세계약특약", "monthlyPcQcCnt": 880, "monthlyMobileQcCnt": 3100, "compIdx": "낮음" },
+      { "relKeyword": "전세사기예방", "monthlyPcQcCnt": 1300, "monthlyMobileQcCnt": 5200, "compIdx": "높음" },
+      { "relKeyword": "전세확정일자", "monthlyPcQcCnt": "< 10", "monthlyMobileQcCnt": 40, "compIdx": "낮음" }
+    ]
+  }
+}
