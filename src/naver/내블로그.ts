@@ -69,6 +69,25 @@ export function 본문뽑기(html: string): string {
     .filter(Boolean).join("\n").slice(0, 6000);
 }
 
+/** 블로그 글 주소 → {blogId, logNo}. 네이버 블로그 글이 아니면 null. */
+export function 글주소읽기(주소: string): { blogId: string; logNo: string } | null {
+  const a = String(주소 ?? "").match(/blog\.naver\.com\/([A-Za-z0-9_-]{2,40})\/(\d{6,})/);
+  if (a) return { blogId: a[1], logNo: a[2] };
+  const b = String(주소 ?? "").match(/blogId=([A-Za-z0-9_-]{2,40})[^#]*?logNo=(\d{6,})/);
+  return b ? { blogId: b[1], logNo: b[2] } : null;
+}
+
+/** 공개 글 한 편의 본문 글자. 못 가져오면 "". 저장하지 말고 바로 쓰고 버린다. */
+export async function 글본문가져오기(blogId: string, logNo: string): Promise<string> {
+  if (가짜모드()) {
+    const 글들 = (가짜자료()?.myblog?.posts ?? []) as 내글[];
+    const 것 = 글들[Number(logNo) % Math.max(1, 글들.length)];
+    return 것?.body || "가짜 상위 글 본문입니다. 계약 전 확인할 것을 정리합니다.\n📌 등기부등본 보기\n확정일자는 전입신고와 같은 날 받는 것이 좋아요.\n✅ 보증보험 가입 조건\n";
+  }
+  const html = await 가져오기(`https://blog.naver.com/PostView.naver?blogId=${blogId}&logNo=${logNo}&redirect=Dlog&widgetTypeCall=true`);
+  return html ? 본문뽑기(html) : "";
+}
+
 async function 가져오기(주소: string): Promise<string | null> {
   try {
     const res = await fetch(주소, { headers: { "User-Agent": "Mozilla/5.0 (maim blog style reader)" }, signal: AbortSignal.timeout(한번한도ms) });
@@ -76,7 +95,7 @@ async function 가져오기(주소: string): Promise<string | null> {
   } catch { return null; }
 }
 
-export async function 내글가져오기(입력: string): Promise<내글결과> {
+export async function 내글가져오기(입력: string, 옵션: { 본문?: boolean } = {}): Promise<내글결과> {
   const blogId = 블로그아이디(입력);
   if (!blogId) return { ok: false, why: "블로그 주소를 알아보지 못했습니다. blog.naver.com/아이디 꼴로 넣어 주세요." };
 
@@ -94,6 +113,7 @@ export async function 내글가져오기(입력: string): Promise<내글결과> 
   const posts = RSS읽기(xml);
   if (posts.length === 0) return { ok: false, why: "공개 글이 없습니다." };
 
+  if (옵션.본문 === false) return { ok: true, blogId, posts, bodyCount: 0 };
   // 본문은 최근 몇 편만, 셋씩 나눠서, 전체 시간을 못 박아서.
   const 마감 = Date.now() + 본문전체한도ms;
   const 대상 = posts.filter((p) => p.logNo).slice(0, 본문편수);

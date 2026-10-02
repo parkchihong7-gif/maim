@@ -86,6 +86,8 @@ export function 모으기멈추기(categoryId: number): boolean {
 
 /** 카테고리에서 씨앗을 뽑는다 — 이름 · 주제 키워드 · 함께 들어갈 말. 화면에도 이걸 보인다. */
 export function 씨앗뽑기(category: Category): string[] {
+  const 직접 = 직접씨앗(category);
+  if (직접.length) return 직접;
   const 함께 = String(category.must_keywords ?? "").split(/[,\n]+/);
   const 후보 = [category.name, category.topic_keyword ?? "", ...함께].map((x) => String(x).trim()).filter(Boolean);
   const 본 = new Set<string>();
@@ -98,6 +100,14 @@ export function 씨앗뽑기(category: Category): string[] {
     if (답.length >= 5) break;
   }
   return 답;
+}
+
+/** 🔎 탭 ② 에서 직접 정한 씨앗(최대 5개). 없으면 []. */
+export function 직접씨앗(category: Category): string[] {
+  try {
+    const v = JSON.parse(category.kw_seeds ?? "[]");
+    return Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean).slice(0, 5) : [];
+  } catch { return []; }
 }
 
 const 붙여 = (s: string) => String(s ?? "").replace(/\s+/g, "").toLowerCase();
@@ -229,3 +239,24 @@ export async function 키워드모으기(categoryId: number, 옵션: { 이어서
 
 /** 시험용 — 메모리의 진행 기록을 비운다. */
 export function 진행비우기(): void { 진행들.clear(); 멈춤요청.clear(); }
+
+/**
+ * 키워드 **하나를 직접** 보관함에 넣는다 — 탭에서 사람이 적거나, 트렌드·벤치마킹에서 고른 말.
+ * 검색량(검색광고)·문서 수(블로그 검색)를 확인해 등급을 매긴다. 다시 모아도 지워지지 않는다(seed «직접…»).
+ */
+export async function 키워드하나넣기(categoryId: number, keyword: string, 어디서 = "직접 추가"): Promise<{ ok: true; grade: 등급 } | { ok: false; why: string }> {
+  const 말 = String(keyword ?? "").trim().slice(0, 40);
+  if (말.length < 2) return { ok: false, why: "두 글자 이상 넣어 주세요." };
+  const 붙 = 붙여(말);
+  const 광고 = await 연관키워드([말]);
+  const 줄 = 광고.ok ? 광고.rows.find((r) => 붙여(r.keyword) === 붙) : undefined;
+  const 블 = await 블로그검색(말, 10);
+  const 검색량 = 줄 ? 줄.pc + 줄.mobile : 0;
+  const 값 = 비율(블.ok ? 블.total : null, 검색량);
+  const grade = 등급매기기(값);
+  보관함넣기(categoryId, {
+    keyword: 말, pc: 줄?.pc ?? 0, mobile: 줄?.mobile ?? 0, comp: 줄?.comp ?? "",
+    doc_total: 블.ok ? 블.total : null, ratio: 값, grade, seed: `직접:${어디서}`.slice(0, 60), top: 블.ok ? 블.items : [],
+  });
+  return { ok: true, grade };
+}

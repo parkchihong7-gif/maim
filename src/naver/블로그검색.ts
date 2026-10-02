@@ -17,13 +17,20 @@
  */
 import { 가짜모드, 가짜자료, 네이버키들, 네이버한도ms, 코드사유, type 네이버실패 } from "./키.js";
 
-export interface 상위글 { title: string; desc: string; date: string }
+export interface 상위글 {
+  title: string; desc: string; date: string;
+  /** 글 주소 · 블로그 이름 · 블로그 주소 (뉴스는 originallink·언론사 없음) */
+  link?: string; blogger?: string; bloggerLink?: string;
+}
 export type 블로그검색결과 = { ok: true; total: number; items: 상위글[] } | 네이버실패;
+export type 검색종류 = "blog" | "news";
 
 export const 창구들 = {
   hub: { 이름: "API HUB", 주소: "https://naverapihub.apigw.ntruss.com/search/v1/blog",
+         뉴스: "https://naverapihub.apigw.ntruss.com/search/v1/news",
          헤더: (id: string, secret: string) => ({ "X-NCP-APIGW-API-KEY-ID": id, "X-NCP-APIGW-API-KEY": secret }) },
   legacy: { 이름: "개발자센터", 주소: "https://openapi.naver.com/v1/search/blog.json",
+            뉴스: "https://openapi.naver.com/v1/search/news.json",
             헤더: (id: string, secret: string) => ({ "X-Naver-Client-Id": id, "X-Naver-Client-Secret": secret }) },
 } as const;
 type 창구 = keyof typeof 창구들;
@@ -47,18 +54,35 @@ function 다듬기(답: any): 블로그검색결과 {
   return {
     ok: true,
     total: Number(답?.total) || 0,
-    items: items.slice(0, 10).map((x: any) => ({
+    items: items.slice(0, 100).map((x: any) => ({
       title: 태그빼기(String(x?.title ?? "")),
       desc: 태그빼기(String(x?.description ?? "")),
-      date: String(x?.postdate ?? ""),
+      date: String(x?.postdate ?? x?.pubDate ?? ""),
+      ...(x?.link ? { link: String(x.link) } : {}),
+      ...(x?.bloggername ? { blogger: 태그빼기(String(x.bloggername)) } : {}),
+      ...(x?.bloggerlink ? { bloggerLink: String(x.bloggerlink) } : {}),
     })),
   };
 }
 
 export async function 블로그검색(query: string, display = 10): Promise<블로그검색결과> {
+  return 네이버검색("blog", query, display);
+}
+
+/** 뉴스 검색 — 트렌드 관측에서. 키·창구는 블로그 검색과 같다(API HUB 에서 «뉴스» 도 골라 두어야 한다). */
+export async function 뉴스검색(query: string, display = 10): Promise<블로그검색결과> {
+  return 네이버검색("news", query, display, "date");
+}
+
+async function 네이버검색(종류: 검색종류, query: string, display = 10, sort: "sim" | "date" = "sim"): Promise<블로그검색결과> {
   const 말 = (query ?? "").trim();
   if (!말) return { ok: false, why: "검색할 말이 비어 있습니다." };
 
+  if (가짜모드() && 종류 === "news") {
+    const 자료 = 가짜자료();
+    if (자료?.news?.fail) return { ok: false, why: String(자료.news.fail) };
+    return 다듬기(자료?.news ?? {});
+  }
   if (가짜모드()) {
     const 자료 = 가짜자료();
     if (자료?.blog?.fail) return { ok: false, why: String(자료.blog.fail) };
@@ -73,7 +97,7 @@ export async function 블로그검색(query: string, display = 10): Promise<블�
   const 키 = 네이버키들();
   if (!키.searchId || !키.searchSecret) return { ok: false, why: "블로그 검색 API 키(Client ID·Secret)가 아직 없습니다." };
 
-  const 질의 = `?query=${encodeURIComponent(말)}&display=${Math.min(Math.max(display, 1), 100)}&sort=sim`;
+  const 질의 = `?query=${encodeURIComponent(말)}&display=${Math.min(Math.max(display, 1), 100)}&sort=${sort}`;
   const 키지문 = `${키.searchId}:${키.searchSecret.length}`;
   const 차례: 창구[] = 맞은창구 && 맞은창구.키 === 키지문
     ? [맞은창구.창구] : ["hub", "legacy"];
@@ -82,7 +106,7 @@ export async function 블로그검색(query: string, display = 10): Promise<블�
   for (const 쪽 of 차례) {
     const 창 = 창구들[쪽];
     try {
-      const res = await fetch(창.주소 + 질의, {
+      const res = await fetch((종류 === "news" ? 창.뉴스 : 창.주소) + 질의, {
         headers: 창.헤더(키.searchId, 키.searchSecret),
         signal: AbortSignal.timeout(네이버한도ms),
       });

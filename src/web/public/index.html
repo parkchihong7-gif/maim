@@ -52,6 +52,7 @@
         <button class="sidebar-nav-item" data-action="switch-view" data-view="history">📜 <span>발행 이력</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="keywords" data-owner-only>🔎 <span>네이버 키워드</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="style">🎨 <span>내 블로그 분석</span></button>
+        <button class="sidebar-nav-item" data-action="switch-view" data-view="workshop" data-owner-only>✍️ <span>글 작업실</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="settings">⚙️ <span id="nav-settings-label">관리자 설정</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="guide">📖 <span>사용법</span></button>
       </nav>
@@ -430,6 +431,10 @@
             <select id="kw-cat" aria-label="카테고리"></select>
             <span class="muted" id="kw-seeds"></span>
           </div>
+          <div class="kw-row kw-seedrow">
+            <input type="text" id="kw-seed-input" class="kw-input" placeholder="씨앗 직접 정하기 — 쉼표로 5개까지 (비우면 카테고리에서 자동)" autocomplete="off">
+            <button class="btn-secondary" data-action="kwx-seeds-save">씨앗 저장</button>
+          </div>
           <div class="kw-row" style="margin-top:10px">
             <button class="btn-primary" data-action="kw-collect" id="kw-collect">지금 모으기</button>
             <button class="btn-secondary" data-action="kw-resume" id="kw-resume" hidden>이어서 모으기</button>
@@ -445,6 +450,12 @@
         <div class="card">
           <h3 id="kw-pool-title">③ 보관함</h3>
           <div class="kw-chips" id="kw-chips"></div>
+          <div class="kw-row kw-tools">
+            <input type="text" id="kw-add-input" class="kw-input" placeholder="키워드 직접 넣기 (검색량·문서 수를 확인해 등급을 매깁니다)" autocomplete="off">
+            <button class="btn-secondary" data-action="kwx-add">넣기</button>
+            <button class="btn-secondary" data-action="kwx-trend" title="대기 키워드 위에서부터 20개의 최근 12개월 검색 흐름">📈 트렌드 확인</button>
+            <span class="muted" id="kw-tools-msg"></span>
+          </div>
           <div class="kw-scroll"><table class="kw-table" id="kw-table"></table></div>
           <div class="kw-why" id="kw-why" hidden></div>
         </div>
@@ -454,6 +465,89 @@
           <p class="muted">체크한 카테고리만 보관함 키워드로 씁니다. <strong>처음에는 모두 꺼져 있습니다.</strong>
             [블로그 관리] ③ 주제 키워드를 직접 적었으면 그것이 먼저이고, 보관함이 비면 예전 방식으로 씁니다.</p>
           <div id="kw-apply-list"></div>
+        </div>
+
+        <div class="card">
+          <h3>⑤ 전체 보관함 <span class="muted kw-h-sub">(모든 카테고리 · 내려받기)</span></h3>
+          <div class="kw-row">
+            <input type="text" id="kw-all-q" class="kw-input" placeholder="키워드·카테고리로 거르기" autocomplete="off">
+            <select id="kw-all-grade" aria-label="등급"><option value="">모든 등급</option><option value="gold">골드</option><option value="silver">실버</option><option value="bronze">브론즈</option></select>
+            <button class="btn-secondary" data-action="kwx-all-load">불러오기</button>
+            <button class="btn-secondary" data-action="kwx-all-csv">CSV 내려받기</button>
+          </div>
+          <div class="kw-scroll" style="margin-top:10px"><table class="kw-table" id="kw-all-table"></table></div>
+        </div>
+
+        <div class="card">
+          <h3>⑥ 트렌드 관측 <span class="muted kw-h-sub">(최근 뉴스에서 새 키워드 찾기)</span></h3>
+          <div class="kw-row">
+            <input type="text" id="kw-news-q" class="kw-input" placeholder="찾을 말 — 예: 전세" autocomplete="off">
+            <button class="btn-secondary" data-action="kwx-news">뉴스 보기</button>
+          </div>
+          <div id="kw-news"></div>
+        </div>
+
+        <div class="card">
+          <h3>⑦ 블로그 벤치마킹 <span class="muted kw-h-sub">(비슷한 블로그가 쓰는 말)</span></h3>
+          <div class="kw-row">
+            <input type="text" id="kw-bench-q" class="kw-input" placeholder="찾을 말 — 예: 전세 계약" autocomplete="off">
+            <button class="btn-secondary" data-action="kwx-bench">블로그 찾기</button>
+          </div>
+          <div id="kw-bench"></div>
+          <p class="muted kw-note" style="margin-top:8px">공개 글의 <strong>제목만</strong> 봅니다. 글을 베끼지 않고, 자주 쓰는 «말» 만 참고합니다.
+            낱말을 누르면 ② 에서 고른 카테고리 보관함에 넣습니다(검색량·문서 수 확인).</p>
+        </div>
+      </section>
+
+      <section data-view-panel="workshop" data-owner-only hidden>
+        <div class="page-header">
+          <div>
+            <h1>✍️ 글 작업실</h1>
+            <p class="muted">한 편을 <strong>단계마다 직접 확인하며</strong> 씁니다 — 상위 글 확인 → 사전 지식 → 차별화 준비·승인 → 구간별 작성 → 최종 검수.</p>
+          </div>
+        </div>
+        <div class="kw-safe">✔ <strong>아침 자동 글과 따로 돕니다.</strong> 누를 때만 네이버·AI 를 부릅니다.
+          상위 글은 숫자·제목만 남기고 원문은 저장하지 않습니다. 문장은 베끼지 않습니다.</div>
+        <p class="kw-fake" id="wk-fake" hidden>🧪 시험용 가짜 모드입니다 — 실제 네이버·AI 대신 예시 답을 씁니다.</p>
+
+        <div class="card">
+          <h3>① 키워드와 검색 방향</h3>
+          <div class="kw-row">
+            <select id="wk-cat" aria-label="카테고리"></select>
+            <input type="text" id="wk-kw" class="kw-input" placeholder="키워드 — 보관함에서 고르거나 직접" autocomplete="off" list="wk-kw-list">
+            <datalist id="wk-kw-list"></datalist>
+            <button class="btn-secondary" data-action="wk-dirs">검색 방향 보기</button>
+          </div>
+          <div class="kw-words" id="wk-pool"></div>
+          <div id="wk-dirs"></div>
+          <div class="kw-row" style="margin-top:10px">
+            <button class="btn-primary" data-action="wk-new">이 키워드로 작업 시작</button>
+            <span class="muted" id="wk-new-msg"></span>
+          </div>
+          <div class="wk-list" id="wk-list"></div>
+        </div>
+
+        <div id="wk-work" hidden>
+          <div class="wk-steps" id="wk-steps"></div>
+          <div class="card">
+            <div class="st-head"><h3 id="wk-title2">② 상위 5개 · 사전 지식</h3><span class="st-ver" id="wk-meta"></span></div>
+            <div class="kw-row">
+              <button class="btn-primary" data-action="wk-prepare" id="wk-prepare">상위 5개 확보 · 사전 지식 정리</button>
+              <span class="muted kw-note">네이버 상위 글 5편을 읽고(숫자만 남김) AI 가 준비 메모를 만듭니다 · 1~3분</span>
+            </div>
+            <div class="st-progress" id="wk-prog" hidden></div>
+            <div id="wk-prep"></div>
+          </div>
+
+          <div class="card" id="wk-c3">
+            <h3>③ 차별화 준비 · 승인</h3>
+            <div id="wk-approve-body" class="muted">② 를 마치면 여기서 내 자료·제목·목차를 정합니다.</div>
+          </div>
+
+          <div class="card" id="wk-c4">
+            <h3>④ 구간별 작성 → 포스팅으로 저장</h3>
+            <div id="wk-sections" class="muted">③ 을 승인하면 4구간을 하나씩 씁니다.</div>
+          </div>
         </div>
       </section>
 

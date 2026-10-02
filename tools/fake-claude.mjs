@@ -7,6 +7,18 @@ const 잠 = Number(process.env.FAKE_SLEEP||0); if (잠) Atomics.wait(new Int32Ar
 { const a=process.argv.slice(2); const q=a[a.indexOf("-p")+1]||"";
   if (q.includes("자료만 빠르게")) { process.stdout.write(JSON.stringify({ is_error:false, num_turns:4, result: JSON.stringify({ blog_brief: q.includes("■ blog_brief") ? "(블로그) 생활 정보. ".repeat(10) : "", brief: q.includes("■ brief") ? "(KOSIS) 물가 2.1% 상승. ".repeat(8) : "", news: q.includes("■ news") ? "(2026-09-30, 연합뉴스) 물가 둔화" : "" }) })); process.exit(0); } }
 { const a=process.argv.slice(2); const q=a[a.indexOf("-p")+1]||"";
+  if (q.includes("[글 준비 요청]")) { process.stdout.write(JSON.stringify({ is_error:false, result: JSON.stringify({
+    questions:["계약 전에 무엇부터 확인하나요?","확정일자는 언제 받나요?","보증보험은 꼭 들어야 하나요?","특약은 어떻게 쓰나요?","문제가 생기면 어디에 묻나요?"],
+    common:["등기부등본 확인","확정일자·전입신고","보증보험 가입","특약 예시","중개사 확인"],
+    gaps:["계약 당일 시간 순서 체크리스트가 없다","보증보험 거절 사례를 다루지 않는다","특약 문구의 효력 한계를 설명하지 않는다","지역별 전세가율 확인법이 없다"],
+    facts:[{text:"확정일자는 전입신고와 같은 날 받는 것이 일반적이다",src:2},{text:"보증보험은 전세가율 등 조건에 따라 거절될 수 있다",src:3},{text:"등기부등본은 계약 당일 다시 떼어 보는 것이 권장된다",src:1}],
+    titles:["전세 계약 체크리스트 계약 당일 순서대로 보는 법","전세 계약 주의사항 놓치기 쉬운 4가지","전세 계약 전 서류 확인 처음이라면 이 순서로"],
+    outline:[{heading:"📌 계약 전날까지 확인할 것",point:"서류와 시세 확인"},{heading:"🕘 계약 당일 순서",point:"시간 순서 체크리스트"},{heading:"🛡️ 보증보험·특약",point:"거절 사례와 특약 한계"},{heading:"✅ 계약 뒤 할 일",point:"전입신고·확정일자와 정리"}],
+    need:["직접 전세 계약을 해 본 적이 있나요? 그때 가장 헷갈린 점은?","사는 지역(구 단위)과 전세 시세를 알려 주세요","보증보험에 가입해 본 경험이 있나요?"],
+    tags:["전세계약","전세체크리스트","확정일자","전세보증보험","세입자"] }) })); process.exit(0); }
+  if (q.includes("[구간 작성 요청]")) { const m=q.match(/\[이 구간\] (.+)/); const h=m?m[1]:"📌 구간";
+    process.stdout.write(JSON.stringify({ is_error:false, result: JSON.stringify({ text: h+"\n"+"이 구간에서는 핵심을 쉽게 정리해요. 확정일자는 전입신고와 같은 날 받는 경우가 많아요 [자료 2].\n✅ 확인할 것: 서류, 날짜, 금액.\n".repeat(4) }) })); process.exit(0); } }
+{ const a=process.argv.slice(2); const q=a[a.indexOf("-p")+1]||"";
   if (q.includes("[스타일 분석 요청]")) { process.stdout.write(JSON.stringify({ is_error:false, result: JSON.stringify({
     style: { topic:"전세·월세 계약과 대출 등 세입자 실무 정보", readers:"처음 전세 계약을 앞둔 20~30대 세입자", tone:"친근한 구어체 «~해요», 독자에게 말 걸듯",
       title_style:"핵심 대상 + 숫자(3가지·10가지) 또는 «이렇게 보세요» 같은 안내형", sentence_style:"짧은 문장, 결론 먼저, 물음으로 이어 가기",

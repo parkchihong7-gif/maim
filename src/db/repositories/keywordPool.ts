@@ -21,6 +21,7 @@ export interface 보관키워드 {
   grade: 등급;
   seed: string | null;
   top_json: string | null;
+  trend_json?: string | null;
   status: "candidate" | "used" | "hold";
   fetched_at: string | null;
   used_at: string | null;
@@ -68,7 +69,8 @@ export function 보관함정리(categoryId: number, keep: string[]): void {
   const db = getDb();
   const 남길 = new Set(keep);
   const 대기 = db.prepare(
-    "SELECT id, keyword FROM keyword_pool WHERE owner_key = ? AND category_id = ? AND status = 'candidate'",
+    // 사람이 직접 넣은 것(seed 가 «직접» 으로 시작 — 직접 추가·트렌드·벤치마킹)은 다시 모아도 지우지 않는다.
+    "SELECT id, keyword FROM keyword_pool WHERE owner_key = ? AND category_id = ? AND status = 'candidate' AND COALESCE(seed, '') NOT LIKE '직접%'",
   ).all(지금주인(), categoryId) as { id: number; keyword: string }[];
   const 지우기 = db.prepare("DELETE FROM keyword_pool WHERE id = ?");
   db.transaction(() => { for (const 줄 of 대기) if (!남길.has(줄.keyword)) 지우기.run(줄.id); })();
@@ -116,4 +118,27 @@ export function 보관함개수(categoryId: number): Record<등급 | "all" | "ho
     답[줄.grade] += 줄.n;
   }
   return 답;
+}
+
+/** 모든 카테고리의 보관함 — 🔎 탭 ⑤ 전체 보관함(내보내기). */
+export function 전체보관함(): (보관키워드 & { category_name: string })[] {
+  return getDb().prepare(
+    `SELECT k.*, c.name AS category_name FROM keyword_pool k JOIN categories c ON c.id = k.category_id
+     WHERE k.owner_key = ? ORDER BY c.name, CASE k.status WHEN 'candidate' THEN 0 WHEN 'hold' THEN 1 ELSE 2 END, ${차례식.replace(/grade/g, "k.grade")},
+       (COALESCE(k.pc,0) + COALESCE(k.mobile,0)) DESC`,
+  ).all(지금주인()) as (보관키워드 & { category_name: string })[];
+}
+
+export function 보관줄읽기(id: number): 보관키워드 | null {
+  return (getDb().prepare("SELECT * FROM keyword_pool WHERE id = ? AND owner_key = ?").get(id, 지금주인()) as 보관키워드 | undefined) ?? null;
+}
+
+export function 보관줄찾기(categoryId: number, keyword: string): 보관키워드 | null {
+  return (getDb().prepare("SELECT * FROM keyword_pool WHERE owner_key = ? AND category_id = ? AND keyword = ?")
+    .get(지금주인(), categoryId, keyword) as 보관키워드 | undefined) ?? null;
+}
+
+export function 트렌드적기(categoryId: number, keyword: string, 값: unknown): void {
+  getDb().prepare("UPDATE keyword_pool SET trend_json = ? WHERE owner_key = ? AND category_id = ? AND keyword = ?")
+    .run(JSON.stringify(값), 지금주인(), categoryId, keyword);
 }

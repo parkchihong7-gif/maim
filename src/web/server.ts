@@ -18,6 +18,7 @@ import { imageDownloadsRoutes } from "./routes/imageDownloads.js";
 import { tenantsRoutes } from "./routes/tenants.js";
 import { keywordsRoutes } from "./routes/keywords.js";
 import { styleRoutes } from "./routes/style.js";
+import { workshopRoutes } from "./routes/workshop.js";
 import { 네이버환경키들 } from "../naver/키.js";
 import { findSession } from "../db/repositories/keyserverSessions.js";
 import { 자리에서, 주인, 체험역할, type 쓰는이 } from "../tenancy.js";
@@ -225,6 +226,7 @@ export async function buildServer() {
   await app.register(tenantsRoutes);
   await app.register(keywordsRoutes);
   await app.register(styleRoutes);
+  await app.register(workshopRoutes);
 
   await app.register(fastifyStatic, {
     root: path.join(import.meta.dirname, "public"),

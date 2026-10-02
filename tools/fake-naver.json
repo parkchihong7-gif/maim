@@ -1,22 +1,63 @@
 {
-  "_설명": "NAVER_FAKE=1 일 때 네이버 대신 쓰는 고정 답. 숫자는 예시다. blog.fail / ad.fail 에 문구를 넣으면 실패를 흉내 낸다. blogTotals 에 키워드별 문서 수(null 이면 그 키워드만 실패). myblog.posts 는 🎨 내 블로그 분석에서 쓰는 가짜 공개 글(myblog.fail 로 실패 흉내).",
+  "_설명": "NAVER_FAKE=1 일 때 네이버 대신 쓰는 고정 답. 숫자는 예시다. blog.fail / ad.fail 에 문구를 넣으면 실패를 흉내 낸다. blogTotals 에 키워드별 문서 수(null 이면 그 키워드만 실패). myblog.posts 는 🎨 내 블로그 분석에서 쓰는 가짜 공개 글(myblog.fail 로 실패 흉내). news·trend 는 E(트렌드 관측·검색어트렌드) 시험용.",
   "blog": {
     "total": 48210,
     "items": [
       {
         "title": "<b>전세 계약</b> 주의사항 7가지 정리",
         "description": "<b>전세</b> 계약 전에 꼭 볼 것",
-        "postdate": "20260915"
+        "postdate": "20260915",
+        "link": "https://blog.naver.com/jeonse_keeper/224400000000",
+        "bloggername": "전세지킴이",
+        "bloggerlink": "blog.naver.com/jeonse_keeper"
       },
       {
         "title": "전세 계약 특약 이렇게 쓰세요",
         "description": "특약 예시와 &quot;확정일자&quot;",
-        "postdate": "20260910"
+        "postdate": "20260910",
+        "link": "https://blog.naver.com/house101/224400000001",
+        "bloggername": "집알못탈출",
+        "bloggerlink": "blog.naver.com/house101"
       },
       {
         "title": "전세 사기 피하는 법 체크리스트",
         "description": "등기부등본 보는 법",
-        "postdate": "20260901"
+        "postdate": "20260901",
+        "link": "https://blog.naver.com/tenant_note/224400000002",
+        "bloggername": "세입자노트",
+        "bloggerlink": "blog.naver.com/tenant_note"
+      },
+      {
+        "title": "전세 계약 전 꼭 볼 서류 4가지",
+        "description": "등기부등본과 건축물대장",
+        "postdate": "20260920",
+        "link": "https://blog.naver.com/jeonse_keeper/224500000000",
+        "bloggername": "전세지킴이",
+        "bloggerlink": "blog.naver.com/jeonse_keeper"
+      },
+      {
+        "title": "확정일자 전입신고 같은 날 해야 하는 이유",
+        "description": "대항력",
+        "postdate": "20260919",
+        "link": "https://blog.naver.com/bds_bite/224500000001",
+        "bloggername": "부동산한입",
+        "bloggerlink": "blog.naver.com/bds_bite"
+      },
+      {
+        "title": "전세보증보험 거절되는 경우",
+        "description": "가입 조건",
+        "postdate": "20260918",
+        "link": "https://blog.naver.com/tenant_note/224500000002",
+        "bloggername": "세입자노트",
+        "bloggerlink": "blog.naver.com/tenant_note"
+      },
+      {
+        "title": "깡통전세 구별법",
+        "description": "시세 대비 전세가율",
+        "postdate": "20260917",
+        "link": "https://blog.naver.com/jeonse_keeper/224500000003",
+        "bloggername": "전세지킴이",
+        "bloggerlink": "blog.naver.com/jeonse_keeper"
       }
     ]
   },
@@ -170,6 +211,66 @@
         "body": "",
         "logNo": "224400000009"
       }
+    ]
+  },
+  "news": {
+    "total": 120,
+    "items": [
+      {
+        "title": "전세사기 피해 지원 연장…보증보험 가입 조건 완화",
+        "description": "정부가 전세보증보험 가입 조건을 완화한다",
+        "pubDate": "Wed, 01 Oct 2026 09:00:00 +0900"
+      },
+      {
+        "title": "전세대출 금리 다시 오름세",
+        "description": "주요 은행 전세대출 금리 인상",
+        "pubDate": "Tue, 30 Sep 2026 09:00:00 +0900"
+      },
+      {
+        "title": "확정일자 온라인 신청 늘어",
+        "description": "전입신고와 확정일자 온라인 신청",
+        "pubDate": "Mon, 29 Sep 2026 09:00:00 +0900"
+      },
+      {
+        "title": "전세가율 높은 지역 주의보",
+        "description": "깡통전세 우려 지역 전세가율",
+        "pubDate": "Sun, 28 Sep 2026 09:00:00 +0900"
+      },
+      {
+        "title": "보증보험 가입 거절 사례 분석",
+        "description": "전세보증보험 거절 이유",
+        "pubDate": "Sat, 27 Sep 2026 09:00:00 +0900"
+      }
+    ]
+  },
+  "trend": {
+    "전세계약특약": [
+      30,
+      32,
+      31,
+      35,
+      38,
+      40,
+      42,
+      45,
+      50,
+      55,
+      61,
+      70
+    ],
+    "전세사기예방": [
+      80,
+      78,
+      75,
+      70,
+      66,
+      60,
+      55,
+      52,
+      50,
+      47,
+      44,
+      40
     ]
   }
 }

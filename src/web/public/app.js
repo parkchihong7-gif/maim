@@ -1028,6 +1028,7 @@ async function switchView(view) {
   if (view === "home") renderHome();
   if (view === "keywords") refreshKeywords().catch((err) => alert(err.message));
   if (view === "style") refreshStyle().catch((err) => alert(err.message));
+  if (view === "workshop") refreshWorkshop().catch((err) => alert(err.message));
 }
 
 document.getElementById("category-form").addEventListener("submit", async (e) => {
@@ -2632,8 +2633,10 @@ function 보관함그리기() {
   const 카 = 고른카();
   const 씨앗 = document.getElementById("kw-seeds");
   씨앗.innerHTML = 카 && 카.seeds.length
-    ? `씨앗: <strong>${카.seeds.map(escapeHtml).join(" · ")}</strong> <span class="muted">(카테고리 이름·주제 키워드·함께 들어갈 말에서)</span>`
+    ? `씨앗: <strong>${카.seeds.map(escapeHtml).join(" · ")}</strong> <span class="muted">(${카.customSeeds ? "직접 정한 것" : "카테고리 이름·주제 키워드·함께 들어갈 말에서"})</span>`
     : "";
+  const 씨앗칸 = document.getElementById("kw-seed-input");
+  if (씨앗칸 && document.activeElement !== 씨앗칸) 씨앗칸.value = 카 && 카.customSeeds ? 카.seeds.join(", ") : "";
   const 진행 = (kw보관 && kw보관.progress) || (카 && 카.progress);
   모으기단추그리기(카, 진행);
   진행그리기(진행, 카);
@@ -2666,18 +2669,20 @@ function 보관함그리기() {
   } else {
     const 다음 = 카 && 카.next;
     표.innerHTML = `<thead><tr><th>키워드</th><th>등급</th><th class="num">월 검색량</th><th class="num">블로그 문서</th>`
-      + `<th class="num">비율</th><th>경쟁</th><th>상태</th></tr></thead><tbody>`
+      + `<th class="num">비율</th><th>경쟁</th><th class="num" title="내 블로그와 맞는 정도(0~100) — 줄을 누르면 근거">개인화</th><th>트렌드</th><th>상태</th></tr></thead><tbody>`
       + 보일것.map((r) => {
         const 상태 = r.status === "used" ? `✔ ${escapeHtml(짧은날(r.usedAt))} 씀`
           : r.status === "hold" ? `보류 <button class="btn-secondary kw-mini" data-action="kw-unhold" data-id="${r.id}">후보로</button>`
           : `${r.keyword === 다음 ? "<strong>다음에 씀</strong>" : "대기"} <button class="btn-secondary kw-mini" data-action="kw-hold" data-id="${r.id}">보류</button>`;
         return `<tr data-action="kw-row" data-id="${r.id}" class="${r.id === kw고른줄 ? "sel" : ""}${r.status === "used" ? " used" : ""}">
-          <td><strong>${escapeHtml(r.keyword)}</strong></td>
+          <td><strong>${escapeHtml(r.keyword)}</strong>${r.manual ? ' <span class="kw-src">직접</span>' : ""}</td>
           <td><span class="kw-g ${r.grade}">${등급글[r.grade] || r.grade}</span></td>
           <td class="num">${숫자(r.pc + r.mobile)}</td>
           <td class="num">${r.docTotal === null ? '<span class="muted">미확인</span>' : 숫자(r.docTotal)}</td>
           <td class="num">${r.ratio === null ? "–" : Number(r.ratio).toFixed(2)}</td>
           <td>${escapeHtml(r.comp || "")}</td>
+          <td class="num"><span class="kw-score ${r.score >= 70 ? "hi" : r.score >= 50 ? "mid" : ""}">${r.score}</span></td>
+          <td>${트렌드글(r.trend)}</td>
           <td>${상태}</td></tr>`;
       }).join("") + "</tbody>";
   }
@@ -2695,6 +2700,8 @@ function 근거그리기() {
       블로그 문서 <strong>${r.docTotal === null ? "미확인" : 숫자(r.docTotal)}</strong>
       → 비율 <strong>${r.ratio === null ? "–" : r.ratio}</strong> = <strong>${등급글[r.grade]}</strong><br>
     · 경쟁 정도 ${escapeHtml(r.comp || "–")} · 씨앗 «${escapeHtml(r.seed || "")}» 에서 나옴 · 모은 날 ${escapeHtml(짧은날(r.fetchedAt))}${남 !== null ? (남 >= 0 ? ` (${남}일 더 씀)` : " (30일 지남)") : ""}<br>
+    · 개인화 <strong>${r.score}점</strong> = ${r.scoreWhy.map(escapeHtml).join(" · ")}${kw보관 && kw보관.styleUsed ? "" : ' <span class="muted">(🎨 내 블로그 분석을 승인하면 더 정확해집니다)</span>'}<br>
+    ${r.trend ? `· 최근 12개월 검색 흐름 ${트렌드그림(r.trend, 160, 30)} ${트렌드글(r.trend)} <span class="muted">(최근 3달 ÷ 그 앞 3달 · 상대값)</span><br>` : ""}
     ${r.top.length ? `· 상위 글 제목 <span class="muted">(형식·길이 참고용 — 문장은 베끼지 않습니다)</span>
       <ol>${r.top.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}</ol>` : "· 상위 글 제목을 못 받았습니다"}`;
 }
@@ -3312,5 +3319,343 @@ document.addEventListener("click", async (e) => {
     }
   } catch (err) {
     alert(err.message);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// 🔎 E. 키워드 탭 고도화 — 씨앗 직접·직접 넣기·트렌드·전체 보관함·트렌드 관측·벤치마킹
+// ─────────────────────────────────────────────────────────────
+function 트렌드글(t) {
+  if (!t) return '<span class="muted">–</span>';
+  const 표 = { up: ["📈 오름", "up"], down: ["📉 내림", "down"], flat: ["➖ 보합", "flat"] }[t.dir] || ["–", ""];
+  return `<span class="kw-trend ${표[1]}" title="최근 3달 ÷ 그 앞 3달 ${t.change > 0 ? "+" : ""}${t.change}%">${표[0]}</span>`;
+}
+
+function 트렌드그림(t, w = 80, h = 22) {
+  const v = (t.months || []).map((m) => m.v);
+  if (v.length < 2) return "";
+  const 큰 = Math.max(...v, 1);
+  const 점 = v.map((x, i) => `${Math.round((i / (v.length - 1)) * (w - 2)) + 1},${Math.round(h - 2 - (x / 큰) * (h - 4))}`).join(" ");
+  return `<svg class="kw-spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-label="12개월 흐름"><polyline points="${점}" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`;
+}
+
+let kw전체 = null;
+
+function 전체보관함그리기() {
+  const 표 = document.getElementById("kw-all-table");
+  if (!kw전체) { 표.innerHTML = ""; return; }
+  const q = document.getElementById("kw-all-q").value.trim();
+  const g = document.getElementById("kw-all-grade").value;
+  const 줄들 = kw전체.filter((r) => (!q || r.keyword.includes(q) || r.categoryName.includes(q)) && (!g || r.grade === g));
+  표.innerHTML = 줄들.length ? `<thead><tr><th>카테고리</th><th>키워드</th><th>등급</th><th class="num">검색량</th><th class="num">개인화</th><th>트렌드</th><th>상태</th></tr></thead><tbody>`
+    + 줄들.slice(0, 300).map((r) => `<tr class="${r.status === "used" ? "used" : ""}"><td>${escapeHtml(r.categoryName)}</td><td><strong>${escapeHtml(r.keyword)}</strong></td>
+      <td><span class="kw-g ${r.grade}">${등급글[r.grade] || r.grade}</span></td><td class="num">${숫자(r.pc + r.mobile)}</td>
+      <td class="num">${r.score}</td><td>${트렌드글(r.trend)}</td><td>${{ candidate: "대기", hold: "보류", used: "씀" }[r.status] || r.status}</td></tr>`).join("") + "</tbody>"
+    : '<tbody><tr><td class="kw-empty">맞는 키워드가 없습니다.</td></tr></tbody>';
+}
+
+function 전체CSV() {
+  if (!kw전체 || !kw전체.length) { alert("먼저 [불러오기]를 눌러 주세요."); return; }
+  const 칸 = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const 머리 = ["카테고리", "키워드", "등급", "PC", "모바일", "블로그문서", "비율", "경쟁", "개인화", "트렌드", "상태", "모은날"];
+  const 줄 = kw전체.map((r) => [r.categoryName, r.keyword, 등급글[r.grade] || r.grade, r.pc, r.mobile, r.docTotal, r.ratio, r.comp, r.score,
+    r.trend ? r.trend.dir : "", r.status, (r.fetchedAt || "").slice(0, 10)].map(칸).join(","));
+  const blob = new Blob(["\ufeff" + [머리.map(칸).join(","), ...줄].join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `키워드보관함-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+const 낱말칩 = (words, 어디서) => (words || []).map((w) => `<button class="kw-chip kw-word" data-action="kwx-word" data-word="${escapeHtml(w.word)}" data-from="${escapeHtml(어디서)}" title="눌러서 보관함에 넣기">${escapeHtml(w.word)} <small>${w.count}</small></button>`).join("");
+
+async function 키워드직접넣기(말, 어디서) {
+  const 카 = 고른카();
+  const 알림 = document.getElementById("kw-tools-msg");
+  if (!카) { alert("② 에서 카테고리를 먼저 골라 주세요."); return; }
+  알림.textContent = `«${말}» 확인 중…`;
+  const r = await api(`/api/keywords/${카.id}/add`, { method: "POST", body: JSON.stringify({ keyword: 말, from: 어디서 }) });
+  알림.textContent = `«${말}» 을(를) ${카.name} 보관함에 넣었습니다 — ${등급글[r.grade] || r.grade}`;
+  await 보관함불러오기(카.id);
+}
+
+document.addEventListener("input", (e) => {
+  if (e.target.id === "kw-all-q") 전체보관함그리기();
+});
+document.addEventListener("change", (e) => {
+  if (e.target.id === "kw-all-grade") 전체보관함그리기();
+});
+
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-action]");
+  if (!btn || !btn.dataset.action.startsWith("kwx-")) return;
+  e.preventDefault();
+  const 할일 = btn.dataset.action;
+  const 카 = 고른카();
+  btn.disabled = true;
+  try {
+    if (할일 === "kwx-seeds-save") {
+      if (!카) return;
+      const r = await api(`/api/keywords/${카.id}/seeds`, { method: "PUT", body: JSON.stringify({ seeds: document.getElementById("kw-seed-input").value }) });
+      await refreshKeywords();
+      document.getElementById("kw-tools-msg").textContent = r.custom ? "씨앗을 저장했습니다. [다시 모으기] 때 이 씨앗을 씁니다." : "카테고리에서 자동으로 뽑도록 되돌렸습니다.";
+    } else if (할일 === "kwx-add") {
+      const 칸 = document.getElementById("kw-add-input");
+      if (!칸.value.trim()) return;
+      await 키워드직접넣기(칸.value.trim(), "직접 추가");
+      칸.value = "";
+    } else if (할일 === "kwx-trend") {
+      if (!카) return;
+      const 알림 = document.getElementById("kw-tools-msg");
+      알림.textContent = "검색어트렌드 확인 중… (20개까지, 몇 초)";
+      const r = await api(`/api/keywords/${카.id}/trend`, { method: "POST" });
+      알림.textContent = `${r.done}개의 12개월 흐름을 적었습니다.${r.why ? ` 일부 실패: ${r.why}` : ""}`;
+      await 보관함불러오기(카.id);
+    } else if (할일 === "kwx-all-load") {
+      kw전체 = (await api("/api/keywords/all")).items;
+      전체보관함그리기();
+    } else if (할일 === "kwx-all-csv") {
+      if (!kw전체) kw전체 = (await api("/api/keywords/all")).items;
+      전체보관함그리기();
+      전체CSV();
+    } else if (할일 === "kwx-news") {
+      const q = document.getElementById("kw-news-q").value.trim();
+      if (!q) return;
+      const r = await api(`/api/keywords/news?q=${encodeURIComponent(q)}`);
+      document.getElementById("kw-news").innerHTML = `<div class="kw-words"><b>자주 나온 말</b> ${낱말칩(r.words, `뉴스:${q}`) || '<span class="muted">없음</span>'}</div>`
+        + `<ol class="kw-news-list">${r.items.map((x) => `<li>${escapeHtml(x.title)} <span class="muted">${escapeHtml(짧은날(x.date) || "")}</span></li>`).join("")}</ol>`;
+    } else if (할일 === "kwx-bench") {
+      const q = document.getElementById("kw-bench-q").value.trim();
+      if (!q) return;
+      const r = await api(`/api/keywords/bench?q=${encodeURIComponent(q)}`);
+      document.getElementById("kw-bench").innerHTML = r.blogs.length
+        ? `<div class="kw-bench-list">${r.blogs.map((b) => `<div class="kw-bench-item"><div><b>${escapeHtml(b.name)}</b> <span class="muted">상위 50개 중 ${b.count}편</span>
+            <div class="muted kw-bench-t">${b.titles.map(escapeHtml).join(" · ")}</div></div>
+            ${b.blogId ? `<button class="btn-secondary kw-mini" data-action="kwx-bench-blog" data-id="${escapeHtml(b.blogId)}">제목 보기</button>` : ""}</div>`).join("")}</div><div id="kw-bench-blog"></div>`
+        : '<p class="muted">찾은 블로그가 없습니다.</p>';
+    } else if (할일 === "kwx-bench-blog") {
+      const r = await api(`/api/keywords/bench/blog?id=${encodeURIComponent(btn.dataset.id)}`);
+      document.getElementById("kw-bench-blog").innerHTML = `<div class="kw-bench-blog"><b>${escapeHtml(r.blogId)}</b> 최근 글 ${r.titles.length}편에서 자주 쓰는 말
+        <div class="kw-words">${낱말칩(r.words, `벤치마킹:${r.blogId}`) || '<span class="muted">없음</span>'}</div>
+        <details><summary class="muted">제목 ${r.titles.length}개 보기</summary><ol>${r.titles.map((t) => `<li>${escapeHtml(t.title)} <span class="muted">${escapeHtml(t.date)}</span></li>`).join("")}</ol></details></div>`;
+    } else if (할일 === "kwx-word") {
+      await 키워드직접넣기(btn.dataset.word, btn.dataset.from || "직접 추가");
+      btn.classList.add("on");
+    }
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// ✍️ D. 글 작업실 — 키워드 → 상위 5·사전 지식 → 차별화 준비·승인 → 구간별 작성 → 포스팅 저장
+// ─────────────────────────────────────────────────────────────
+let wk자료 = null;   // GET /api/workshop
+let wk지금 = null;   // 열어 둔 작업
+let wk방향 = [];     // 고른 검색 방향
+
+const wk단계이름 = ["키워드", "상위 5 · 사전 지식", "차별화 준비 · 승인", "구간별 작성", "포스팅 저장"];
+
+async function refreshWorkshop() {
+  wk자료 = await api("/api/workshop");
+  document.getElementById("wk-fake").hidden = !wk자료.fake;
+  const 칸 = document.getElementById("wk-cat");
+  const 전 = 칸.value;
+  칸.innerHTML = wk자료.categories.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+  if (전 && wk자료.categories.some((c) => String(c.id) === 전)) 칸.value = 전;
+  작업실보관함그리기();
+  document.getElementById("wk-list").innerHTML = wk자료.works.length
+    ? `<b>최근 작업</b>${wk자료.works.map((w) => `<button class="wk-item${wk지금 && wk지금.id === w.id ? " on" : ""}" data-action="wk-open" data-id="${w.id}">
+        <span>${escapeHtml(w.keyword)}</span><small>${escapeHtml(w.categoryName)} · ${w.step}/5 ${escapeHtml(wk단계이름[w.step - 1])}${w.postId ? " ✔" : ""}</small></button>`).join("")}`
+    : "";
+}
+
+function 작업실보관함그리기() {
+  const c = wk자료 && wk자료.categories.find((x) => String(x.id) === document.getElementById("wk-cat").value);
+  const 풀 = c ? c.pool : [];
+  document.getElementById("wk-kw-list").innerHTML = 풀.map((p) => `<option value="${escapeHtml(p.keyword)}">`).join("");
+  document.getElementById("wk-pool").innerHTML = 풀.length
+    ? `<span class="muted">보관함:</span> ${풀.map((p) => `<button class="kw-chip" data-action="wk-pick" data-kw="${escapeHtml(p.keyword)}"><span class="kw-g ${p.grade}">${등급글[p.grade] || ""}</span> ${escapeHtml(p.keyword)}</button>`).join("")}`
+    : '<span class="muted">이 카테고리 보관함이 비어 있습니다 — 키워드를 직접 적어도 됩니다.</span>';
+}
+
+function 작업그리기(w) {
+  wk지금 = w;
+  document.getElementById("wk-work").hidden = !w;
+  if (!w) return;
+  const s = w.state;
+  const 칸 = document.getElementById("wk-cat");
+  if (칸.value !== String(w.categoryId) && [...칸.options].some((o) => o.value === String(w.categoryId))) { 칸.value = String(w.categoryId); 작업실보관함그리기(); }
+  document.getElementById("wk-steps").innerHTML = wk단계이름.map((이름, i) => `<span class="wk-step${i + 1 < w.step ? " done" : i + 1 === w.step ? " on" : ""}">${i + 1}. ${이름}</span>`).join("");
+  document.getElementById("wk-meta").textContent = `«${w.keyword}» · ${w.categoryName}${s.directions.length ? ` · 방향: ${s.directions.join(", ")}` : ""}`;
+  document.getElementById("wk-prepare").textContent = s.prep ? "다시 확보 · 정리" : "상위 5개 확보 · 사전 지식 정리";
+
+  // ② 상위 5 · 사전 지식
+  const p = s.prep;
+  document.getElementById("wk-prep").innerHTML = !p ? "" : `
+    <div class="kw-scroll" style="margin-top:12px"><table class="kw-table"><thead><tr><th>자료</th><th>상위 글 (형식 참고 — 베끼지 않음)</th><th>블로그</th><th class="num">글자수</th><th class="num">소제목</th></tr></thead><tbody>
+      ${s.top.map((t) => `<tr><td>[자료 ${t.n}]</td><td><a href="${escapeHtml(t.link)}" target="_blank" rel="noopener">${escapeHtml(t.title)}</a></td><td>${escapeHtml(t.blogger)}</td>
+        <td class="num">${t.chars === null ? "–" : 숫자(t.chars)}</td><td class="num">${t.heads ?? "–"}</td></tr>`).join("") || '<tr><td colspan="5" class="kw-empty">상위 글을 받지 못했습니다 — 키워드만으로 정리했습니다.</td></tr>'}
+    </tbody></table></div>
+    <p class="muted st-note">상위 글 평균 <b>${s.topAvg ? 숫자(s.topAvg) + "자" : "–"}</b> · 자주 나온 말: ${s.topWords.map((x) => escapeHtml(x.word)).join(", ") || "–"}</p>
+    <div class="wk-grid">
+      <div><h4>🙋 독자가 궁금해할 것</h4><ol>${p.questions.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ol></div>
+      <div><h4>📚 상위 글이 공통으로 다루는 것</h4><ol>${p.common.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ol></div>
+      <div class="wk-gap"><h4>✨ 빈틈 — 차별화 기회</h4><ol>${p.gaps.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ol></div>
+      <div><h4>🔎 사실 후보 <small class="muted">(확인 전 — 출처 글에서 꼭 확인)</small></h4><ol>${p.facts.map((f) => `<li>${escapeHtml(f.text)}${f.src ? ` <span class="wk-src">[자료 ${f.src}]</span>` : ""}</li>`).join("")}</ol></div>
+    </div>`;
+
+  // ③ 차별화 준비 · 승인
+  const 셋 = document.getElementById("wk-approve-body");
+  if (!p) { 셋.className = "muted"; 셋.textContent = "② 를 마치면 여기서 내 자료·제목·목차를 정합니다."; }
+  else {
+    셋.className = "";
+    const 잠김 = !!s.approvedAt;
+    셋.innerHTML = `
+      <h4>🧩 필요한 내 자료 <small class="muted">— 답한 것만 «내 경험» 으로 씁니다. 모르면 비워 두세요</small></h4>
+      ${p.need.map((q, i) => `<label class="st-field"><span>${escapeHtml(q)}</span><textarea rows="2" data-wk-answer="${i}">${escapeHtml(s.answers[i] || "")}</textarea></label>`).join("")}
+      <h4>🏷️ 제목</h4>
+      <div class="wk-titles">${p.titles.map((t) => `<button class="kw-chip" data-action="wk-title" data-t="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join("")}</div>
+      <input type="text" id="wk-title" class="kw-input wk-wide" value="${escapeHtml(s.title)}">
+      <h4>🗂️ 목차 4구간 <small class="muted">— 소제목과 할 말을 고칠 수 있습니다</small></h4>
+      ${s.outline.map((o, i) => `<div class="wk-ol"><b>${i + 1}</b><input type="text" data-wk-head="${i}" value="${escapeHtml(o.heading)}"><input type="text" data-wk-point="${i}" value="${escapeHtml(o.point)}" placeholder="이 구간에서 할 말"></div>`).join("")}
+      <h4>#️⃣ 태그</h4>
+      <input type="text" id="wk-tags" class="kw-input wk-wide" value="${escapeHtml(s.tags.join(", "))}">
+      <div class="st-foot">
+        <label><input type="checkbox" id="wk-confirm"> 준비 내용을 <strong>직접 확인했습니다</strong></label>
+        <button class="btn-success" data-action="wk-approve" id="wk-approve" disabled>${잠김 ? "✔ 고친 내용으로 다시 승인" : "✔ 승인하고 쓰기로"}</button>
+        <span class="muted">${잠김 ? `승인 ${escapeHtml(st날짜(s.approvedAt.replace("T", " ").slice(0, 19)))}` : ""}</span>
+      </div>`;
+  }
+
+  // ④ 구간별 작성
+  const 넷 = document.getElementById("wk-sections");
+  if (!s.approvedAt) { 넷.className = "muted"; 넷.textContent = "③ 을 승인하면 4구간을 하나씩 씁니다."; }
+  else {
+    넷.className = "";
+    const 총 = s.sections.reduce((a, x) => a + x.replace(/\s/g, "").length, 0);
+    넷.innerHTML = `
+      <p class="muted st-note">구간마다 [쓰기] → 읽고 고치기 → 마음에 안 들면 [다시 쓰기]. 사실을 쓴 문장 끝에 <span class="wk-src">[자료 n]</span> 이 붙습니다 — ② 표의 글에서 확인하세요.
+        ${wk자료 && wk자료.style ? `🎨 승인한 내 블로그 스타일 v${wk자료.style.ver} 을 씁니다.` : ""}</p>
+      <div class="kw-row"><button class="btn-primary" data-action="wk-write-all">남은 구간 모두 쓰기</button>
+        <button class="btn-secondary" data-action="wk-save-edits">고친 내용 저장</button><span class="muted" id="wk-sec-msg">지금 ${숫자(총)}자(공백 빼고)</span></div>
+      ${s.outline.map((o, i) => `<div class="wk-sec"><div class="wk-sec-h"><b>${i + 1}. ${escapeHtml(o.heading)}</b>
+          <button class="btn-secondary kw-mini" data-action="wk-write" data-n="${i}">${s.sections[i].trim() ? "다시 쓰기" : "이 구간 쓰기"}</button></div>
+        <textarea data-wk-sec="${i}" rows="${s.sections[i].trim() ? 8 : 2}" placeholder="${escapeHtml(o.point || "")}">${escapeHtml(s.sections[i])}</textarea></div>`).join("")}
+      <div class="st-foot">
+        <label><input type="checkbox" id="wk-strip" checked> 본문의 <strong>[자료 n]</strong> 표시는 지우고 저장</label>
+        <button class="btn-success" data-action="wk-save-post" ${s.sections.every((x) => x.trim()) && !w.postId ? "" : "disabled"}>📝 포스팅으로 저장</button>
+        <span class="muted" id="wk-save-msg">${w.postId ? "✔ 포스팅으로 저장했습니다 — [포스팅] 탭에서 [🔎 최종 검수] 로 이어 가세요." : ""}</span>
+      </div>`;
+  }
+}
+
+function 작업칸모으기() {
+  const s = wk지금.state;
+  return {
+    title: (document.getElementById("wk-title") || {}).value ?? s.title,
+    tags: ((document.getElementById("wk-tags") || {}).value ?? s.tags.join(",")).split(/[,\s]+/).map((x) => x.replace(/^#/, "").trim()).filter(Boolean),
+    outline: s.outline.map((o, i) => ({
+      heading: (document.querySelector(`[data-wk-head="${i}"]`) || {}).value ?? o.heading,
+      point: (document.querySelector(`[data-wk-point="${i}"]`) || {}).value ?? o.point,
+    })),
+    answers: (s.prep ? s.prep.need : []).map((_, i) => (document.querySelector(`[data-wk-answer="${i}"]`) || {}).value ?? ""),
+  };
+}
+
+const 구간칸들 = () => [...document.querySelectorAll("[data-wk-sec]")].map((t) => t.value);
+
+async function 작업열기(id) {
+  작업그리기(await api(`/api/workshop/${id}`));
+  await refreshWorkshop();
+  document.getElementById("wk-work").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function 오래걸림(글, 할일) {
+  const 진행 = document.getElementById("wk-prog");
+  진행.hidden = false;
+  const 시작 = Date.now();
+  const 틱 = setInterval(() => { 진행.textContent = `${글} ${Math.round((Date.now() - 시작) / 1000)}초`; }, 1000);
+  진행.textContent = 글;
+  try { const r = await 할일(); 진행.textContent = `✅ 끝 — ${Math.round((Date.now() - 시작) / 1000)}초`; return r; }
+  catch (err) { 진행.textContent = `⚠ ${err.message}`; throw err; }
+  finally { clearInterval(틱); }
+}
+
+document.addEventListener("change", (e) => {
+  if (e.target.id === "wk-cat") { 작업실보관함그리기(); document.getElementById("wk-dirs").innerHTML = ""; wk방향 = []; }
+  if (e.target.id === "wk-confirm") document.getElementById("wk-approve").disabled = !e.target.checked;
+});
+
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-action]");
+  if (!btn || !btn.dataset.action.startsWith("wk-")) return;
+  e.preventDefault();
+  const 할일 = btn.dataset.action;
+  const w = wk지금;
+  try {
+    if (할일 === "wk-pick") { document.getElementById("wk-kw").value = btn.dataset.kw; document.getElementById("wk-dirs").innerHTML = ""; wk방향 = []; }
+    else if (할일 === "wk-dirs") {
+      const kw = document.getElementById("wk-kw").value.trim();
+      if (!kw) { alert("키워드를 먼저 넣어 주세요."); return; }
+      btn.disabled = true;
+      const r = await api(`/api/workshop/directions?kw=${encodeURIComponent(kw)}`);
+      wk방향 = [];
+      document.getElementById("wk-dirs").innerHTML = r.items.length
+        ? `<div class="kw-words"><span class="muted">다룰 방향을 3개까지 고르세요 (연관 검색어 · 월 검색량):</span>${r.items.map((x) => `<button class="kw-chip" data-action="wk-dir" data-kw="${escapeHtml(x.keyword)}">${escapeHtml(x.keyword)} <small>${숫자(x.vol)}</small></button>`).join("")}</div>`
+        : '<p class="muted">연관 검색어를 받지 못했습니다 — 방향 없이 시작해도 됩니다.</p>';
+    } else if (할일 === "wk-dir") {
+      const k = btn.dataset.kw;
+      if (wk방향.includes(k)) wk방향 = wk방향.filter((x) => x !== k);
+      else if (wk방향.length < 3) wk방향.push(k);
+      document.querySelectorAll('[data-action="wk-dir"]').forEach((b) => b.classList.toggle("on", wk방향.includes(b.dataset.kw)));
+    } else if (할일 === "wk-new") {
+      const kw = document.getElementById("wk-kw").value.trim();
+      const w2 = await api("/api/workshop", { method: "POST", body: JSON.stringify({ categoryId: Number(document.getElementById("wk-cat").value), keyword: kw, directions: wk방향 }) });
+      document.getElementById("wk-new-msg").textContent = "작업을 만들었습니다. 아래 ② 부터 진행하세요.";
+      await 작업열기(w2.id);
+    } else if (할일 === "wk-open") await 작업열기(Number(btn.dataset.id));
+    else if (할일 === "wk-prepare") {
+      if (w.state.approvedAt && !confirm("이미 승인한 작업입니다. 상위 글·사전 지식만 새로 받고, 승인한 제목·목차·쓴 구간은 그대로 둡니다. 계속할까요?")) return;
+      btn.disabled = true;
+      const r = await 오래걸림("⏳ 상위 글을 읽고 AI 가 정리하는 중…", () => api(`/api/workshop/${w.id}/prepare`, { method: "POST" }));
+      작업그리기(r);
+      await refreshWorkshop();
+    } else if (할일 === "wk-title") document.getElementById("wk-title").value = btn.dataset.t;
+    else if (할일 === "wk-approve") {
+      작업그리기(await api(`/api/workshop/${w.id}/approve`, { method: "PUT", body: JSON.stringify({ ...작업칸모으기(), confirmed: true }) }));
+      await refreshWorkshop();
+      document.getElementById("wk-c4").scrollIntoView({ behavior: "smooth", block: "start" });
+    } else if (할일 === "wk-write" || 할일 === "wk-write-all") {
+      // 먼저 사람이 고친 것을 저장해 두고 쓴다 — AI 답이 사람 손을 덮지 않게.
+      await api(`/api/workshop/${w.id}/sections`, { method: "PUT", body: JSON.stringify({ sections: 구간칸들() }) });
+      const 할것 = 할일 === "wk-write" ? [Number(btn.dataset.n)] : w.state.sections.map((x, i) => (x.trim() ? -1 : i)).filter((i) => i >= 0);
+      const 알림 = document.getElementById("wk-sec-msg");
+      document.querySelectorAll('[data-action^="wk-write"]').forEach((b) => { b.disabled = true; });
+      let r = null;
+      for (const n of 할것) {
+        알림.textContent = `✍️ ${n + 1}구간 쓰는 중… (구간마다 1분 안팎)`;
+        r = await api(`/api/workshop/${w.id}/section/${n}`, { method: "POST" });
+        작업그리기(r);
+      }
+      if (!r) 알림.textContent = "남은 구간이 없습니다.";
+    } else if (할일 === "wk-save-edits") {
+      작업그리기(await api(`/api/workshop/${w.id}/sections`, { method: "PUT", body: JSON.stringify({ sections: 구간칸들() }) }));
+      document.getElementById("wk-sec-msg").textContent = "저장했습니다.";
+    } else if (할일 === "wk-save-post") {
+      await api(`/api/workshop/${w.id}/sections`, { method: "PUT", body: JSON.stringify({ sections: 구간칸들() }) });
+      btn.disabled = true;
+      const r = await api(`/api/workshop/${w.id}/save`, { method: "POST", body: JSON.stringify({ stripMarks: document.getElementById("wk-strip").checked }) });
+      작업그리기(r.work);
+      await refreshWorkshop();
+      if (r.imageError) document.getElementById("wk-save-msg").textContent += ` (사진은 못 붙였습니다: ${r.imageError})`;
+    }
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    if (할일 !== "wk-save-post") btn.disabled = false;
   }
 });
