@@ -3022,10 +3022,11 @@ function 검수창열기(postId) {
       <button class="btn-success" data-rv="save" id="rv-save" disabled>✔ 최종본으로 저장</button>
       <button class="btn-secondary" data-rv="copy-rich">서식째 복사</button>
       <button class="btn-secondary" data-rv="txt">TXT 내려받기</button>
-      <button class="btn-secondary" data-rv="img" title="쓰고 계신 이미지 생성 AI(ChatGPT·Gemini·Copilot 등)에 붙여넣어 쓰세요 — 이 프로그램은 이미지를 만들지 않습니다">🖼️ 이미지 프롬프트 복사</button>
+      <button class="btn-secondary" data-rv="img" title="쓰시는 이미지 AI(Gemini·ChatGPT 등)에 붙여넣을 설명 — 이미지마다 따로 · 이 프로그램은 이미지를 만들지 않습니다">🖼️ 이미지 프롬프트</button>
       <span class="muted" id="rv-state"></span>
       <button class="btn-secondary" data-rv="close" style="margin-left:auto">닫기</button>
-    </div></div>`;
+    </div>
+    <div class="rv-imgbox" id="rv-imgbox" hidden></div></div>`;
   document.getElementById("rv-edit").value = p.final_content || p.content || "";
   let 지난결과 = null;
   try { 지난결과 = p.review_json ? JSON.parse(p.review_json) : null; } catch { 지난결과 = null; }
@@ -3043,26 +3044,6 @@ function 서식HTML(제목, 본문) {
   return `<h2>${escapeHtml(제목)}</h2>${문단}`;
 }
 
-function 이미지프롬프트(제목, 본문) {
-  const 소제목 = 본문.split(/\n+/).map((x) => x.trim()).filter(소제목인가).slice(0, 5);
-  const 요약 = 본문.replace(/\s+/g, " ").slice(0, 500);
-  return [
-    "아래 네이버 블로그 글에 넣을 이미지를 만들어 주세요.",
-    "",
-    `[글 제목] ${제목}`,
-    "",
-    "1. 먼저 표로 정리해 주세요: 번호 · 역할 · 넣을 위치 · 표현 방식 · 비율",
-    "2. 대표 이미지 1장: 1080×1080, 제목의 핵심을 한눈에 (짧은 한글 문구 크게)",
-    `3. 본문 이미지 ${Math.max(3, Math.min(소제목.length, 4))}장: 아래 소제목 자리마다 하나씩, 비율은 4:3·3:4·9:16 을 섞어서`,
-    ...소제목.map((x, i) => `   ${i + 1}) ${x}`),
-    "4. 실제 화면·제품·인물·기관 자료처럼 보이게 지어내지 마세요. 설명용 개념 이미지(삽화·도식)로 만들고,",
-    "   실제 자료가 필요한 자리는 «실제 자료 확인 필요» 라고 표시만 해 주세요.",
-    "5. 모든 이미지 구석에 작게 «AI 생성 이미지» 라고 표시해 주세요.",
-    "6. 이미지 안 글자는 한글로, 짧고 크게.",
-    "",
-    `[글 앞부분] ${요약}`,
-  ].join("\n");
-}
 
 /** 검수 결과의 문장 → 왼쪽 글에서 그 자리를 찾아 **화면을 그곳으로 옮기고** 칠해 둔다. */
 function 검수글위치(글, 말) {
@@ -3172,9 +3153,23 @@ async function 검수창누름(e) {
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     } else if (할일 === "img") {
-      await navigator.clipboard.writeText(이미지프롬프트(p.title || "", 검수글본문()));
-      b.textContent = "복사됨! 쓰시는 AI 에 붙여넣으세요";
-      setTimeout(() => { b.textContent = "🖼️ 이미지 프롬프트 복사"; }, 2500);
+      const 칸 = document.getElementById("rv-imgbox");
+      if (!칸.hidden) { 칸.hidden = true; return; }
+      await 이미지칸그리기(p, await 이미지대상고르기());
+      칸.hidden = false;
+      칸.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } else if (할일 === "img-target") {
+      try { localStorage.setItem("maim-image-ai", b.dataset.t); } catch { /* 못 적어도 이번엔 그대로 */ }
+      await 이미지칸그리기(p, b.dataset.t);
+    } else if (할일 === "img-copy" || 할일 === "img-copy-all") {
+      const 목록 = 이미지프롬프트목록 || [];
+      const 글 = 할일 === "img-copy-all"
+        ? 목록.map((x, i) => `===== ${i + 1}/${목록.length} ${x.역할} =====\n${x.글}`).join("\n\n")
+        : (목록[Number(b.dataset.i)] || {}).글 || "";
+      await navigator.clipboard.writeText(글);
+      const 원래 = b.textContent;
+      b.textContent = "복사됨!";
+      setTimeout(() => { b.textContent = 원래; }, 1800);
     }
   } catch (err) {
     오류창("검수 창에서 문제가 생겼습니다", err && err.message ? err.message : String(err));
@@ -3818,3 +3813,27 @@ document.addEventListener("click", async (e) => {
     if (곳) { if (곳.tagName === "DETAILS") 곳.open = true; 곳.scrollIntoView({ behavior: "smooth", block: "start" }); }
   }
 });
+
+// 🖼️ 이미지 프롬프트 칸 — 이미지마다 따로 복사(한 통으로 길면 잘린다). 쓰시는 이미지 AI 에 맞춘 말투.
+let 이미지프롬프트목록 = null;
+
+async function 이미지대상고르기() {
+  try { const 저장 = localStorage.getItem("maim-image-ai"); if (저장 && window.이미지대상들[저장]) return 저장; } catch { /* 없으면 아래로 */ }
+  // 처음엔 연결된 글쓰기 AI 를 따라간다: Codex(ChatGPT) → ChatGPT, 그 밖(Gemini·Claude) → Gemini
+  try { const s = await api("/api/ai/status"); return s && s.engine === "codex" ? "chatgpt" : "gemini"; } catch { return "gemini"; }
+}
+
+async function 이미지칸그리기(p, 대상) {
+  let 태그 = [];
+  try { 태그 = JSON.parse(p.tags_json || "[]"); } catch { 태그 = []; }
+  이미지프롬프트목록 = window.이미지프롬프트들(p.title || "", 검수글본문(), 태그[0] || "", 대상);
+  const 대상들 = window.이미지대상들;
+  document.getElementById("rv-imgbox").innerHTML = `
+    <div class="rv-img-head"><b>🖼️ 이미지 프롬프트</b> <span class="muted">— 16:9 · 실제 사진을 다듬은 홍보 이미지 느낌 · 이미지마다 따로 붙여넣기</span></div>
+    <div class="rv-img-targets">${Object.entries(대상들).map(([k, t]) => `<button class="kw-chip${k === 대상 ? " on" : ""}" data-rv="img-target" data-t="${k}">${escapeHtml(t.이름)}</button>`).join("")}
+      <span class="muted">${escapeHtml(대상들[대상].안내)}</span></div>
+    <div class="rv-img-list">${이미지프롬프트목록.map((x, i) => `<div class="rv-img-card"><div class="rv-img-card-h"><b>${i + 1}. ${escapeHtml(x.역할)}</b>
+        <button class="btn-secondary kw-mini" data-rv="img-copy" data-i="${i}">복사</button></div><pre>${escapeHtml(x.글)}</pre></div>`).join("")}</div>
+    <div class="rv-img-foot"><button class="btn-secondary" data-rv="img-copy-all">모두 복사 (${이미지프롬프트목록.length}장)</button>
+      <span class="muted">이 프로그램은 이미지를 만들지 않습니다 · 쓰신 이미지에는 «AI 생성 이미지» 표시를 남겨 주세요</span></div>`;
+}

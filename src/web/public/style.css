@@ -2055,3 +2055,15 @@ body:not(.is-trial) [data-trial-only]{display:none !important}
 .guide-new{border-radius:10px;background:var(--gold-soft);padding:10px 12px;margin:12px 0}
 .guide-new>h4{margin:0 0 10px}
 @media(max-width:760px){.guide-time{grid-template-columns:1fr;gap:16px}.guide-time>div:not(:last-child)::after{content:"↓";right:auto;left:50%;top:auto;bottom:-14px;transform:none}.guide-rules{grid-template-columns:1fr}}
+
+/* 🖼️ 이미지 프롬프트 칸 */
+.rv-imgbox{border-top:1px solid var(--border);margin-top:12px;padding-top:12px}
+.rv-img-head{font-size:14px;margin-bottom:8px}
+.rv-img-targets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px;font-size:13px}
+.rv-img-targets .kw-chip.on{background:var(--gold-soft);border-color:var(--gold);color:var(--gold)}
+.rv-img-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.rv-img-card{border:1px solid var(--border);border-radius:10px;padding:8px 10px;min-width:0}
+.rv-img-card-h{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:13.5px;margin-bottom:6px}
+.rv-img-card pre{margin:0;white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:12.5px;line-height:1.6;color:var(--text-muted);max-height:180px;overflow:auto;background:var(--bg-card);border-radius:8px;padding:8px}
+.rv-img-foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px;font-size:13px}
+@media(max-width:900px){.rv-img-list{grid-template-columns:1fr}}
