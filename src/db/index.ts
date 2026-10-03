@@ -152,6 +152,8 @@ function runMigrations(database: Database.Database) {
   칸붙이기(database, "posts", "final_at", "TEXT");
   칸붙이기(database, "posts", "review_json", "TEXT");
   칸붙이기(database, "posts", "review_count", "INTEGER NOT NULL DEFAULT 0");
+  // 이 글에 고른 변주(도입·소제목·목록·마무리 …). 다음 글이 겹치지 않게 고른다 — pipeline/변주.ts
+  칸붙이기(database, "posts", "variation_json", "TEXT");
 
   database.exec(`
     CREATE INDEX IF NOT EXISTS idx_categories_owner ON categories (owner_key);

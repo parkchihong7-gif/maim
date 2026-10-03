@@ -6,6 +6,11 @@ const OPENING_STYLE_INSTRUCTION: Record<PostDirective["openingStyle"], string> =
   anecdote: "개인적인 일화나 썰로 시작하라. '안녕'류 인사는 절대 쓰지 마라.",
   headline: "뉴스 헤드라인처럼 임팩트 있게 시작하라. '안녕'류 인사는 절대 쓰지 마라.",
   monologue: "독백하듯 혼잣말로 시작하라. '안녕'류 인사는 절대 쓰지 마라.",
+  number: "글의 핵심을 보여 주는 숫자 하나(날짜·횟수·금액·기간 등, 지어내지 말 것)로 시작하라. '안녕'류 인사는 절대 쓰지 마라.",
+  myth: "많은 사람이 흔히 잘못 알고 있는 것 하나를 짚으며 시작하라. '안녕'류 인사는 절대 쓰지 마라.",
+  empathy: "독자가 지금 겪고 있을 상황을 한 문장으로 짚어 주며 시작하라(예: ~할 때 막막하죠). '안녕'류 인사는 절대 쓰지 마라.",
+  conclusion: "독자가 가장 궁금한 답(결론)을 첫 두 문장 안에 바로 말하며 시작하라. '안녕'류 인사는 절대 쓰지 마라.",
+  dialogue: "누군가 실제로 할 법한 짧은 한마디(따옴표)로 시작하라. 특정 실존 인물의 말로 지어내지 마라. '안녕'류 인사는 절대 쓰지 마라.",
 };
 
 const TENSION_INSTRUCTION: Record<PostDirective["tension"], string> = {

@@ -683,6 +683,7 @@ async function refreshQueue() {
         ${p.final_content ? `<span class="badge badge-final" title="[전체 복사하기]는 최종본을 복사합니다">✔ 최종본 ${escapeHtml(짧은날(p.final_at))}</span>` : ""}
         <button class="btn-success" data-action="mark-published" data-id="${p.id}">발행 완료로 표시</button>
       </div>
+      ${변주글(p.variation_json)}
       ${checklistHtml}
       <p class="post-preview${isExpanded ? "" : " collapsed"}">${escapeHtml(p.content ?? "")}</p>
       ${tagsHtml}
@@ -3233,9 +3234,10 @@ function 진단그리기(a) {
   칸.innerHTML = (a.summary ? `<p class="st-sum">${escapeHtml(a.summary)}</p>` : "")
     + `<div class="st-dgrid"><div><h4>👍 강점</h4><ol>${a.strengths.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ol></div>`
     + `<div><h4>🎯 먼저 할 것</h4><ol>${a.priority.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ol></div></div>`
-    + `<h4>🔧 개선할 점</h4><div class="st-imps">${a.improvements.map((x, i) => `<div class="st-imp"><b>${i + 1}. ${escapeHtml(x.title)}</b>`
+    + `<h4>🔧 개선할 점 <small class="muted">— 체크한 것은 글쓰기에 반영합니다</small></h4><div class="st-imps">${a.improvements.map((x, i) => `<div class="st-imp${x.use === false ? " off" : ""}">
+        <label class="st-use"><input type="checkbox" data-st-use="${i}" ${x.use === false ? "" : "checked"}> <b>${i + 1}. ${escapeHtml(x.title)}</b></label>`
       + (x.why ? `<div class="muted">왜: ${escapeHtml(x.why)}</div>` : "") + (x.how ? `<div>→ ${escapeHtml(x.how)}</div>` : "") + "</div>").join("")}</div>`
-    + `<p class="muted st-note">진단은 화면에만 보입니다(글쓰기에는 들어가지 않습니다). AI 의견이니 참고만 하세요.</p>`;
+    + `<p class="muted st-note">④ 를 체크하면 <b>체크한 개선점과 «먼저 할 것»</b> 이 승인한 스타일과 함께 글쓰기·글 작업실 지시문에 들어갑니다. 체크는 바로 저장됩니다(다시 승인할 필요 없음).</p>`;
 }
 
 function 스타일적용그리기() {
@@ -3245,8 +3247,9 @@ function 스타일적용그리기() {
   const 상자 = document.getElementById("st-apply");
   상자.checked = !!d.apply && !!쓰는;
   상자.disabled = !쓰는;
+  const 진단수 = st지금 && 쓰는 && st지금.id === 쓰는.id ? st지금.analysis.improvements.filter((x) => x.use !== false).length : null;
   document.getElementById("st-apply-label").innerHTML = 쓰는
-    ? `승인한 스타일 <b>v${쓰는.ver}</b> 을 글쓰기(아침 자동 글·지금 생성)에 적용`
+    ? `승인한 스타일 <b>v${쓰는.ver}</b>${진단수 !== null ? ` + 진단 개선점 <b>${진단수}개</b>` : ""} 를 글쓰기(아침 자동 글·지금 생성)에 적용`
     : "승인한 스타일을 글쓰기에 적용 <span class=\"muted\">— 먼저 ②에서 승인해 주세요</span>";
   document.getElementById("st-versions").innerHTML = 승인들.length
     ? `<div class="st-vers"><b>승인한 버전</b>${승인들.map((v) => `<div class="st-verrow">v${v.ver} · 승인 ${escapeHtml(st날짜(v.approvedAt))} · 글 ${v.postCount}편 `
@@ -3289,6 +3292,16 @@ async function 스타일분석시작() {
 }
 
 document.addEventListener("change", async (e) => {
+  if (e.target.dataset && e.target.dataset.stUse !== undefined && st지금) {
+    const 상자들 = [...document.querySelectorAll("[data-st-use]")];
+    try {
+      const v = await api(`/api/style/${st지금.id}/uses`, { method: "PUT", body: JSON.stringify({ uses: 상자들.map((x) => x.checked) }) });
+      st지금 = v;
+      e.target.closest(".st-imp").classList.toggle("off", !e.target.checked);
+      스타일적용그리기();
+    } catch (err) { e.target.checked = !e.target.checked; alert(err.message); }
+    return;
+  }
   if (e.target.id === "st-confirm") document.getElementById("st-approve").disabled = !e.target.checked;
   if (e.target.id === "st-apply") {
     try {
@@ -3659,3 +3672,20 @@ document.addEventListener("click", async (e) => {
     if (할일 !== "wk-save-post") btn.disabled = false;
   }
 });
+
+// 포스팅 카드의 «🎛 변주» 한 줄 — 이 글에 고른 도입·소제목·목록·마무리.
+const 변주이름 = {
+  opening: { greeting: "인사 도입", question: "질문 도입", anecdote: "일화 도입", headline: "헤드라인 도입", monologue: "혼잣말 도입",
+    number: "숫자 도입", myth: "오해 짚기 도입", empathy: "공감 도입", conclusion: "결론 먼저 도입", dialogue: "한마디 인용 도입" },
+  heading: { question: "질문형 소제목", noun: "명사형 소제목", step: "단계형 소제목", verdict: "결론형 소제목", talk: "말 걸기 소제목" },
+  list: { check: "✔️ 목록", arrow: "👉 목록", circled: "①② 목록", dot: "• 목록", prose: "줄글 위주" },
+  device: { qa: "Q&A 구간", compare: "비교 구간", mistake: "실수 짚기", scene: "장면 묘사", tip: "숨은 팁", numbers: "숫자 정리" },
+  closing: { summary: "세 줄 요약 마무리", checklist: "할 일 3개 마무리", question: "질문 마무리", next: "다음 할 일 마무리", case: "상황별 추천 마무리", short: "담백한 마무리" },
+};
+function 변주글(json) {
+  let v = null;
+  try { v = json ? JSON.parse(json) : null; } catch { v = null; }
+  if (!v) return "";
+  const 것 = ["opening", "heading", "list", "device", "closing"].map((k) => (변주이름[k] || {})[v[k]]).filter(Boolean);
+  return 것.length ? `<p class="post-variation" title="최근 글과 겹치지 않게 고른 변주">🎛 ${것.map(escapeHtml).join(" · ")}</p>` : "";
+}

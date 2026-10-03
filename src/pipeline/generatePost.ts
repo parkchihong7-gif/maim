@@ -16,6 +16,8 @@ import { 최소분량 } from "../db/repositories/settings.js";
 import { 제목고르기 } from "../claude/제목규칙.js";
 import { 보관함키워드고르기 } from "../naver/보관함사용.js";
 import { 적용할스타일블록 } from "./내스타일.js";
+import { 변주고르기, 변주블록, 변주요약, 최근모양보기 } from "./변주.js";
+import { 변주적기 } from "../db/repositories/posts.js";
 import { 키워드썼음 } from "../db/repositories/keywordPool.js";
 import { 분량고르기 } from "../claude/글방식.js";
 
@@ -57,6 +59,8 @@ export interface 생성기록 {
   보관키워드?: string;
   /** 🎨 승인한 내 블로그 스타일을 넣었으면 그 버전 번호 */
   스타일버전?: number;
+  /** 이번 글의 변주(도입·소제목·이모지·목록·장치·리듬·마무리) 한 줄 */
+  변주?: string;
 }
 
 export function 빈기록(): 생성기록 {
@@ -139,11 +143,23 @@ export async function generatePost(category: Category, directive: PostDirective,
   // 카테고리 폼 ⑦ 의 분량 — 짧게/길게를 골랐으면 목표·최소 글자수를 그것으로.
   const 고른분량 = 분량고르기(category.length_pref);
   if (고른분량.목표) directive = { ...directive, targetLength: 고른분량.목표 };
+  // 변주 — 최근 글과 다른 도입·소제목·목록·마무리를 고르고, 최근 첫 문장·마무리·반복 표현을 피하게 한다.
+  // 어떤 탈이 나도 글쓰기는 예전처럼 간다.
+  let 변주: ReturnType<typeof 변주고르기>["변주"] | null = null;
+  let 변주글 = "";
+  try {
+    const 모양 = 최근모양보기();
+    const 고름 = 변주고르기(directive, 모양);
+    directive = 고름.directive;
+    변주 = 고름.변주;
+    변주글 = 변주블록(변주, 모양);
+    기록.변주 = 변주요약(변주);
+  } catch (err) { console.warn(`[변주] 건너뜀: ${(err as Error).message}`); }
   const 내스타일 = 적용할스타일블록();
   if (내스타일) 기록.스타일버전 = 내스타일.ver;
   const prompt = buildPostPrompt(category, directive, today, recentTitles, blogProfileBlock,
     { 블로그메모, 카테고리메모, 최근소식, 조사실패: 조사실패 && (소식찾기 || 블로그읽기 || 카테고리읽기),
-      키워드자료: 보관?.자료, 내스타일: 내스타일?.블록 });
+      키워드자료: 보관?.자료, 내스타일: 내스타일?.블록, 변주: 변주글 });
   const 글시작 = Date.now();
   const 다시 = 기록.다시;
 
@@ -236,6 +252,7 @@ export async function generatePost(category: Category, directive: PostDirective,
     titleVariants: 제목.title_variants,
   });
 
+  if (변주) { try { 변주적기(post.id, 변주); } catch { /* 기록 못 해도 글은 그대로 */ } }
   markCategoryUsed(category.id);
   // 글이 나왔으니 그 키워드는 «씀» — 다음 글은 그다음 키워드로. 여기서 탈이
   // 나도 글은 이미 저장됐다. 놓치면 다음에 같은 키워드가 한 번 더 나올 뿐이다.

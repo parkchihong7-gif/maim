@@ -1,5 +1,6 @@
 import { 최소분량 } from "../db/repositories/settings.js";
-export type OpeningStyle = "greeting" | "question" | "anecdote" | "headline" | "monologue";
+export type OpeningStyle = "greeting" | "question" | "anecdote" | "headline" | "monologue"
+  | "number" | "myth" | "empathy" | "conclusion" | "dialogue";
 export type Tension = "calm" | "excited" | "casual";
 
 export interface PostDirective {
@@ -10,9 +11,9 @@ export interface PostDirective {
   sectionCount: number;
 }
 
-const NON_GREETING_STYLES: OpeningStyle[] = ["question", "anecdote", "headline", "monologue"];
+export const NON_GREETING_STYLES: OpeningStyle[] = ["question", "anecdote", "headline", "monologue", "number", "myth", "empathy", "conclusion", "dialogue"];
 const TENSIONS: Tension[] = ["calm", "excited", "casual"];
-const PERSONAS = [
+export const PERSONAS = [
   "10년차 업계 전문가처럼 담백하게 정보를 전달하는 파워블로거",
   "감정 기복이 크고 리액션이 화끈한 리뷰 전문 인플루언서",
   "친한 친구에게 수다 떨듯 편하게 쓰는 일상 블로거",
@@ -37,7 +38,9 @@ function shuffle<T>(arr: T[]): T[] {
 export function assignDirectives(n: number): PostDirective[] {
   if (n <= 0) return [];
 
-  const greetingIndex = Math.floor(Math.random() * n);
+  // 인사말 시작은 한 묶음에 많아야 하나, 그것도 넷 중 한 번꼴로만.
+  // (예전엔 n=1 인 [지금 생성] 이 늘 인사말로 시작해 «같은 글» 느낌을 줬다.)
+  const greetingIndex = Math.random() < 0.25 ? Math.floor(Math.random() * n) : -1;
   const shuffledStyles = shuffle(NON_GREETING_STYLES);
   const shuffledTensions = shuffle(TENSIONS);
   const shuffledPersonas = shuffle(PERSONAS);

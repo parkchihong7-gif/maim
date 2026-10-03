@@ -161,3 +161,15 @@ export function 오늘검수수(): number {
 export function 검수기록(postId: number): void {
   getDb().prepare("INSERT INTO review_log (owner_key, post_id) VALUES (?, ?)").run(지금주인(), postId);
 }
+
+/** 이 자리의 최근 글 — 변주가 «최근에 쓴 것» 을 피하려고 본다(초안 포함, 최신 순). */
+export function 최근글들(limit = 8): { content: string; final_content: string | null; variation_json: string | null }[] {
+  return getDb().prepare(
+    `SELECT content, final_content, variation_json FROM posts WHERE owner_key = ? AND content IS NOT NULL
+     ORDER BY created_at DESC, id DESC LIMIT ?`,
+  ).all(지금주인(), limit) as { content: string; final_content: string | null; variation_json: string | null }[];
+}
+
+export function 변주적기(postId: number, 값: unknown): void {
+  getDb().prepare("UPDATE posts SET variation_json = ? WHERE id = ? AND owner_key = ?").run(JSON.stringify(값), postId, 지금주인());
+}

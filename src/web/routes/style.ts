@@ -7,7 +7,7 @@
 import type { FastifyInstance } from "fastify";
 import { 체험인가 } from "../../tenancy.js";
 import { 개인설정, 개인설정정하기 } from "../../db/repositories/settings.js";
-import { 버전목록, 버전읽기, 버전넣기, 버전승인, 오늘분석수, type 스타일버전 } from "../../db/repositories/blogStyle.js";
+import { 버전목록, 버전읽기, 버전넣기, 버전승인, 오늘분석수, 분석만적기, type 스타일버전 } from "../../db/repositories/blogStyle.js";
 import { 내글가져오기, 숫자세기, 블로그아이디 } from "../../naver/내블로그.js";
 import { 가짜모드 } from "../../naver/키.js";
 import { 스타일분석하기, 분석다듬기, 스타일칸, 체험_분석하루 } from "../../claude/스타일분석.js";
@@ -104,5 +104,17 @@ export async function styleRoutes(app: FastifyInstance) {
     if (on && !쓰는스타일()) { reply.code(400); return { error: "먼저 분석 결과를 승인해 주세요." }; }
     개인설정정하기("style_apply", on ? "1" : null);
     return { ok: true, apply: on };
+  });
+
+  // ③ 진단 — 개선점마다 «글쓰기에 반영» 켜고 끄기. 승인은 그대로(다시 승인할 필요 없음).
+  app.put("/api/style/:id/uses", async (req, reply) => {
+    const v = 버전읽기(Number((req.params as { id: string }).id));
+    if (!v) { reply.code(404); return { error: "그 버전을 찾을 수 없습니다." }; }
+    const uses = (req.body as { uses?: unknown } | null)?.uses;
+    if (!Array.isArray(uses)) { reply.code(400); return { error: "uses 는 참/거짓 목록이어야 합니다." }; }
+    const 분석 = 분석다듬기(JSON.parse(v.analysis_json));
+    분석.improvements = 분석.improvements.map((x, i) => ({ ...x, use: uses[i] !== false }));
+    분석만적기(v.id, 분석);
+    return 자세히(버전읽기(v.id)!);
   });
 }

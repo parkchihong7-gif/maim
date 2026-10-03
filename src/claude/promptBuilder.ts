@@ -21,6 +21,8 @@ export interface 글옵션 {
   키워드자료?: string;
   /** 🎨 승인한 내 블로그 스타일 블록 (src/pipeline/내스타일.ts). [적용] 체크했을 때만. 없으면 예전과 같다 */
   내스타일?: string;
+  /** 변주 블록 (src/pipeline/변주.ts) — 최근 글과 다른 도입·소제목·마무리 */
+  변주?: string;
 }
 
 export function buildPostPrompt(
@@ -121,6 +123,7 @@ ${옵션.키워드자료 ? `${옵션.키워드자료}\n` : ""}${categoryUrlBlock
 ${recentTitlesBlock}
 ${buildStyleRulesBlock(directive)}
 ${옵션.내스타일 ? `${옵션.내스타일}\n` : ""}${글방식블록(category)}
+${옵션.변주 ? `${옵션.변주}\n` : ""}
 ${buildTitleRuleBlock()}
 ${buildSeoRuleBlock(directive)}
 ${titleVariantsInstruction}

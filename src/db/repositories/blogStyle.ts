@@ -51,3 +51,8 @@ export function 오늘분석수(): number {
     .get(지금주인()) as { n: number };
   return r.n;
 }
+
+/** 승인 여부는 그대로 두고 분석 내용만 바꾼다(③ 진단의 «글쓰기에 반영» 체크). */
+export function 분석만적기(id: number, analysis: unknown): void {
+  getDb().prepare("UPDATE style_versions SET analysis_json = ? WHERE id = ? AND owner_key = ?").run(JSON.stringify(analysis), id, 지금주인());
+}

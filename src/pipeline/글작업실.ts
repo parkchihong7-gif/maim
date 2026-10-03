@@ -21,11 +21,13 @@ import { 글주소읽기, 글본문가져오기 } from "../naver/내블로그.js
 import { 자주낱말 } from "../naver/낱말세기.js";
 import { getCategory, type Category } from "../db/repositories/categories.js";
 import { 작업넣기, 작업읽기, 작업적기, type 작업줄 } from "../db/repositories/workshops.js";
-import { insertDraftPost, markReady, getPost } from "../db/repositories/posts.js";
+import { insertDraftPost, markReady, getPost, 변주적기 } from "../db/repositories/posts.js";
 import { 보관줄찾기, 키워드썼음 } from "../db/repositories/keywordPool.js";
 import { 개인설정들, resolvePostingDirectionInstruction, 최소분량 } from "../db/repositories/settings.js";
 import { 글방식블록, 분량고르기 } from "../claude/글방식.js";
-import { 승인스타일블록 } from "../claude/스타일분석.js";
+import { 승인스타일블록, 진단블록 } from "../claude/스타일분석.js";
+import { 변주고르기, 변주블록, 최근모양보기, type 고른변주 } from "./변주.js";
+import { assignDirectives } from "./directives.js";
 import { 쓰는스타일 } from "./내스타일.js";
 import { attachImage } from "./attachImage.js";
 
@@ -48,6 +50,8 @@ export interface 작업상태 {
   sections: string[];
   savedAt: string | null;
   styleVer: number | null;
+  /** 이 글의 변주 — 첫 구간을 쓸 때 정하고 네 구간이 같이 쓴다 */
+  variation?: 고른변주 | null;
 }
 
 export function 빈상태(directions: string[] = []): 작업상태 {
@@ -97,7 +101,7 @@ function 스타일들(category: Category) {
   const 승인 = 쓰는스타일();
   return {
     방향: [resolvePostingDirectionInstruction(설정.posting_direction_preset), 설정.posting_direction_refinement].filter(Boolean).join("\n"),
-    승인블록: 승인 ? 승인스타일블록(승인.분석.style) : "",
+    승인블록: 승인 ? [승인스타일블록(승인.분석.style), 진단블록(승인.분석)].filter(Boolean).join("\n") : "",
     승인ver: 승인?.ver ?? null,
     방식: 글방식블록(category),
   };
@@ -195,7 +199,7 @@ export function 승인하기(id: number, 값: { title?: string; tags?: string[];
   return 새;
 }
 
-export function buildSectionPrompt(입력: { category: Category; keyword: string; s: 작업상태; n: number; 목표: number; 스타일: ReturnType<typeof 스타일들> }): string {
+export function buildSectionPrompt(입력: { category: Category; keyword: string; s: 작업상태; n: number; 목표: number; 스타일: ReturnType<typeof 스타일들>; 변주?: string }): string {
   const { s, n } = 입력;
   const 이곳 = s.outline[n];
   const 앞 = s.sections.slice(0, n).join("\n\n").slice(-1500);
@@ -212,6 +216,7 @@ ${s.outline.map((o, i) => `${i + 1}. ${o.heading} — ${o.point}${i === n ? "   
 분량: ${입력.목표}자 안팎(공백 포함)
 
 ${입력.스타일.방향 ? `[포스팅 방향]\n${입력.스타일.방향}\n` : ""}${입력.스타일.승인블록 ? `${입력.스타일.승인블록}\n` : ""}${입력.스타일.방식}
+${입력.변주 ? `\n${입력.변주}` : ""}
 
 [사실 후보 — 상위 글에 나온 것, 확인 전]
 ${사실 || "(없음)"}
@@ -244,7 +249,18 @@ export async function 구간쓰기(id: number, n: number): Promise<작업상태>
   const 분량 = 분량고르기(category.length_pref);
   const 목표 = Math.round((분량.목표 ?? 최소분량()) / 구간수);
   const 스타일 = 스타일들(category);
-  const 답 = await runAI({ prompt: buildSectionPrompt({ category, keyword: w.keyword, s, n, 목표, 스타일 }), timeoutMs: 구간한도ms });
+  // 변주는 한 번 정해 네 구간이 같이 쓴다(구간마다 바뀌면 한 글 안에서 들쭉날쭉해진다).
+  let 변주글 = "";
+  try {
+    const 모양 = 최근모양보기();
+    if (!s.variation) {
+      s.variation = 변주고르기(assignDirectives(1)[0], 모양).변주;
+      const 지금것 = 상태읽기(작업읽기(id)!);
+      작업적기(id, { ...지금것, variation: s.variation });
+    }
+    변주글 = 변주블록(s.variation, 모양, { 구간: { n, 수: 구간수 } });
+  } catch { 변주글 = ""; }
+  const 답 = await runAI({ prompt: buildSectionPrompt({ category, keyword: w.keyword, s, n, 목표, 스타일, 변주: 변주글 }), timeoutMs: 구간한도ms });
   const 날 = parseJsonLoose(답) as { text?: unknown } | null;
   const text = 글(날 && typeof 날 === "object" && 날.text ? 날.text : 답, 6000).replace(/^[#*■▶]+\s*/gm, "");
   if (text.length < 30) throw new Error("AI 가 쓴 글이 너무 짧습니다. 다시 눌러 주세요.");
@@ -279,6 +295,7 @@ export async function 포스팅저장(id: number, 옵션: { 자료표시지우�
   let 본문 = s.sections.map((x) => x.trim()).join("\n\n");
   if (옵션.자료표시지우기 !== false) 본문 = 본문.replace(자료표시, "");
   const post = insertDraftPost({ categoryId: w.category_id, title: s.title, content: 본문, imageQuery: w.keyword, tags: s.tags.map((t) => `#${t.replace(/^#/, "").replace(/\s+/g, "")}`) });
+  if (s.variation) { try { 변주적기(post.id, s.variation); } catch { /* 기록 못 해도 글은 그대로 */ } }
   let imageError: string | null = null;
   try { await attachImage(post); } catch (err) { imageError = (err as Error).message; }
   markReady(post.id);

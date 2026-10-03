@@ -29,7 +29,7 @@ export const 스타일칸 = {
 } as const;
 export type 스타일키 = keyof typeof 스타일칸;
 
-export interface 개선 { title: string; why: string; how: string }
+export interface 개선 { title: string; why: string; how: string; /** 글쓰기에 반영(기본 참). ③ 에서 끌 수 있다 */ use: boolean }
 export interface 분석결과 {
   style: Record<스타일키, string>;
   summary: string;
@@ -91,7 +91,7 @@ export function 분석다듬기(날: any): 분석결과 {
     summary: 글(날?.summary, 300),
     strengths: 목록(날?.strengths, 3),
     improvements: (Array.isArray(날?.improvements) ? 날.improvements : []).map((x: any) => ({
-      title: 글(x?.title, 120), why: 글(x?.why, 300), how: 글(x?.how, 300),
+      title: 글(x?.title, 120), why: 글(x?.why, 300), how: 글(x?.how, 300), use: x?.use !== false,
     })).filter((x: 개선) => x.title).slice(0, 6),
     priority: 목록(날?.priority, 3),
     confidence: Number.isFinite(c) && 날?.confidence !== null && 날?.confidence !== "" ? Math.min(1, Math.max(0, c)) : null,
@@ -124,4 +124,17 @@ export function 승인스타일블록(style: Partial<Record<스타일키, string
 export function 검수용스타일(style: Partial<Record<스타일키, string>>): string {
   return (["tone", "sentence_style", "paragraph_style", "title_style", "avoid"] as 스타일키[])
     .map((k) => (style[k] ? `${스타일칸[k]}: ${style[k]}` : "")).filter(Boolean).join("\n").slice(0, 900);
+}
+
+/**
+ * ③ 블로그 진단을 글쓰기에 — 체크해 둔 개선점(무엇을 → 어떻게)과 «먼저 할 것». 900자를 넘지 않는다.
+ * 진단은 «블로그 전체» 에 대한 것이라, 이번 글 한 편에서 할 수 있는 만큼만 지키라고 한다.
+ */
+export function 진단블록(a: Pick<분석결과, "improvements" | "priority">): string {
+  const 개선들 = a.improvements.filter((x) => x.use !== false);
+  if (!개선들.length && !a.priority.length) return "";
+  const 줄 = 개선들.map((x) => `- ${x.title}${x.how ? ` → ${x.how}` : ""}`);
+  if (a.priority.length) 줄.push(`- 먼저 할 것: ${a.priority.join(" / ")}`);
+  줄.push("- (경험·사례를 늘리라는 개선점도 실제 경험은 [내 경험·요청]에 적힌 것만 1인칭으로 쓴다. 없으면 «~해 보면» 처럼 일반화하고 지어내지 마라)");
+  return `[내 블로그 진단 — 블로그 주인이 승인한 개선점. 이번 글에서 할 수 있는 만큼 반영하라]\n${줄.join("\n")}`.slice(0, 900);
 }
