@@ -1030,6 +1030,7 @@ async function switchView(view) {
   if (view === "keywords") refreshKeywords().catch((err) => alert(err.message));
   if (view === "style") refreshStyle().catch((err) => alert(err.message));
   if (view === "workshop") refreshWorkshop().catch((err) => alert(err.message));
+  if (view === "guide") 사용법그리기();
 }
 
 document.getElementById("category-form").addEventListener("submit", async (e) => {
@@ -1705,7 +1706,7 @@ async function refreshEngines() {
   if (누구) {
     const 주인 = 엔진목록.role === "admin";
     누구.innerHTML = 주인
-      ? `지금 <strong>${escapeHtml(엔진목록.roleLabel || "판매용 (주인)")}</strong> 자격으로 들어와 계십니다. 아래 설정을 바꾸실 수 있습니다.`
+      ? "아래 설정을 바꾸실 수 있습니다."
       : `지금 <strong>${escapeHtml(엔진목록.roleLabel || "체험용")}</strong> 자격입니다 — 글 스타일(블로그 주제·포스팅 방향)만 바꾸실 수 있습니다.<br>`
         + `<strong>사장님이신데 이렇게 보인다면</strong>, 접속키가 체험용으로 발급된 것입니다. `
         + `설치 때 정하신 <strong>대시보드 암호</strong>로 들어오시면 주인 자격이 됩니다.`;
@@ -3724,4 +3725,96 @@ document.addEventListener("click", async (e) => {
   btn.disabled = true;
   try { await 모으기점검(); } catch (err) { document.getElementById("kw-check").textContent = `⚠ ${err.message}`; }
   finally { btn.disabled = false; }
+});
+
+// ─────────────────────────────────────────────────────────────
+// 📖 사용법 — 상황 고르기 · 처음 세팅 체크리스트(이 브라우저에 저장) · 기능별 효과표 · 흐름도 이미지 저장
+// ─────────────────────────────────────────────────────────────
+const 사용법답 = {
+  new: ["🐣 방금 설치했다면", ["아래 <b>✅ 처음 세팅 체크리스트</b>의 «필수» 를 위에서부터", "[지금 생성]으로 첫 글을 받아 보고 📝 포스팅에서 확인", "괜찮으면 «추천» 항목(🎨 블로그 분석 → 🔎 키워드)으로"]],
+  ai: ["🤖 AI 느낌을 줄이려면", ["🎨 <b>내 블로그 분석</b> → 고쳐서 승인 → ④ 적용 체크", "③ 진단에서 «마무리가 같다» 같은 개선점 체크", "📁 카테고리 ⑦ 에서 <b>글 구성</b>을 다른 것으로 · <b>내 경험</b> 칸 채우기", "발행 전 🔎 <b>최종 검수</b> → «과장·상투 표현» 고치기 → 내 경험 한두 줄"]],
+  seo: ["📈 검색에 더 잘 걸리려면", ["🔎 <b>네이버 키워드</b> → [지금 모으기] → 골드·실버가 많은 카테고리부터 ④ 적용", "보관함에서 <b>개인화 점수</b> 높은 것 · 📈 오름 키워드를 남기고 나머지는 보류", "공들일 키워드는 ✍️ <b>글 작업실</b>에서 상위 5편의 «빈틈» 을 채워 쓰기"]],
+  best: ["💎 한 편을 공들이려면", ["✍️ <b>글 작업실</b> → 보관함 키워드 고르기 → 검색 방향 1~3개", "② 상위 5개·사전 지식 → «✨ 빈틈» 을 읽고", "③ «필요한 내 자료» 에 직접 겪은 것을 적고 승인 → ④ 4구간 → 포스팅 저장 → 최종 검수"]],
+  kw: ["🔎 키워드가 안 모이면", ["② 의 <b>[🩺 점검]</b> → ⚠ 줄을 캡처해서 보내 주세요", "모두 ✅ 인데 0개면 <b>[키워드 저장]</b> 칸에 넓은 말(예: 전세, 전세 계약)", "블로그 검색 ⚠ 면 ① 키 칸을 다시 확인(API HUB 의 Client ID·Secret)"]],
+  none: ["🌅 아침 글이 안 쌓이면", ["⚙️ 관리자 설정 4) 맨 위 <b>⏰ 경고</b> 확인 — 자명종(Cloud Scheduler)을 한 번 걸어야 합니다", "하루 건수가 0 이 아닌지, 📁 카테고리 «활성» 이 켜졌는지", "무료 이미지 키가 1개 이상 있는지"]],
+};
+
+// 기능 × 효과 (0~3). 측정값이 아니라 기능의 목적 기준 안내.
+const 효과표 = [
+  ["🎨 내 블로그 분석·진단", [1, 3, 3, 1, 1], false],
+  ["🎛 변주 (자동)", [1, 3, 1, 2, 0], false],
+  ["📁 ⑦ 글 쓰는 방식", [1, 2, 2, 1, 0], false],
+  ["🔎 키워드 보관함", [3, 0, 1, 2, 0], true],
+  ["✍️ 글 작업실", [3, 2, 2, 0, 2], true],
+  ["🔎 최종 검수", [1, 2, 1, 1, 3], false],
+  ["✍️ 내 경험 한두 줄", [2, 3, 3, 0, 0], false],
+];
+
+const 사용법저장키 = () => `maim-guide-checks-${document.body.classList.contains("is-trial") ? "t" : "o"}`;
+
+function 체크리스트그리기() {
+  let 저장 = {};
+  try { 저장 = JSON.parse(localStorage.getItem(사용법저장키()) || "{}"); } catch { 저장 = {}; }
+  const 보이는 = [...document.querySelectorAll("[data-guide-check]")].filter((x) => x.closest("li").offsetParent !== null);
+  보이는.forEach((x) => { x.checked = !!저장[x.dataset.guideCheck]; x.closest("li").classList.toggle("done", x.checked); });
+  const 한 = 보이는.filter((x) => x.checked).length;
+  const 모두 = 보이는.length || 1;
+  document.getElementById("guide-bar").style.width = `${Math.round((한 / 모두) * 100)}%`;
+  document.getElementById("guide-prog-txt").textContent = 한 === 보이는.length && 한 > 0 ? `🎉 다 했습니다! (${한}/${보이는.length})` : `${한}/${보이는.length} 완료`;
+}
+
+function 사용법그리기() {
+  const 점 = (n) => (n === 0 ? '<span class="muted">–</span>' : "●".repeat(n) + '<span class="guide-off">' + "○".repeat(3 - n) + "</span>");
+  const 이름 = ["검색 노출", "AI 느낌 줄이기", "내 블로그다움", "시간 절약", "실수 막기"];
+  const 체험 = document.body.classList.contains("is-trial");
+  document.getElementById("guide-matrix").innerHTML = 효과표.filter(([, , 주인만]) => !(체험 && 주인만)).map(([기능, 값]) =>
+    `<tr><td>${기능}</td>${값.map((n, i) => `<td class="guide-dot" title="${이름[i]}: ${["상관없음", "조금", "보통", "크게"][n]}" aria-label="${이름[i]} ${["상관없음", "조금", "보통", "크게"][n]}">${점(n)}</td>`).join("")}</tr>`).join("");
+  체크리스트그리기();
+}
+
+async function 흐름도저장() {
+  const svg = [...document.querySelectorAll(".guide-flow")].find((x) => x.offsetParent !== null)?.querySelector("svg");
+  if (!svg) return;
+  const w = Number(svg.getAttribute("width")), h = Number(svg.getAttribute("height"));
+  const 글 = new XMLSerializer().serializeToString(svg);
+  const 그림 = new Image();
+  그림.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(글);
+  await 그림.decode();
+  const 판 = document.createElement("canvas");
+  판.width = w * 2; 판.height = h * 2;
+  const c = 판.getContext("2d");
+  c.scale(2, 2);
+  c.drawImage(그림, 0, 0, w, h);
+  const a = document.createElement("a");
+  a.href = 판.toDataURL("image/png");
+  a.download = "포스팅-흐름도.png";
+  a.click();
+}
+
+document.addEventListener("change", (e) => {
+  const 칸 = e.target.closest && e.target.closest("[data-guide-check]");
+  if (!칸) return;
+  let 저장 = {};
+  try { 저장 = JSON.parse(localStorage.getItem(사용법저장키()) || "{}"); } catch { 저장 = {}; }
+  저장[칸.dataset.guideCheck] = 칸.checked;
+  try { localStorage.setItem(사용법저장키(), JSON.stringify(저장)); } catch { /* 저장 못 해도 화면은 그대로 */ }
+  체크리스트그리기();
+});
+
+document.addEventListener("click", async (e) => {
+  const 고름 = e.target.closest("[data-guide-pick]");
+  if (고름) {
+    const [제목, 줄] = 사용법답[고름.dataset.guidePick];
+    document.querySelectorAll("[data-guide-pick]").forEach((b) => b.classList.toggle("on", b === 고름));
+    document.getElementById("guide-answer").innerHTML = `<b>${제목}</b><ol>${줄.map((x) => `<li>${x}</li>`).join("")}</ol>`;
+    return;
+  }
+  const 저장단추 = e.target.closest('[data-action="guide-save-flow"]');
+  if (저장단추) { e.preventDefault(); try { await 흐름도저장(); } catch (err) { alert(`이미지로 저장하지 못했습니다 — ${err.message}`); } }
+  const 목차 = e.target.closest(".guide-toc a");
+  if (목차) {
+    e.preventDefault();
+    const 곳 = document.querySelector(목차.getAttribute("href"));
+    if (곳) { if (곳.tagName === "DETAILS") 곳.open = true; 곳.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  }
 });

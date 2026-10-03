@@ -200,7 +200,8 @@ export async function settingsRoutes(app: FastifyInstance) {
       // 「체험 키로는 바꿀 수 없습니다」 만 떴고, 왜 내가 체험인지는
       // 어디에도 없었다. 보이면 그 자리에서 알아차린다.
       role: 주인 ? "admin" : "client",
-      roleLabel: 주인 ? "판매용 (주인)" : "체험용",
+      // 주인은 사이드바에 자격 글자를 띄우지 않는다(사장님 요청 10-03). 체험만 «체험용».
+      roleLabel: 주인 ? "" : "체험용",
       // 안내 명령에 저장통 이름을 **미리 박아서** 내보낸다. 「YOUR_PROJECT_ID
       // 를 본인 것으로 바꾸세요」 가 여태 제일 많이 틀리던 자리였다.
       bucket: 주인 ? config.gcsStateBucket : "",
