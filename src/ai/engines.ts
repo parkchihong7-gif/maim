@@ -277,8 +277,10 @@ export const ENGINES: Record<EngineId, Engine> = {
       // 아니라 구글의 개발자용 Google AI Studio 에서만 나온다. 헷갈리지 않게 먼저 말해 둔다.
       keyHow: "버튼을 누르면 **Google AI Studio** 가 열립니다 — 구글이 Gemini 키를 내주는 공식 자리라 "
             + "이 주소가 맞습니다(대화 화면 gemini.google.com 에서는 키가 나오지 않습니다). "
-            + "① 오른쪽 위 **[Create API key]**(API 키 만들기) → ② 프로젝트는 보이는 것 아무거나 고르고 "
+            + "① 오른쪽 위 **[Create API key]**(API 키 만들기) → ② 프로젝트는 **새로 만들기**를 고르고 "
             + "**[Create key]** → ③ **AIza** 로 시작하는 키 한 줄을 복사해 아래 칸에 붙여넣고 저장하세요. "
+            + "⚠ 서버를 세운 프로젝트(maim-…)처럼 **결제 계정이 붙은 프로젝트**의 키는 무료가 아니라 선불 충전이 필요합니다 — "
+            + "무료로 쓰려면 결제가 안 붙은 새 프로젝트에서 받으세요(무료는 Flash 모델만). "
             + "검은 창(Cloud Shell)도, 파일 올리기도 필요 없습니다.",
       settings: {
         path: ".gemini/settings.json",
