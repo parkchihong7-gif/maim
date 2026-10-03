@@ -156,8 +156,8 @@ export async function 키워드모으기(categoryId: number, 옵션: { 이어서
     if (!자리) {
       const seeds = 씨앗뽑기(category);
       if (!seeds.length) {
-        키워드칸적기(categoryId, { kw_error: "씨앗이 없습니다 — 카테고리 이름을 확인하세요." });
-        return 끝("error", "씨앗이 없습니다 — 카테고리 이름을 확인하세요.");
+        키워드칸적기(categoryId, { kw_error: "기준 키워드가 없습니다 — 카테고리 이름을 확인하세요." });
+        return 끝("error", "기준 키워드가 없습니다 — 카테고리 이름을 확인하세요.");
       }
       const 답 = await 연관키워드(seeds);
       if (!답.ok) {
@@ -199,8 +199,8 @@ export async function 키워드모으기(categoryId: number, 옵션: { 이어서
       if (!남은.length) {
         const 까닭 = 답.rows.length
           ? `연관 키워드 ${답.rows.length}개를 받았지만 모두 걸러졌습니다 (검색량 부족 ${걸러.셈.lowVolume} · 빼야 할 말 ${걸러.셈.excluded} · 이미 씀·보류 ${걸러.셈.used}). `
-            + "② 의 «씨앗 직접 정하기» 에 더 넓은 말을 넣어 보세요."
-          : `네이버가 연관 키워드를 0개 돌려줬습니다 (씨앗: ${진행.seeds.join(", ")}). ② 의 «씨앗 직접 정하기» 에 더 흔한 말을 넣어 보세요.`;
+            + "② 의 [키워드 저장] 칸에 더 넓은 말을 넣어 보세요."
+          : `네이버가 연관 키워드를 0개 돌려줬습니다 (기준 키워드: ${진행.seeds.join(", ")}). ② 의 [키워드 저장] 칸에 더 흔한 말을 넣어 보세요.`;
         키워드칸적기(categoryId, { kw_error: 까닭 });
         return 끝("error", 까닭);
       }

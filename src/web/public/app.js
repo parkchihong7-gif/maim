@@ -2634,7 +2634,7 @@ function 보관함그리기() {
   const 카 = 고른카();
   const 씨앗 = document.getElementById("kw-seeds");
   씨앗.innerHTML = 카 && 카.seeds.length
-    ? `씨앗: <strong>${카.seeds.map(escapeHtml).join(" · ")}</strong> <span class="muted">(${카.customSeeds ? "직접 정한 것" : "카테고리 이름·주제 키워드·함께 들어갈 말에서"})</span>`
+    ? `기준 키워드: <strong>${카.seeds.map(escapeHtml).join(" · ")}</strong> <span class="muted">(${카.customSeeds ? "직접 정한 것" : "카테고리 이름·주제 키워드·함께 들어갈 말에서"})</span>`
     : "";
   const 씨앗칸 = document.getElementById("kw-seed-input");
   if (씨앗칸 && document.activeElement !== 씨앗칸) 씨앗칸.value = 카 && 카.customSeeds ? 카.seeds.join(", ") : "";
@@ -2700,7 +2700,7 @@ function 근거그리기() {
     · 월 검색량 <strong>${숫자(r.pc + r.mobile)}</strong> (PC ${숫자(r.pc)} · 모바일 ${숫자(r.mobile)}) /
       블로그 문서 <strong>${r.docTotal === null ? "미확인" : 숫자(r.docTotal)}</strong>
       → 비율 <strong>${r.ratio === null ? "–" : r.ratio}</strong> = <strong>${등급글[r.grade]}</strong><br>
-    · 경쟁 정도 ${escapeHtml(r.comp || "–")} · 씨앗 «${escapeHtml(r.seed || "")}» 에서 나옴 · 모은 날 ${escapeHtml(짧은날(r.fetchedAt))}${남 !== null ? (남 >= 0 ? ` (${남}일 더 씀)` : " (30일 지남)") : ""}<br>
+    · 경쟁 정도 ${escapeHtml(r.comp || "–")} · 기준 키워드 «${escapeHtml(String(r.seed || "").replace(/^직접:/, "직접 넣음 · "))}» 에서 나옴 · 모은 날 ${escapeHtml(짧은날(r.fetchedAt))}${남 !== null ? (남 >= 0 ? ` (${남}일 더 씀)` : " (30일 지남)") : ""}<br>
     · 개인화 <strong>${r.score}점</strong> = ${r.scoreWhy.map(escapeHtml).join(" · ")}${kw보관 && kw보관.styleUsed ? "" : ' <span class="muted">(🎨 내 블로그 분석을 승인하면 더 정확해집니다)</span>'}<br>
     ${r.trend ? `· 최근 12개월 검색 흐름 ${트렌드그림(r.trend, 160, 30)} ${트렌드글(r.trend)} <span class="muted">(최근 3달 ÷ 그 앞 3달 · 상대값)</span><br>` : ""}
     ${r.top.length ? `· 상위 글 제목 <span class="muted">(형식·길이 참고용 — 문장은 베끼지 않습니다)</span>
@@ -2729,7 +2729,7 @@ function 진행그리기(진행, 카) {
   const 비율막대 = 진행.stage === 1 ? 8 : 진행.stage === 3 ? 100 : 10 + Math.round(85 * (진행.toCheck ? 진행.checked / 진행.toCheck : 0));
   const 거른 = 진행.dropped
     ? `<br><span class="muted">걸러진 것: 검색량 부족 ${진행.dropped.lowVolume} · 빼야 할 말 ${진행.dropped.excluded} · 이미 씀·보류 ${진행.dropped.used}${진행.dropped.relaxed ? " (다 걸러져 기준을 낮춰 다시 골랐습니다)" : ""}`
-      + `${진행.seeds && 진행.seeds.length ? ` · 씨앗: ${진행.seeds.map(escapeHtml).join(", ")}` : ""}</span>` : "";
+      + `${진행.seeds && 진행.seeds.length ? ` · 기준 키워드: ${진행.seeds.map(escapeHtml).join(", ")}` : ""}</span>` : "";
   const 숫자줄 = `연관 키워드 <strong>${숫자(진행.received)}개</strong> 받음 → 검색량 100 이상 <strong>${숫자(진행.filtered)}개</strong>
     → 문서 수 확인 <strong>${진행.checked}/${진행.toCheck}</strong> → 이미 쓴·보류한 키워드 제외 <strong>${진행.excludedUsed}개</strong>
     · 확인 못 함 <strong>${진행.unknown}개</strong>(미확인으로 표시)${거른}`;
@@ -3420,7 +3420,7 @@ document.addEventListener("click", async (e) => {
       if (!카) return;
       const r = await api(`/api/keywords/${카.id}/seeds`, { method: "PUT", body: JSON.stringify({ seeds: document.getElementById("kw-seed-input").value }) });
       await refreshKeywords();
-      document.getElementById("kw-tools-msg").textContent = r.custom ? "씨앗을 저장했습니다. [다시 모으기] 때 이 씨앗을 씁니다." : "카테고리에서 자동으로 뽑도록 되돌렸습니다.";
+      document.getElementById("kw-tools-msg").textContent = r.custom ? "키워드를 저장했습니다. [다시 모으기] 때 이 키워드를 기준으로 모읍니다." : "카테고리에서 자동으로 뽑도록 되돌렸습니다.";
     } else if (할일 === "kwx-add") {
       const 칸 = document.getElementById("kw-add-input");
       if (!칸.value.trim()) return;
@@ -3709,12 +3709,12 @@ async function 모으기점검() {
   const 표 = (ok) => (ok ? "✅" : "⚠");
   칸.innerHTML = `<b>🩺 «${escapeHtml(카.name)}» 모으기 점검</b>${r.fake ? ' <span class="muted">(가짜 모드)</span>' : ""}
     <ol>
-      <li>씨앗: <b>${r.seeds.map(escapeHtml).join(", ") || "(없음)"}</b> <span class="muted">${r.customSeeds ? "직접 정한 것" : "카테고리 이름·주제 키워드·함께 들어갈 말에서"} · 기호·띄어쓰기는 뺌</span></li>
-      <li>${표(r.together.ok)} 연관 키워드(씨앗 한꺼번에): ${r.together.ok ? `<b>${r.together.rows}개</b> 받음 · 검색량 100 이상 ${r.together.over100}개` : escapeHtml(r.together.why)}</li>
-      <li>씨앗 하나씩: ${r.each.map((e) => `${표(e.ok)} «${escapeHtml(e.seed)}» ${e.ok ? `${e.rows}개 — ${e.top.map(escapeHtml).join(", ")}` : escapeHtml(e.why)}`).join("<br>")}</li>
+      <li>기준 키워드: <b>${r.seeds.map(escapeHtml).join(", ") || "(없음)"}</b> <span class="muted">${r.customSeeds ? "직접 정한 것" : "카테고리 이름·주제 키워드·함께 들어갈 말에서"} · 기호·띄어쓰기는 뺌</span></li>
+      <li>${표(r.together.ok)} 연관 키워드(기준 키워드 한꺼번에): ${r.together.ok ? `<b>${r.together.rows}개</b> 받음 · 검색량 100 이상 ${r.together.over100}개` : escapeHtml(r.together.why)}</li>
+      <li>기준 키워드 하나씩: ${r.each.map((e) => `${표(e.ok)} «${escapeHtml(e.seed)}» ${e.ok ? `${e.rows}개 — ${e.top.map(escapeHtml).join(", ")}` : escapeHtml(e.why)}`).join("<br>")}</li>
       <li>${표(r.blog.ok)} 블로그 검색 «${escapeHtml(r.blog.keyword)}»: ${r.blog.ok ? `문서 ${숫자(r.blog.total)}건` : escapeHtml(r.blog.why)}</li>
     </ol>
-    <p class="muted">⚠ 가 있으면 그 줄을 캡처해서 보내 주세요. 모두 ✅ 인데도 0개면 씨앗이 너무 좁은 것입니다 — «씨앗 직접 정하기» 에 넓은 말을 넣어 보세요.</p>`;
+    <p class="muted">⚠ 가 있으면 그 줄을 캡처해서 보내 주세요. 모두 ✅ 인데도 0개면 기준 키워드가 너무 좁은 것입니다 — [키워드 저장] 칸에 넓은 말을 넣어 보세요.</p>`;
 }
 
 document.addEventListener("click", async (e) => {

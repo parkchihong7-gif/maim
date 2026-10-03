@@ -432,14 +432,15 @@
             <span class="muted" id="kw-seeds"></span>
           </div>
           <div class="kw-row kw-seedrow">
-            <input type="text" id="kw-seed-input" class="kw-input" placeholder="씨앗 직접 정하기 — 쉼표로 5개까지 (비우면 카테고리에서 자동)" autocomplete="off">
-            <button class="btn-secondary" data-action="kwx-seeds-save">씨앗 저장</button>
+            <input type="text" id="kw-seed-input" class="kw-input" placeholder="예: 전세, 전세 계약 (쉼표로 5개까지)" title="비우고 저장하면 카테고리 이름·주제 키워드에서 자동으로 정합니다" autocomplete="off">
+            <button class="btn-secondary" data-action="kwx-seeds-save">키워드 저장</button>
+            <span class="muted kw-note kw-seed-note">잘 안 모이면, 이 카테고리와 함께 검색되면 좋을 키워드를 직접 넣어 주세요.<br>넓은 말(예: «전세», «전세 계약»)일수록 많이 모입니다.</span>
           </div>
           <div class="kw-row" style="margin-top:10px">
             <button class="btn-primary" data-action="kw-collect" id="kw-collect">지금 모으기</button>
             <button class="btn-secondary" data-action="kw-resume" id="kw-resume" hidden>이어서 모으기</button>
             <button class="btn-secondary" data-action="kw-stop" id="kw-stop" hidden>중지 (모은 것은 남김)</button>
-            <button class="btn-secondary" data-action="kwc-check" title="씨앗 → 연관 키워드 → 블로그 검색을 실제로 불러 보고 단계별 결과를 보여 줍니다(보관함은 그대로)">🩺 점검</button>
+            <button class="btn-secondary" data-action="kwc-check" title="기준 키워드 → 연관 키워드 → 블로그 검색을 실제로 불러 보고 단계별 결과를 보여 줍니다(보관함은 그대로)">🩺 점검</button>
             <span class="muted kw-note">5분이 넘으면 자동으로 멈춥니다 · 멈춰도 [이어서 모으기]로 남은 것만 · 한 번 모으면 30일 동안 씁니다</span>
           </div>
           <div class="kw-prog" id="kw-prog" hidden></div>

@@ -66,7 +66,7 @@ function 다듬기(답: any): 키워드도구결과 {
 
 export async function 연관키워드(seeds: string[]): Promise<키워드도구결과> {
   const 씨앗 = 씨앗다듬기(seeds);
-  if (씨앗.length === 0) return { ok: false, why: "씨앗 키워드가 비어 있습니다." };
+  if (씨앗.length === 0) return { ok: false, why: "기준 키워드가 비어 있습니다." };
 
   if (가짜모드()) {
     const 자료 = 가짜자료();
