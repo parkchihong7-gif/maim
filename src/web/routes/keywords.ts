@@ -8,7 +8,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { 주인자리인가, 체험은못함 } from "../../tenancy.js";
 import { 블로그검색 } from "../../naver/블로그검색.js";
-import { 연관키워드 } from "../../naver/검색광고.js";
+import { 연관키워드, 씨앗다듬기 } from "../../naver/검색광고.js";
 import { 가짜모드, 네이버키들 } from "../../naver/키.js";
 import { getSetting, setSetting } from "../../db/repositories/settings.js";
 import { getCategory, listAllCategories, 키워드칸적기 } from "../../db/repositories/categories.js";
@@ -112,6 +112,7 @@ export async function keywordsRoutes(app: FastifyInstance) {
           counts: 보관함개수(c.id),
           next: 다음 ? 다음.keyword : null,
           progress: 모으기진행보기(c.id),
+          last: (() => { try { return JSON.parse(c.kw_last ?? "null"); } catch { return null; } })(),
         };
       }),
     };
@@ -277,5 +278,31 @@ export async function keywordsRoutes(app: FastifyInstance) {
     if (!답.ok) { reply.code(502); return { error: 답.why }; }
     return { blogId: 답.blogId, titles: 답.posts.map((p) => ({ title: p.title, date: p.date, category: p.category })),
              words: 자주낱말(답.posts.map((p) => p.title), 20) };
+  });
+
+  // 🩺 모으기 점검 — 씨앗 → 연관 키워드(한꺼번에·하나씩) → 블로그 검색 하나를 실제로 불러 보고 그대로 보여 준다.
+  // 몇 초면 끝난다. 보관함은 건드리지 않는다. «왜 금방 끝나나» 를 사장님 화면에서 바로 알 수 있게.
+  app.get("/api/keywords/:id/check", async (req, reply) => {
+    if (막기(reply)) return { error: 체험은못함 };
+    const c = getCategory(Number((req.params as { id: string }).id));
+    if (!c) { reply.code(404); return { error: "카테고리를 찾을 수 없습니다." }; }
+    const 원래 = 씨앗뽑기(c);
+    const 씨앗 = 씨앗다듬기(원래);
+    const 한꺼번 = await 연관키워드(씨앗);
+    const 하나씩 = [];
+    for (const s of 씨앗) {
+      const r = await 연관키워드([s]);
+      하나씩.push(r.ok ? { seed: s, ok: true, rows: r.rows.length, top: r.rows.sort((a, b) => (b.pc + b.mobile) - (a.pc + a.mobile)).slice(0, 3).map((x) => `${x.keyword}(${(x.pc + x.mobile).toLocaleString()})`) }
+                       : { seed: s, ok: false, why: r.why });
+    }
+    const 시험말 = 한꺼번.ok && 한꺼번.rows[0] ? 한꺼번.rows[0].keyword : 씨앗[0] ?? c.name;
+    const 블 = await 블로그찾기(시험말, 1);
+    return {
+      seedsRaw: 원래, seeds: 씨앗, customSeeds: 직접씨앗(c).length > 0,
+      together: 한꺼번.ok ? { ok: true, rows: 한꺼번.rows.length, over100: 한꺼번.rows.filter((r) => r.pc + r.mobile >= 100).length } : { ok: false, why: 한꺼번.why },
+      each: 하나씩,
+      blog: 블.ok ? { ok: true, keyword: 시험말, total: 블.total } : { ok: false, keyword: 시험말, why: 블.why },
+      fake: 가짜모드(),
+    };
   });
 }

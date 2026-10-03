@@ -54,6 +54,10 @@ export interface 모으기진행 {
   /** 보관함에 남긴 수 */
   kept: number;
   message: string;
+  /** 1단계에서 거른 까닭별 수 — 다 걸러져 0개가 되면 화면에 그대로 보인다 */
+  dropped?: { lowVolume: number; excluded: number; used: number; relaxed: boolean };
+  /** 이번에 쓴 씨앗(기호·띄어쓰기 뺀 것) */
+  seeds?: string[];
 }
 
 /** 멈춘 자리. categories.kw_job 에 JSON 으로 둔다. */
@@ -142,6 +146,8 @@ export async function 키워드모으기(categoryId: number, 옵션: { 이어서
     진행.message = message;
     진행.elapsedMs = Date.now() - 시작;
     멈춤요청.delete(키);
+    // 마지막 결과는 표에도 남긴다 — 서버가 여러 대로 늘었거나 다시 켜져도 화면이 «왜 끝났는지» 를 보여 주게.
+    try { 키워드칸적기(categoryId, { kw_last: JSON.stringify(진행) }); } catch { /* 결과 기록 실패는 무시 */ }
     return 진행;
   };
 
@@ -160,23 +166,43 @@ export async function 키워드모으기(categoryId: number, 옵션: { 이어서
       }
       진행.received = 답.rows.length;
 
+      진행.seeds = 씨앗다듬기(seeds);
       const 빼기 = String(category.exclude_keywords ?? "").split(/[,\n]+/).map(붙여).filter(Boolean);
       const 쓴제목 = listRecentTitles(100).map(붙여);
       const 쓴키워드 = new Set(보관함목록(categoryId).filter((r) => r.status !== "candidate").map((r) => 붙여(r.keyword)));
       const 붙인씨앗 = seeds.map((s) => ({ s, 붙: 붙여(s) }));
 
-      let 이미씀 = 0;
-      const 남은: (연관어 & { seed: string })[] = [];
-      const 본 = new Set<string>();
-      for (const 줄 of 답.rows) {
-        const 말 = 붙여(줄.keyword);
-        if (!말 || 본.has(말)) continue;
-        본.add(말);
-        if (빼기.some((w) => 말.includes(w))) continue;
-        if (줄.pc + 줄.mobile < 최소검색량) continue;
-        if (쓴키워드.has(말) || 쓴제목.some((t) => t.includes(말))) { 이미씀 += 1; continue; }
-        const 씨앗 = 붙인씨앗.find((x) => 말.includes(x.붙))?.s ?? seeds[0];
-        남은.push({ ...줄, seed: 씨앗 });
+      // 거르기. 다 걸러져 0개면 한 번 느슨하게 다시 거른다 —
+      // 검색량 100 → 10, «최근 제목에 들어 있음» 은 빼고 «씀·보류» 만 뺀다.
+      // (매일 글을 쓰는 카테고리는 짧은 연관어가 거의 다 지난 제목에 들어 있어 전부 빠지던 일이 있었다.)
+      const 거르기 = (느슨: boolean) => {
+        const 셈 = { lowVolume: 0, excluded: 0, used: 0, relaxed: 느슨 };
+        const 남: (연관어 & { seed: string })[] = [];
+        const 본 = new Set<string>();
+        for (const 줄 of 답.rows) {
+          const 말 = 붙여(줄.keyword);
+          if (!말 || 본.has(말)) continue;
+          본.add(말);
+          if (빼기.some((w) => 말.includes(w))) { 셈.excluded += 1; continue; }
+          if (줄.pc + 줄.mobile < (느슨 ? 10 : 최소검색량)) { 셈.lowVolume += 1; continue; }
+          if (쓴키워드.has(말) || (!느슨 && 쓴제목.some((t) => t.includes(말)))) { 셈.used += 1; continue; }
+          const 씨앗 = 붙인씨앗.find((x) => 말.includes(x.붙))?.s ?? seeds[0];
+          남.push({ ...줄, seed: 씨앗 });
+        }
+        return { 남, 셈 };
+      };
+      let 걸러 = 거르기(false);
+      if (!걸러.남.length && 답.rows.length) 걸러 = 거르기(true);
+      const 남은 = 걸러.남;
+      const 이미씀 = 걸러.셈.used;
+      진행.dropped = 걸러.셈;
+      if (!남은.length) {
+        const 까닭 = 답.rows.length
+          ? `연관 키워드 ${답.rows.length}개를 받았지만 모두 걸러졌습니다 (검색량 부족 ${걸러.셈.lowVolume} · 빼야 할 말 ${걸러.셈.excluded} · 이미 씀·보류 ${걸러.셈.used}). `
+            + "② 의 «씨앗 직접 정하기» 에 더 넓은 말을 넣어 보세요."
+          : `네이버가 연관 키워드를 0개 돌려줬습니다 (씨앗: ${진행.seeds.join(", ")}). ② 의 «씨앗 직접 정하기» 에 더 흔한 말을 넣어 보세요.`;
+        키워드칸적기(categoryId, { kw_error: 까닭 });
+        return 끝("error", 까닭);
       }
       남은.sort((a, b) => (b.pc + b.mobile) - (a.pc + a.mobile));
       자리 = {
@@ -194,6 +220,8 @@ export async function 키워드모으기(categoryId: number, 옵션: { 이어서
     진행.stageName = "블로그 문서 수 확인";
     const 했던 = new Set(자리.done);
     let 몇번째 = 0;
+    let 이번성공 = false;
+    const 처음실패: string[] = [];
     for (const 줄 of 자리.candidates) {
       if (했던.has(줄.keyword)) continue;
       if (멈춤요청.has(키) || Date.now() - 시작 > 모으기한도ms) {
@@ -208,6 +236,21 @@ export async function 키워드모으기(categoryId: number, 옵션: { 이어서
       const 블 = await 블로그검색(줄.keyword, 10);
       const 문서 = 블.ok ? 블.total : null;
       const 값 = 비율(문서, 검색량);
+      // 이번에 한 번도 성공 못 한 채 처음 세 개가 실패하면 블로그 검색 API 자체의 문제다(키·앱 설정).
+      // 50개를 다 «미확인» 으로 채우지 말고 그 자리에서 까닭을 알린다. 실패한 것은 적지 않고(이어서 할 때 다시 본다),
+      // 받은 연관 키워드는 남겨 두어 키를 고친 뒤 [이어서 모으기] 로 잇는다.
+      if (!블.ok && !이번성공) {
+        처음실패.push(줄.keyword);
+        if (처음실패.length >= 3) {
+          키워드칸적기(categoryId, { kw_job: JSON.stringify(자리), kw_error: `블로그 검색 API 가 답하지 않습니다 — ${블.why}` });
+          return 끝("error", `블로그 검색 API 가 답하지 않습니다 — ${블.why} · 키를 고친 뒤 [이어서 모으기] 를 누르세요(받은 연관 키워드는 남아 있습니다).`);
+        }
+        continue;
+      }
+      if (블.ok && !이번성공) {
+        이번성공 = true;
+        처음실패.splice(0);   // 한 번 되면 앞의 실패는 일시적인 것 — 그 한두 개만 이번 보관함에서 빠진다
+      }
       if (!블.ok) 진행.unknown += 1;
       보관함넣기(categoryId, {
         keyword: 줄.keyword, pc: 줄.pc, mobile: 줄.mobile, comp: 줄.comp,

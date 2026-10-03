@@ -137,7 +137,8 @@ function runMigrations(database: Database.Database) {
   칸붙이기(database, "categories", "kw_refreshed_at", "TEXT");  // 마지막으로 다 모은 때 (ISO)
   칸붙이기(database, "categories", "kw_error", "TEXT");         // 마지막으로 모으다 난 탈
   칸붙이기(database, "categories", "kw_job", "TEXT");
-  칸붙이기(database, "categories", "kw_seeds", "TEXT");         // 직접 정한 씨앗 (JSON 배열) — 비면 이름·주제에서
+  칸붙이기(database, "categories", "kw_seeds", "TEXT");
+  칸붙이기(database, "categories", "kw_last", "TEXT");          // 마지막 모으기 결과 (JSON) — 왜 끝났는지 화면에         // 직접 정한 씨앗 (JSON 배열) — 비면 이름·주제에서
   칸붙이기(database, "keyword_pool", "trend_json", "TEXT");      // 검색어트렌드 12개월 {months, dir, change, at}           // 모으다 멈춘 자리 (JSON) — [이어서 모으기]
 
   // ── 글 쓰는 방식 (카테고리 폼 ⑦) — 비워 두면 예전처럼 자동. src/claude/글방식.ts ──

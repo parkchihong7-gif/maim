@@ -37,11 +37,14 @@ export function 검색량숫자(값: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-/** 씨앗은 한 번에 5개까지, 띄어쓰기는 뺀다(검색광고 API 규칙). */
+/**
+ * 씨앗은 한 번에 5개까지, 띄어쓰기는 뺀다(검색광고 API 규칙).
+ * 한글·영문·숫자 말고는 뺀다 — «AI·로봇», «(정책)», «2026/10» 같은 기호가 섞이면 네이버가 400(11001)으로 거절한다.
+ */
 export function 씨앗다듬기(seeds: string[]): string[] {
   const 본 = new Set<string>();
   for (const s of seeds) {
-    const 말 = String(s ?? "").replace(/\s+/g, "").trim();
+    const 말 = String(s ?? "").replace(/[^가-힣A-Za-z0-9]/g, "").slice(0, 25);
     if (말) 본.add(말);
     if (본.size >= 5) break;
   }
@@ -95,7 +98,7 @@ export async function 연관키워드(seeds: string[]): Promise<키워드도구�
     if (!res.ok) {
       // 씨앗 여럿을 한 번에 못 받아 주면(400) 하나씩 따로 묻고 합친다.
       // 씨앗 하나가 이상한 글자라 통째로 막히는 일도 이것으로 피한다.
-      if (res.status === 400 && 씨앗.length > 1) return 하나씩물어합치기(씨앗, 코드사유(res.status, 본문));
+      if (res.status !== 401 && res.status !== 403 && res.status !== 429 && 씨앗.length > 1) return 하나씩물어합치기(씨앗, 코드사유(res.status, 본문));
       return { ok: false, status: res.status, why: 코드사유(res.status, 본문) };
     }
     return 다듬기(JSON.parse(본문));

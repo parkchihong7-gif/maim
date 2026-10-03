@@ -2638,7 +2638,7 @@ function 보관함그리기() {
     : "";
   const 씨앗칸 = document.getElementById("kw-seed-input");
   if (씨앗칸 && document.activeElement !== 씨앗칸) 씨앗칸.value = 카 && 카.customSeeds ? 카.seeds.join(", ") : "";
-  const 진행 = (kw보관 && kw보관.progress) || (카 && 카.progress);
+  const 진행 = (kw보관 && kw보관.progress) || (카 && (카.progress || 카.last));
   모으기단추그리기(카, 진행);
   진행그리기(진행, 카);
 
@@ -2727,9 +2727,12 @@ function 진행그리기(진행, 카) {
   }
   칸.hidden = false;
   const 비율막대 = 진행.stage === 1 ? 8 : 진행.stage === 3 ? 100 : 10 + Math.round(85 * (진행.toCheck ? 진행.checked / 진행.toCheck : 0));
+  const 거른 = 진행.dropped
+    ? `<br><span class="muted">걸러진 것: 검색량 부족 ${진행.dropped.lowVolume} · 빼야 할 말 ${진행.dropped.excluded} · 이미 씀·보류 ${진행.dropped.used}${진행.dropped.relaxed ? " (다 걸러져 기준을 낮춰 다시 골랐습니다)" : ""}`
+      + `${진행.seeds && 진행.seeds.length ? ` · 씨앗: ${진행.seeds.map(escapeHtml).join(", ")}` : ""}</span>` : "";
   const 숫자줄 = `연관 키워드 <strong>${숫자(진행.received)}개</strong> 받음 → 검색량 100 이상 <strong>${숫자(진행.filtered)}개</strong>
     → 문서 수 확인 <strong>${진행.checked}/${진행.toCheck}</strong> → 이미 쓴·보류한 키워드 제외 <strong>${진행.excludedUsed}개</strong>
-    · 확인 못 함 <strong>${진행.unknown}개</strong>(미확인으로 표시)`;
+    · 확인 못 함 <strong>${진행.unknown}개</strong>(미확인으로 표시)${거른}`;
   const 시간 = 걸린시간(진행.elapsedMs || 0);
   if (진행.state === "running") {
     칸.className = "kw-prog";
@@ -2740,7 +2743,8 @@ function 진행그리기(진행, 카) {
     칸.innerHTML = `✅ 완료 · ${시간} — ${escapeHtml(진행.message)}<br>${숫자줄}`;
   } else {
     칸.className = "kw-prog err";
-    칸.innerHTML = `${진행.state === "error" ? "⚠" : "⏸"} ${시간} — ${escapeHtml(진행.message)}${진행.received ? `<br>${숫자줄}` : ""}`;
+    칸.innerHTML = `${진행.state === "error" ? "⚠" : "⏸"} ${시간} — ${escapeHtml(진행.message)}${진행.received ? `<br>${숫자줄}` : ""}`
+      + (진행.state === "error" ? `<br><span class="muted">아래 [🩺 점검] 을 누르면 네이버가 무엇이라고 답했는지 단계별로 보입니다.</span>` : "");
   }
 }
 
@@ -2780,9 +2784,10 @@ async function 키워드모으기시작(이어서) {
   진행그리기({ state: "running", stage: 1, stageName: "연관 키워드 받기", elapsedMs: 0, received: 0, filtered: 0, checked: 0, toCheck: 0, excludedUsed: 0, unknown: 0 }, 고른카());
   모으기단추그리기(고른카(), { state: "running" });
   kw진행지켜보기(id);
+  let 결과 = null;
   try {
     // 끝날 때까지(최대 5분) 기다린다 — 서버는 요청이 열려 있어야 일한다.
-    await api(`/api/keywords/${id}/collect`, { method: "POST", body: JSON.stringify({ resume: !!이어서 }) });
+    결과 = await api(`/api/keywords/${id}/collect`, { method: "POST", body: JSON.stringify({ resume: !!이어서 }) });
   } catch (err) {
     오류창("키워드를 모으지 못했습니다", err.message);
   } finally {
@@ -2790,6 +2795,8 @@ async function 키워드모으기시작(이어서) {
     kw모으는중 = false;
     kw거르개 = "all";
     await refreshKeywords().catch(() => {});
+    // 서버가 돌려준 «진짜 결과» 를 마지막으로 그린다(진행 조회가 다른 서버로 가도 결과는 정확하게).
+    if (결과 && 결과.state && kw고른카 === id) 진행그리기(결과, 고른카());
   }
 }
 
@@ -2833,6 +2840,7 @@ document.addEventListener("click", async (e) => {
 
 document.addEventListener("change", async (e) => {
   if (e.target.id === "kw-cat") {
+    document.getElementById("kw-check").hidden = true;
     kw고른카 = Number(e.target.value);
     kw고른줄 = null;
     kw거르개 = "all";
@@ -3689,3 +3697,31 @@ function 변주글(json) {
   const 것 = ["opening", "heading", "list", "device", "closing"].map((k) => (변주이름[k] || {})[v[k]]).filter(Boolean);
   return 것.length ? `<p class="post-variation" title="최근 글과 겹치지 않게 고른 변주">🎛 ${것.map(escapeHtml).join(" · ")}</p>` : "";
 }
+
+// 🩺 모으기 점검 — 네이버가 단계마다 무엇이라고 답했는지 그대로.
+async function 모으기점검() {
+  const 카 = 고른카();
+  const 칸 = document.getElementById("kw-check");
+  if (!카) return;
+  칸.hidden = false;
+  칸.innerHTML = "🩺 점검 중… (몇 초)";
+  const r = await api(`/api/keywords/${카.id}/check`);
+  const 표 = (ok) => (ok ? "✅" : "⚠");
+  칸.innerHTML = `<b>🩺 «${escapeHtml(카.name)}» 모으기 점검</b>${r.fake ? ' <span class="muted">(가짜 모드)</span>' : ""}
+    <ol>
+      <li>씨앗: <b>${r.seeds.map(escapeHtml).join(", ") || "(없음)"}</b> <span class="muted">${r.customSeeds ? "직접 정한 것" : "카테고리 이름·주제 키워드·함께 들어갈 말에서"} · 기호·띄어쓰기는 뺌</span></li>
+      <li>${표(r.together.ok)} 연관 키워드(씨앗 한꺼번에): ${r.together.ok ? `<b>${r.together.rows}개</b> 받음 · 검색량 100 이상 ${r.together.over100}개` : escapeHtml(r.together.why)}</li>
+      <li>씨앗 하나씩: ${r.each.map((e) => `${표(e.ok)} «${escapeHtml(e.seed)}» ${e.ok ? `${e.rows}개 — ${e.top.map(escapeHtml).join(", ")}` : escapeHtml(e.why)}`).join("<br>")}</li>
+      <li>${표(r.blog.ok)} 블로그 검색 «${escapeHtml(r.blog.keyword)}»: ${r.blog.ok ? `문서 ${숫자(r.blog.total)}건` : escapeHtml(r.blog.why)}</li>
+    </ol>
+    <p class="muted">⚠ 가 있으면 그 줄을 캡처해서 보내 주세요. 모두 ✅ 인데도 0개면 씨앗이 너무 좁은 것입니다 — «씨앗 직접 정하기» 에 넓은 말을 넣어 보세요.</p>`;
+}
+
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest('[data-action="kwc-check"]');
+  if (!btn) return;
+  e.preventDefault();
+  btn.disabled = true;
+  try { await 모으기점검(); } catch (err) { document.getElementById("kw-check").textContent = `⚠ ${err.message}`; }
+  finally { btn.disabled = false; }
+});

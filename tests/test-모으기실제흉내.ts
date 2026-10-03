@@ -69,13 +69,15 @@ const r2 = await M.키워드모으기(나.id);
 참("검색광고를 4번 불렀다 (한꺼번에 1 + 하나씩 3)", 부른.filter((u) => u.includes("keywordstool")).length === 4);
 참(`합친 연관 키워드 ${r2.received}개`, r2.received === 360);
 
-console.log("\n③ 블로그 검색 키가 틀린 경우 — 멈추지 않고 «미확인» 으로 남긴다");
+// 10-03 바뀜: 예전엔 끝까지 돌며 50개를 «미확인» 으로 채웠다 — 그러면 보관함에 쓸 키워드가 0개라 [포스팅에 적용] 을 못 켠다.
+// 이제는 세 번 연속 실패하면 바로 멈추고 까닭을 알린다(받은 연관 키워드는 남겨 [이어서 모으기]).
+console.log("\n③ 블로그 검색 키가 틀린 경우 — 바로 멈추고 까닭을 알린다");
 지금 = { 쉼표거절: true, 여럿거절: false, 블로그코드: 401 };
 블검.창구기억지우기();
 const 다 = C.createCategory({ name: "생활 꿀팁", requiresSearch: true, promptHint: "생활" });
 const r3 = await M.키워드모으기(다.id);
-참(`끝까지 돌았다 (${r3.state})`, r3.state === "done");
-참(`문서 수를 못 받은 것 ${r3.unknown}개 = 미확인`, r3.unknown === 50 && P.보관함개수(다.id).unknown === 30);
+참(`멈추고 까닭 (${r3.state}: ${r3.message.slice(0, 30)}…)`, r3.state === "error" && r3.message.includes("블로그 검색 API 가 답하지 않습니다"));
+참("«미확인» 으로 채우지 않고 이어서 할 자리를 남긴다", P.보관함개수(다.id).unknown === 0 && !!C.getCategory(다.id)!.kw_job);
 
 fs.rmSync(임시, { recursive: true, force: true });
 console.log(틀린것 === 0 ? "\n전부 통과했습니다.\n" : `\n${틀린것}건 틀렸습니다.\n`);

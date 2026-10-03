@@ -35,6 +35,8 @@ export interface Category {
   kw_job?: string | null;
   /** 🔎 키워드 모으기 씨앗을 직접 정했으면 (JSON 배열). 비면 카테고리에서 뽑는다 */
   kw_seeds?: string | null;
+  /** 마지막 모으기 결과(JSON 모으기진행) */
+  kw_last?: string | null;
   /** 글 쓰는 방식 (폼 ⑦). 비면 자동. src/claude/글방식.ts */
   write_mode?: string | null;
   structure?: string | null;
@@ -158,9 +160,9 @@ export function markCategoryUsed(id: number): void {
 
 /** 🔎 네이버 키워드 칸만 바꾼다. 건네지 않은 칸은 그대로. */
 export function 키워드칸적기(id: number, 값: Partial<{
-  kw_apply: 0 | 1; kw_refreshed_at: string | null; kw_error: string | null; kw_job: string | null; kw_seeds: string | null;
+  kw_apply: 0 | 1; kw_refreshed_at: string | null; kw_error: string | null; kw_job: string | null; kw_seeds: string | null; kw_last: string | null;
 }>): void {
-  const 칸들 = (["kw_apply", "kw_refreshed_at", "kw_error", "kw_job", "kw_seeds"] as const).filter((k) => k in 값);
+  const 칸들 = (["kw_apply", "kw_refreshed_at", "kw_error", "kw_job", "kw_seeds", "kw_last"] as const).filter((k) => k in 값);
   if (!칸들.length) return;
   getDb().prepare(
     `UPDATE categories SET ${칸들.map((k) => `${k} = @${k}`).join(", ")} WHERE id = @id AND owner_key = @owner`,
