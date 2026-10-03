@@ -309,7 +309,9 @@ export const ENGINES: Record<EngineId, Engine> = {
         + "매일 쓰기에 모자랍니다. 구독 한도 안에서 돌아 건당 요금은 없습니다.",
     bin: "codex",
     install: "npm install -g @openai/codex",
-    login: "codex login",
+    // 사장님 시험(10-03): 그냥 `codex login` 은 브라우저가 127.0.0.1:1455 로 돌아오는데,
+    // 검은 창(Cloud Shell)은 남의 컴퓨터라 «연결을 거부했습니다» 로 끝난다. 코드 입력 방식으로.
+    login: "codex login --device-auth",
     home: ".codex",
     modelSetting: "codex_model",
     modelHint: "비워 두면 Codex 기본값.",
