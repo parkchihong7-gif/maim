@@ -1751,11 +1751,26 @@ function 로그인명령들(것) {
   --member="user:$(gcloud config get-value account)" --role="roles/storage.objectAdmin"`,
       왜: `지금 로그인한 구글 계정이 저장통에 파일을 쓸 수 있게 허락합니다. `
         + `<em>Updated IAM policy</em> 가 뜨면 성공입니다.` },
+    // 사장님 시험(10-03): ChatGPT 는 «기기 코드 로그인» 이 기본으로 꺼져 있어 로그인 명령이
+    // «활성화한 다음 다시 실행하세요» 로 멈췄다. 명령보다 먼저, 화면에서 스위치 하나를 켜게 한다.
+    ...(것.login.includes("--device-auth") ? [{
+      명: "",
+      링크: { 주소: "https://chatgpt.com/#settings/Security", 글: "🔓 ChatGPT 보안 설정 열기 ↗" },
+      왜: `<strong>처음 한 번만.</strong> 검은 창에서 로그인하려면 ChatGPT 쪽 스위치 하나를 먼저 켜야 합니다.<br>`
+        + `① 위 버튼을 누릅니다 — 로그인 화면이 나오면 <strong>Codex 에 쓸 ChatGPT 계정</strong>으로 로그인하세요.<br>`
+        + `② 열린 설정 창의 <strong>보안</strong>에서 `
+        + `<strong>«Codex, Excel, PowerPoint 및 Word의 기기 코드 로그인»</strong> 스위치를 켭니다.<br>`
+        + `③ 설정 창이 안 뜨면: chatgpt.com 왼쪽 아래 <strong>내 이름 → 설정 → 보안</strong>.<br>`
+        + `켰으면 이 탭은 닫고 다음 단계로.`,
+    }] : []),
     { 명: `mkdir -p /tmp/maim-home && HOME=/tmp/maim-home ${것.login}`,
       왜: (것.login.includes("--device-auth")
-          ? `진짜 로그인입니다. 주소와 <strong>코드</strong>가 뜨면 → 주소를 눌러 <strong>본인 계정</strong>으로 로그인 → `
-            + `화면에 그 코드를 넣으면 검은 창이 저절로 넘어갑니다. `
-            + `(«기기 코드 로그인을 활성화하라» 고 나오면 → chatgpt.com 왼쪽 아래 내 이름 → <strong>설정 → 보안</strong> → <strong>«Codex, Excel, PowerPoint 및 Word의 기기 코드 로그인»</strong> 켜기 → 이 명령을 다시 붙여넣기.) `
+          ? `진짜 로그인입니다. 붙여넣으면 검은 창에 <strong>주소</strong>와 <strong>코드</strong>(예: ABCD-1234)가 뜹니다.<br>`
+            + `① 그 주소를 누릅니다(안 눌리면 복사해 새 탭에 붙여넣기) → `
+            + `② 앞 단계의 <strong>같은 ChatGPT 계정</strong>으로 로그인 → `
+            + `③ 검은 창의 코드를 그대로 입력하고 [계속] → `
+            + `④ 검은 창에 <em>Successfully logged in</em> 이 뜨면 끝입니다.<br>`
+            + `«기기 코드 로그인을 활성화하라» 가 나오면 앞 단계(🔓)를 안 한 것입니다 — 켜고 이 명령을 다시 붙여넣으세요.<br>`
           : `진짜 로그인입니다. 파란 링크가 뜨면 눌러서 <strong>본인 계정</strong>으로 승인하세요. `)
         + `<strong>앞의 <code>HOME=</code> 을 지우지 마세요</strong> — 로그인 정보를 `
         + `옮길 수 있는 자리에 떨어뜨리는 부분입니다.` },
@@ -1783,8 +1798,8 @@ function 엔진명령보이기() {
     const 줄들 = 로그인명령들(것);
     const 셈 = document.getElementById("ai-login-count");
     if (셈) {
-      셈.innerHTML = `⚠️ <strong>${줄들.length}줄입니다. 두 줄이 아닙니다.</strong> `
-        + `검은 창(Cloud Shell)에 <strong>①부터 ${줄들.length}까지 차례로</strong> 붙여넣으셔야 합니다. `
+      셈.innerHTML = `⚠️ <strong>${줄들.length}단계입니다. 두 줄이 아닙니다.</strong> `
+        + `<strong>①부터 ${줄들.length}까지 차례로</strong> 하셔야 합니다 (명령은 검은 창 Cloud Shell 에 붙여넣기). `
         + `특히 마지막 ${줄들.length}번을 빠뜨리면, 검은 창에서는 로그인이 됐는데 `
         + `<strong>서버는 그걸 모릅니다.</strong>`;
     }
@@ -1792,10 +1807,12 @@ function 엔진명령보이기() {
     if (자리) {
       자리.innerHTML = 줄들.map((줄) => `
         <li>
-          <div class="setup-code-row">
+          ${줄.링크
+            ? `<p><a class="btn-secondary" href="${escapeHtml(줄.링크.주소)}" target="_blank" rel="noopener">${escapeHtml(줄.링크.글)}</a></p>`
+            : `<div class="setup-code-row">
             <pre class="setup-code">${escapeHtml(줄.명)}</pre>
             <button class="btn-secondary btn-copy-image" data-action="copy-code">복사</button>
-          </div>
+          </div>`}
           <span class="checklist-item-why">${줄.왜}</span>
         </li>`).join("");
     }
