@@ -2067,3 +2067,28 @@ body:not(.is-trial) [data-trial-only]{display:none !important}
 .rv-img-card pre{margin:0;white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:12.5px;line-height:1.6;color:var(--text-muted);max-height:180px;overflow:auto;background:var(--bg-card);border-radius:8px;padding:8px}
 .rv-img-foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px;font-size:13px}
 @media(max-width:900px){.rv-img-list{grid-template-columns:1fr}}
+
+/* AI 연결 — 한 걸음씩. 끝낸 걸음은 접고, 지금 걸음만 또렷하게, 뒤 걸음은 잠근다. */
+.cmd-steps > li.ai-step.is-done { opacity: 0.6; }
+.cmd-steps > li.ai-step.is-done::before { content: "✓"; background: var(--success, #2e7d32); color: #fff; }
+.cmd-steps > li.ai-step.is-locked { opacity: 0.45; }
+.cmd-steps > li.ai-step.is-locked::before { background: var(--border); color: var(--text-muted); }
+.cmd-steps > li.ai-step.is-now { background: var(--gold-soft); border-radius: 8px; padding-right: 10px; }
+.cmd-steps > li.ai-step:last-child::before { background: var(--gold); }
+.cmd-steps > li.ai-step.is-done:last-child::before { background: var(--success, #2e7d32); }
+.ai-step-title { margin: 2px 0 6px; }
+.ai-step-ok { font-size: 0.82rem; color: var(--success, #2e7d32); }
+.ai-step-good, .ai-step-bad { display: block; margin-top: 6px; font-size: 0.84rem; line-height: 1.6; }
+.ai-step-good { color: var(--text); }
+.ai-step-bad { color: var(--danger); }
+.ai-step-check {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 10px;
+  padding: 8px 12px; border: 2px solid var(--gold); border-radius: 8px;
+  background: var(--bg-elevated); font-weight: 600; cursor: pointer;
+}
+.ai-step-check input { width: 18px; height: 18px; }
+a.ai-step-link {
+  display: inline-block; padding: 8px 14px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg-elevated); color: var(--text); text-decoration: none; font-weight: 600;
+}
+.cmd-steps > li.ai-step.is-locked:last-child::before { background: var(--border); color: var(--text-muted); }

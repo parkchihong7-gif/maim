@@ -1443,6 +1443,9 @@ document.addEventListener("click", async (e) => {
       panel.hidden = !panel.hidden;
       const 이름 = btn.dataset.label || "매뉴얼";
       btn.textContent = panel.hidden ? `[${이름} 보기]` : `[${이름} 닫기]`;
+    } else if (action === "ai-steps-reset") {
+      const 것 = 엔진목록?.engines.find((e) => e.id === 엔진목록.current);
+      if (것) { 걸음기억(것.id, 0); 걸음그리기(것); }
     } else if (action === "copy-code") {
       // `data-target` 으로 짚어 둔 것이 있으면 그것을, 없으면 **바로 위
       // 명령칸**을 집는다. 명령마다 id 를 붙여 두면 하나 빠뜨릴 때 그
@@ -1739,46 +1742,130 @@ function 저장통() {
   return (엔진목록 && 엔진목록.bucket) || "";
 }
 
-/** 로그인 방식(Claude·Codex)일 때 붙여넣으실 명령 네 줄. */
+/**
+ * 로그인 방식(Claude·Codex)일 때 하실 일 — **한 걸음씩, 끝나면 체크하고 다음으로.**
+ *
+ * 사장님 시험(10-03): Codex 연결에서 ① 브라우저가 127.0.0.1 로 돌아와 «연결 거부»
+ * ② ChatGPT «기기 코드 로그인» 이 꺼져 있어 멈춤 ③ 로그인이 끝나기 전에 Ctrl+C
+ * ④ 로그인 파일이 없는데 옮기기(rsync)부터 해서 멈춤 — 을 차례로 겪었다.
+ * 초보자가 같은 자리에서 막히지 않게: 걸음마다 «이게 뜨면 성공» 을 보이고,
+ * 체크해야 다음 걸음이 열리며, 옮기기는 로그인 파일이 있을 때만 한다.
+ */
 function 로그인명령들(것) {
   const 통 = 저장통();
   const 주소 = 통 ? `gs://${통}` : "gs://내-저장통-이름";
-  return [
-    { 명: 것.install,
-      왜: `검은 창에 <code>${escapeHtml(것.login.split(" ")[0])}</code> 명령 자체를 설치합니다. `
-        + `<em>added N packages</em> 가 뜨면 성공입니다.` },
-    { 명: `gcloud storage buckets add-iam-policy-binding ${주소} \\
-  --member="user:$(gcloud config get-value account)" --role="roles/storage.objectAdmin"`,
-      왜: `지금 로그인한 구글 계정이 저장통에 파일을 쓸 수 있게 허락합니다. `
-        + `<em>Updated IAM policy</em> 가 뜨면 성공입니다.` },
-    // 사장님 시험(10-03): ChatGPT 는 «기기 코드 로그인» 이 기본으로 꺼져 있어 로그인 명령이
-    // «활성화한 다음 다시 실행하세요» 로 멈췄다. 명령보다 먼저, 화면에서 스위치 하나를 켜게 한다.
-    ...(것.login.includes("--device-auth") ? [{
-      명: "",
+  const 코덱스 = 것.id === "codex";
+  const 도구 = escapeHtml(것.login.split(" ")[0]);
+  const 집 = `/tmp/maim-home/${것.home}`;
+  const 걸음 = [];
+
+  걸음.push({
+    제목: "검은 창(Cloud Shell) 열기",
+    링크: { 주소: "https://shell.cloud.google.com/?show=terminal", 글: "⬛ 검은 창 열기 ↗" },
+    왜: `<strong>서버를 만든 그 구글 계정</strong>으로 열어야 합니다. 처음이면 [승인]·[계속]을 눌러 주세요.`,
+    성공: `아래쪽에 <code>내아이디@cloudshell:~$</code> 같은 줄이 보이면 성공`,
+  });
+  걸음.push({
+    제목: `${것.label} 프로그램 설치`,
+    명: 것.install,
+    왜: `검은 창에 <code>${도구}</code> 명령을 설치합니다. 30초~1분 걸립니다.`,
+    성공: `<em>added … packages</em> 가 뜨고 다시 <code>$</code> 줄이 나오면 성공 (노란 WARN 줄은 무시해도 됩니다)`,
+  });
+  걸음.push({
+    제목: "저장통 쓰기 허락",
+    명: `gcloud storage buckets add-iam-policy-binding ${주소} --member="user:$(gcloud config get-value account)" --role="roles/storage.objectAdmin"`,
+    왜: `지금 로그인한 구글 계정이 서버의 저장통에 로그인 파일을 넣을 수 있게 허락합니다.`,
+    성공: `<em>bindings:</em> 로 시작하는 긴 글이 뜨면 성공`,
+  });
+  if (코덱스) {
+    걸음.push({
+      제목: "ChatGPT «기기 코드 로그인» 켜기 (처음 한 번만)",
       링크: { 주소: "https://chatgpt.com/#settings/Security", 글: "🔓 ChatGPT 보안 설정 열기 ↗" },
-      왜: `<strong>처음 한 번만.</strong> 검은 창에서 로그인하려면 ChatGPT 쪽 스위치 하나를 먼저 켜야 합니다.<br>`
-        + `① 위 버튼을 누릅니다 — 로그인 화면이 나오면 <strong>Codex 에 쓸 ChatGPT 계정</strong>으로 로그인하세요.<br>`
-        + `② 열린 설정 창의 <strong>보안</strong>에서 `
-        + `<strong>«Codex, Excel, PowerPoint 및 Word의 기기 코드 로그인»</strong> 스위치를 켭니다.<br>`
-        + `③ 설정 창이 안 뜨면: chatgpt.com 왼쪽 아래 <strong>내 이름 → 설정 → 보안</strong>.<br>`
-        + `켰으면 이 탭은 닫고 다음 단계로.`,
-    }] : []),
-    { 명: `mkdir -p /tmp/maim-home && HOME=/tmp/maim-home ${것.login}`,
-      왜: (것.login.includes("--device-auth")
-          ? `진짜 로그인입니다. 붙여넣으면 검은 창에 <strong>주소</strong>와 <strong>코드</strong>(예: ABCD-1234)가 뜹니다.<br>`
-            + `① 그 주소를 누릅니다(안 눌리면 복사해 새 탭에 붙여넣기) → `
-            + `② 앞 단계의 <strong>같은 ChatGPT 계정</strong>으로 로그인 → `
-            + `③ 검은 창의 코드를 그대로 입력하고 [계속] → `
-            + `④ 검은 창에 <em>Successfully logged in</em> 이 뜨면 끝입니다.<br>`
-            + `«기기 코드 로그인을 활성화하라» 가 나오면 앞 단계(🔓)를 안 한 것입니다 — 켜고 이 명령을 다시 붙여넣으세요.<br>`
-          : `진짜 로그인입니다. 파란 링크가 뜨면 눌러서 <strong>본인 계정</strong>으로 승인하세요. `)
-        + `<strong>앞의 <code>HOME=</code> 을 지우지 마세요</strong> — 로그인 정보를 `
-        + `옮길 수 있는 자리에 떨어뜨리는 부분입니다.` },
-    { 명: `gcloud storage rsync -r /tmp/maim-home/${것.home} ${주소}/home/${것.home}`,
-      왜: `<strong>이게 빠지면 헛수고입니다.</strong> 방금 만든 로그인 정보를 `
-        + `서버가 읽는 자리로 옮깁니다. 이걸 안 하면 검은 창에서는 로그인됐는데 `
-        + `서버는 여전히 «로그인 안 됨» 입니다.` },
-  ];
+      왜: `① 버튼을 누르고, 로그인 화면이 나오면 <strong>Codex 에 쓸 ChatGPT 계정</strong>으로 로그인<br>`
+        + `② 설정 창의 <strong>보안</strong>에서 <strong>«Codex, Excel, PowerPoint 및 Word의 기기 코드 로그인»</strong> 스위치 켜기<br>`
+        + `③ 설정 창이 안 뜨면: chatgpt.com 왼쪽 아래 <strong>내 이름 → 설정 → 보안</strong>`,
+      성공: `스위치가 켜진 색(파랑·초록)으로 바뀌면 성공 — 이 탭은 닫아도 됩니다`,
+    });
+  }
+  걸음.push({
+    제목: `${것.label} 로그인`,
+    // Codex: 로그인 정보가 «열쇠고리» 가 아니라 꼭 파일로 남게 한다 — 그래야 서버로 옮길 수 있다.
+    명: 코덱스
+      ? `mkdir -p ${집} && grep -q cli_auth_credentials_store ${집}/config.toml 2>/dev/null || echo 'cli_auth_credentials_store = "file"' >> ${집}/config.toml; HOME=/tmp/maim-home ${것.login}`
+      : `mkdir -p /tmp/maim-home && HOME=/tmp/maim-home ${것.login}`,
+    왜: (코덱스
+        ? `붙여넣으면 검은 창에 <strong>주소</strong>와 <strong>코드</strong>(예: ABCD-1234)가 뜹니다.<br>`
+          + `① 그 주소를 누릅니다 (안 눌리면 긁어서 복사 → 새 탭 주소창에 붙여넣기)<br>`
+          + `② 같은 ChatGPT 계정으로 로그인 → ③ 검은 창의 코드를 입력하고 [계속] → 승인 화면이 나오면 승인<br>`
+        : `붙여넣으면 검은 창에 <strong>주소</strong>가 뜹니다.<br>`
+          + `① 그 주소를 누릅니다 (안 눌리면 긁어서 복사 → 새 탭 주소창에 붙여넣기)<br>`
+          + `② ${escapeHtml(것.label)} 계정으로 로그인하고 승인 → ③ 화면에 코드가 나오면 복사해 검은 창에 붙여넣고 Enter<br>`)
+      + `⛔ <strong>성공 글이 뜰 때까지 검은 창을 끄거나 Ctrl+C 를 누르지 마세요</strong> — 누르면 로그인이 저장되지 않습니다.`,
+    성공: `검은 창에 <em>Successfully logged in</em> (또는 <em>Login successful</em>) 이 뜨고 <code>$</code> 줄로 돌아오면 성공`,
+    막힘: 코덱스 ? `«기기 코드 로그인을 활성화하라» 가 나오면 → 앞 걸음(🔓)을 하고 이 명령을 다시 붙여넣기` : "",
+  });
+  걸음.push({
+    제목: "로그인 파일을 서버로 보내기",
+    // 로그인 파일이 없으면 보내지 않고 왜 안 되는지 말한다. (예전 rsync 는 그 자리에서 멈춰 보였다)
+    명: 코덱스
+      ? `test -s ${집}/auth.json && gcloud storage cp ${집}/auth.json ${주소}/home/${것.home}/auth.json && echo "✅ 서버로 보냈습니다" || echo "❌ 로그인 파일이 없습니다 — 앞 걸음 로그인을 성공 글이 뜰 때까지 다시 해 주세요"`
+      : `[ -n "$(ls -A ${집} 2>/dev/null)" ] && gcloud storage cp -r ${집} ${주소}/home/ && echo "✅ 서버로 보냈습니다" || echo "❌ 로그인 파일이 없습니다 — 앞 걸음 로그인을 성공 글이 뜰 때까지 다시 해 주세요"`,
+    왜: `<strong>이게 빠지면 헛수고입니다.</strong> 검은 창에서 만든 로그인을 서버가 읽는 자리로 옮깁니다.`,
+    성공: `<strong>✅ 서버로 보냈습니다</strong> 가 뜨면 성공 — ❌ 가 뜨면 앞 걸음으로 돌아가세요`,
+  });
+  return 걸음;
+}
+
+/** 몇 걸음까지 끝냈나 — 이 브라우저에 AI 마다 따로 기억한다. */
+function 걸음기억(id, n) {
+  const 열쇠 = `maim-ai-steps-${id}`;
+  try {
+    if (n === undefined) return Number(localStorage.getItem(열쇠) || 0);
+    localStorage.setItem(열쇠, String(n));
+  } catch { /* 기억 못 해도 화면은 돈다 */ }
+  return n ?? 0;
+}
+
+function 걸음그리기(것) {
+  const 줄들 = 로그인명령들(것);
+  const 끝낸수 = Math.min(걸음기억(것.id), 줄들.length);
+  const 셈 = document.getElementById("ai-login-count");
+  if (셈) {
+    셈.innerHTML = 끝낸수 >= 줄들.length
+      ? `🎉 <strong>${줄들.length}걸음을 모두 마쳤습니다.</strong> 아래 <strong>[연결 테스트]</strong> 를 누르세요. `
+        + `<button class="btn-link" data-action="ai-steps-reset">처음부터 다시</button>`
+      : `👣 <strong>모두 ${줄들.length}걸음 — 지금 ${끝낸수 + 1}번째.</strong> `
+        + `한 걸음 끝날 때마다 <strong>«✅ 됐어요»</strong> 를 체크하면 다음 걸음이 열립니다. `
+        + `명령은 [복사] 를 눌러 검은 창에 붙여넣고 Enter. `
+        + (끝낸수 ? `<button class="btn-link" data-action="ai-steps-reset">처음부터 다시</button>` : "");
+  }
+  const 자리 = document.getElementById("ai-login-steps");
+  if (!자리) return;
+  자리.innerHTML = 줄들.map((줄, i) => {
+    const 상태 = i < 끝낸수 ? "done" : i === 끝낸수 ? "now" : "locked";
+    return `
+    <li class="ai-step is-${상태}">
+      <p class="ai-step-title"><strong>${escapeHtml(줄.제목)}</strong>${상태 === "done" ? ' <span class="ai-step-ok">✅ 완료</span>' : ""}</p>
+      ${상태 === "locked" ? `<p class="muted">🔒 앞 걸음을 마치면 열립니다.</p>` : `
+      ${줄.링크
+        ? `<p><a class="btn-secondary ai-step-link" href="${escapeHtml(줄.링크.주소)}" target="_blank" rel="noopener">${escapeHtml(줄.링크.글)}</a></p>`
+        : `<div class="setup-code-row">
+        <pre class="setup-code">${escapeHtml(줄.명)}</pre>
+        <button class="btn-secondary btn-copy-image" data-action="copy-code">복사</button>
+      </div>`}
+      <span class="checklist-item-why">${줄.왜}</span>
+      <span class="ai-step-good">👀 ${줄.성공}</span>
+      ${줄.막힘 ? `<span class="ai-step-bad">🛟 ${줄.막힘}</span>` : ""}
+      ${상태 === "now" ? `<label class="ai-step-check"><input type="checkbox" data-step="${i}"> ✅ 됐어요 — 다음 걸음 열기</label>` : ""}`}
+    </li>`;
+  }).join("");
+  자리.onchange = (e) => {
+    const 칸 = e.target;
+    if (!(칸 instanceof HTMLInputElement) || !칸.checked) return;
+    걸음기억(것.id, Number(칸.dataset.step) + 1);
+    걸음그리기(것);
+    자리.querySelector(".ai-step.is-now, .ai-step:last-child")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
 }
 
 function 엔진명령보이기() {
@@ -1795,27 +1882,7 @@ function 엔진명령보이기() {
   키길.hidden = 로그인방식;
 
   if (로그인방식) {
-    const 줄들 = 로그인명령들(것);
-    const 셈 = document.getElementById("ai-login-count");
-    if (셈) {
-      셈.innerHTML = `⚠️ <strong>${줄들.length}단계입니다. 두 줄이 아닙니다.</strong> `
-        + `<strong>①부터 ${줄들.length}까지 차례로</strong> 하셔야 합니다 (명령은 검은 창 Cloud Shell 에 붙여넣기). `
-        + `특히 마지막 ${줄들.length}번을 빠뜨리면, 검은 창에서는 로그인이 됐는데 `
-        + `<strong>서버는 그걸 모릅니다.</strong>`;
-    }
-    const 자리 = document.getElementById("ai-login-steps");
-    if (자리) {
-      자리.innerHTML = 줄들.map((줄) => `
-        <li>
-          ${줄.링크
-            ? `<p><a class="btn-secondary" href="${escapeHtml(줄.링크.주소)}" target="_blank" rel="noopener">${escapeHtml(줄.링크.글)}</a></p>`
-            : `<div class="setup-code-row">
-            <pre class="setup-code">${escapeHtml(줄.명)}</pre>
-            <button class="btn-secondary btn-copy-image" data-action="copy-code">복사</button>
-          </div>`}
-          <span class="checklist-item-why">${줄.왜}</span>
-        </li>`).join("");
-    }
+    걸음그리기(것);
     const 쪽지 = document.getElementById("ai-home-note");
     if (쪽지) {
       쪽지.innerHTML = 저장통()
