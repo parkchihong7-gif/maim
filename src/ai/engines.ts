@@ -273,8 +273,12 @@ export const ENGINES: Record<EngineId, Engine> = {
       envVar: "GEMINI_API_KEY",
       settingKey: "gemini_api_key",
       keyUrl: "https://aistudio.google.com/apikey",
-      keyHow: "구글 계정으로 들어가 [Create API key] 를 누르면 키가 바로 나옵니다. "
-            + "그 한 줄을 복사해 아래 칸에 붙여넣고 저장하세요. "
+      // 사장님 시험(10-03): «gemini 주소가 아니다» — Gemini 키는 대화 화면(gemini.google.com)이
+      // 아니라 구글의 개발자용 Google AI Studio 에서만 나온다. 헷갈리지 않게 먼저 말해 둔다.
+      keyHow: "버튼을 누르면 **Google AI Studio** 가 열립니다 — 구글이 Gemini 키를 내주는 공식 자리라 "
+            + "이 주소가 맞습니다(대화 화면 gemini.google.com 에서는 키가 나오지 않습니다). "
+            + "① 오른쪽 위 **[Create API key]**(API 키 만들기) → ② 프로젝트는 보이는 것 아무거나 고르고 "
+            + "**[Create key]** → ③ **AIza** 로 시작하는 키 한 줄을 복사해 아래 칸에 붙여넣고 저장하세요. "
             + "검은 창(Cloud Shell)도, 파일 올리기도 필요 없습니다.",
       settings: {
         path: ".gemini/settings.json",
