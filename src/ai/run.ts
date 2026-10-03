@@ -225,8 +225,26 @@ export function 멈춘까닭(것: Engine, 코드: number | null, 탈난것: stri
       + `(${것.login} → gs://…/home/${폴더} 로 올리기). 서버를 다시 켤 필요는 없습니다.`
       + (원문 ? `\n\n[원문] ${원문.split("\n")[0]}` : "");
   }
+  const 첫줄 = 원문 ? `\n\n[원문] ${원문.split("\n").find((x) => /402|429|credit|quota|exhausted/i.test(x)) ?? 원문.split("\n")[0]}`.slice(0, 300) : "";
+  if (돈막힘.test(탈난것)) {
+    // 사장님 시험(10-03): Gemini 키가 «선불 크레딧 0원» 프로젝트에 묶여 402 로 거절됐다. 프로그램 탈이 아니다.
+    return `${것.label} 키는 제대로 들어갔지만, 그 키가 속한 프로젝트에 쓸 돈(크레딧)이 없어 구글/회사 쪽에서 거절했습니다 (402). `
+      + `프로그램 오류가 아닙니다. 둘 중 하나를 고르세요 — `
+      + `① 무료로: ${것.auth?.keyUrl ?? "키 발급 화면"} 에서 [Create API key] → 프로젝트를 «새로 만들기»(결제 연결 안 된 것)로 키를 새로 받아 바꿔 넣기 · `
+      + `② 유료로: 그 프로젝트에 크레딧 충전${/gemini/i.test(것.id) ? " (https://ai.studio/projects)" : ""}. `
+      + `바꾼 뒤 [연결 테스트] 를 다시 누르세요.` + 첫줄;
+  }
+  if (한도막힘.test(탈난것)) {
+    return `${것.label} 의 사용 한도를 넘어 잠시 막혔습니다 (429). 무료 키는 1분·하루 한도가 있습니다 — `
+      + `몇 분 뒤 다시 하거나, 내일 다시 하거나, 유료 키로 바꾸면 풀립니다.` + 첫줄;
+  }
   return `${것.label} 이 ${코드} 로 멈췄습니다: ${원문}`;
 }
+
+/** 돈이 없어 막힘 — 선불 크레딧 바닥·결제 필요 (402). */
+const 돈막힘 = /\b402\b|prepayment credits|credits? (are )?depleted|insufficient[_ ](funds|quota|balance)|billing (is )?(not enabled|required)|credit balance is too low/i;
+/** 한도 넘어 막힘 (429). 돈막힘을 먼저 본다 — 402 도 RESOURCE_EXHAUSTED 를 단다. */
+const 한도막힘 = /\b429\b|RESOURCE_EXHAUSTED|quota exceeded|rate limit/i;
 
 /**
  * 한 번 부를 때 기다려 줄 시간.
