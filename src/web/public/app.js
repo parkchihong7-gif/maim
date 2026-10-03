@@ -1759,6 +1759,17 @@ function 로그인명령들(것) {
   const 집 = `/tmp/maim-home/${것.home}`;
   const 걸음 = [];
 
+  // 사장님(10-03): «막히는 건 미리 풀고 넘어가야 한다» — 브라우저에서 할 준비를 검은 창보다 먼저.
+  if (코덱스) {
+    걸음.push({
+      제목: "먼저 — ChatGPT «기기 코드 로그인» 켜기 (브라우저에서, 처음 한 번만)",
+      링크: { 주소: "https://chatgpt.com/#settings/Security", 글: "🔓 ChatGPT 보안 설정 열기 ↗" },
+      왜: `① 버튼을 누르고, 로그인 화면이 나오면 <strong>Codex 에 쓸 ChatGPT 계정</strong>으로 로그인<br>`
+        + `② 설정 창의 <strong>보안</strong>에서 <strong>«Codex, Excel, PowerPoint 및 Word의 기기 코드 로그인»</strong> 스위치 켜기<br>`
+        + `③ 설정 창이 안 뜨면: chatgpt.com 왼쪽 아래 <strong>내 이름 → 설정 → 보안</strong>`,
+      성공: `스위치가 켜진 색(파랑·초록)으로 바뀌면 성공 — 이 탭은 닫아도 됩니다. <strong>이게 꺼져 있으면 뒤의 로그인 걸음이 반드시 막힙니다.</strong>`,
+    });
+  }
   걸음.push({
     제목: "검은 창(Cloud Shell) 열기",
     링크: { 주소: "https://shell.cloud.google.com/?show=terminal", 글: "⬛ 검은 창 열기 ↗" },
@@ -1777,16 +1788,6 @@ function 로그인명령들(것) {
     왜: `지금 로그인한 구글 계정이 서버의 저장통에 로그인 파일을 넣을 수 있게 허락합니다.`,
     성공: `<em>bindings:</em> 로 시작하는 긴 글이 뜨면 성공`,
   });
-  if (코덱스) {
-    걸음.push({
-      제목: "ChatGPT «기기 코드 로그인» 켜기 (처음 한 번만)",
-      링크: { 주소: "https://chatgpt.com/#settings/Security", 글: "🔓 ChatGPT 보안 설정 열기 ↗" },
-      왜: `① 버튼을 누르고, 로그인 화면이 나오면 <strong>Codex 에 쓸 ChatGPT 계정</strong>으로 로그인<br>`
-        + `② 설정 창의 <strong>보안</strong>에서 <strong>«Codex, Excel, PowerPoint 및 Word의 기기 코드 로그인»</strong> 스위치 켜기<br>`
-        + `③ 설정 창이 안 뜨면: chatgpt.com 왼쪽 아래 <strong>내 이름 → 설정 → 보안</strong>`,
-      성공: `스위치가 켜진 색(파랑·초록)으로 바뀌면 성공 — 이 탭은 닫아도 됩니다`,
-    });
-  }
   걸음.push({
     제목: `${것.label} 로그인`,
     // Codex: 로그인 정보가 «열쇠고리» 가 아니라 꼭 파일로 남게 한다 — 그래야 서버로 옮길 수 있다.
@@ -1796,13 +1797,13 @@ function 로그인명령들(것) {
     왜: (코덱스
         ? `붙여넣으면 검은 창에 <strong>주소</strong>와 <strong>코드</strong>(예: ABCD-1234)가 뜹니다.<br>`
           + `① 그 주소를 누릅니다 (안 눌리면 긁어서 복사 → 새 탭 주소창에 붙여넣기)<br>`
-          + `② 같은 ChatGPT 계정으로 로그인 → ③ 검은 창의 코드를 입력하고 [계속] → 승인 화면이 나오면 승인<br>`
+          + `② 1번 걸음과 같은 ChatGPT 계정으로 로그인 → ③ 검은 창의 코드를 입력하고 [계속] → 승인 화면이 나오면 승인<br>`
         : `붙여넣으면 검은 창에 <strong>주소</strong>가 뜹니다.<br>`
           + `① 그 주소를 누릅니다 (안 눌리면 긁어서 복사 → 새 탭 주소창에 붙여넣기)<br>`
           + `② ${escapeHtml(것.label)} 계정으로 로그인하고 승인 → ③ 화면에 코드가 나오면 복사해 검은 창에 붙여넣고 Enter<br>`)
       + `⛔ <strong>성공 글이 뜰 때까지 검은 창을 끄거나 Ctrl+C 를 누르지 마세요</strong> — 누르면 로그인이 저장되지 않습니다.`,
     성공: `검은 창에 <em>Successfully logged in</em> (또는 <em>Login successful</em>) 이 뜨고 <code>$</code> 줄로 돌아오면 성공`,
-    막힘: 코덱스 ? `«기기 코드 로그인을 활성화하라» 가 나오면 → 앞 걸음(🔓)을 하고 이 명령을 다시 붙여넣기` : "",
+    막힘: 코덱스 ? `«기기 코드 로그인을 활성화하라» 가 나오면 → 1번 걸음(🔓)이 안 켜진 것입니다. 켜고 이 명령을 다시 붙여넣기` : "",
   });
   걸음.push({
     제목: "로그인 파일을 서버로 보내기",
