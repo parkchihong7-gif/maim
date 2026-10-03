@@ -1755,7 +1755,7 @@ function 로그인명령들(것) {
       왜: (것.login.includes("--device-auth")
           ? `진짜 로그인입니다. 주소와 <strong>코드</strong>가 뜨면 → 주소를 눌러 <strong>본인 계정</strong>으로 로그인 → `
             + `화면에 그 코드를 넣으면 검은 창이 저절로 넘어갑니다. `
-            + `(«기기 코드 로그인이 꺼져 있다» 고 나오면 ChatGPT 설정 → 보안에서 Codex 기기 코드 로그인을 켜 주세요.) `
+            + `(«기기 코드 로그인을 활성화하라» 고 나오면 → chatgpt.com 왼쪽 아래 내 이름 → <strong>설정 → 보안</strong> → <strong>«Codex, Excel, PowerPoint 및 Word의 기기 코드 로그인»</strong> 켜기 → 이 명령을 다시 붙여넣기.) `
           : `진짜 로그인입니다. 파란 링크가 뜨면 눌러서 <strong>본인 계정</strong>으로 승인하세요. `)
         + `<strong>앞의 <code>HOME=</code> 을 지우지 마세요</strong> — 로그인 정보를 `
         + `옮길 수 있는 자리에 떨어뜨리는 부분입니다.` },
