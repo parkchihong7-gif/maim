@@ -51,6 +51,7 @@
         <button class="sidebar-nav-item" data-action="switch-view" data-view="drafts">📝 <span>포스팅</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="history">📜 <span>발행 이력</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="keywords" data-owner-only>🔎 <span>네이버 키워드</span></button>
+        <button class="sidebar-nav-item" data-action="switch-view" data-view="events" data-owner-only>🎮 <span>출시 달력</span><span class="nav-count" id="nav-events-count" hidden></span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="style">🎨 <span>내 블로그 분석</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="workshop" data-owner-only>✍️ <span>글 작업실</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="settings">⚙️ <span id="nav-settings-label">관리자 설정</span></button>
@@ -81,6 +82,8 @@
             <button class="btn-primary" data-action="switch-view" data-view="categories">+ 카테고리 추가</button>
           </div>
         </div>
+
+        <div class="card home-events" id="home-events" data-owner-only hidden></div>
 
         <div class="stat-grid">
           <div class="stat-card">
@@ -317,10 +320,16 @@
             아래 버튼으로 전체 기록을 엑셀(CSV)로 받아보세요.</p>
           <button class="btn-secondary" data-action="download-image-log">📥 이미지 출처 내려받기 (CSV)</button>
         </div>
+        <div class="card" id="lane-card">
+          <h3>📊 어떤 글이 사람을 데려오나 — 레인별 평균 유입</h3>
+          <p class="muted">발행한 글의 <strong>유입 수</strong>를 아래 표에 적어 주세요 (네이버 블로그 통계 → 게시글별 조회·유입).
+            네이버는 이 숫자를 프로그램에 주지 않아 직접 적는 방식입니다. 일주일에 한 번, 발행 3일 뒤 숫자를 적으면 비교가 정확합니다.</p>
+          <div id="lane-stats" class="lane-stats"></div>
+        </div>
         <div class="card">
           <table id="history-table">
             <thead>
-              <tr><th>ID</th><th>카테고리</th><th>제목</th><th>상태</th><th>발행완료 표시 시각</th><th>에러</th></tr>
+              <tr><th>ID</th><th>카테고리</th><th>제목</th><th>상태</th><th>발행완료 표시 시각</th><th>유입</th><th>후속 글</th><th>에러</th></tr>
             </thead>
             <tbody></tbody>
           </table>
@@ -330,6 +339,40 @@
       <!-- ============ 🔎 네이버 키워드 ============
            시간이 걸리는 키워드 모으기를 **글쓰기와 따로** 미리 한다.
            글쓰기는 ④ 에서 체크한 카테고리만 보관함을 읽는다(네이버를 부르지 않음). -->
+      <!-- ============ 🎮 출시 달력 ============ -->
+      <section data-view-panel="events" data-owner-only hidden>
+        <div class="page-header">
+          <div>
+            <h1>🎮 출시 달력</h1>
+            <p class="muted">게임 하나를 넣으면 <strong>A~F 여섯 단계 글</strong>이 날짜에 맞춰 열립니다.
+              그날 사람들이 찾는 것에 맞춰 이어 쓰면, 경쟁 글이 몰려도 유입이 이어집니다. 홈 화면 🔔 에 오늘 할 단계가 뜹니다.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>① 게임 넣기</h3>
+          <div class="ev-form">
+            <input type="text" id="ev-title" class="kw-input" placeholder="게임 이름 (예: 도깨비의 세계)" maxlength="40" autocomplete="off">
+            <input type="date" id="ev-date" class="kw-input ev-date">
+            <select id="ev-kind" class="kw-input ev-kind"><option value="release">출시</option><option value="update">대형 업데이트</option></select>
+            <select id="ev-cat" class="kw-input ev-cat" title="이 게임 글을 쓸 카테고리"></select>
+            <button class="btn-primary" data-action="ev-add">달력에 넣기</button>
+          </div>
+          <p class="muted small" id="ev-msg"></p>
+          <div class="ev-discover">
+            <button class="btn-secondary" data-action="ev-discover">🔍 출시 예정 게임 찾기 (AI · 1~2분)</button>
+            <input type="text" id="ev-hint" class="kw-input" placeholder="(선택) 특히 볼 것 — 예: 모바일 RPG, 넥슨" maxlength="60" autocomplete="off">
+            <div id="ev-found"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>② 단계별 포스팅 — A → F</h3>
+          <div class="ev-legend" id="ev-legend"></div>
+          <div id="ev-list"></div>
+        </div>
+      </section>
+
       <section data-view-panel="keywords" data-owner-only hidden>
         <div class="page-header">
           <div>
@@ -457,8 +500,10 @@
             <input type="text" id="kw-add-input" class="kw-input" placeholder="키워드 직접 넣기 (검색량·문서 수를 확인해 등급을 매깁니다)" autocomplete="off">
             <button class="btn-secondary" data-action="kwx-add">넣기</button>
             <button class="btn-secondary" data-action="kwx-trend" title="대기 키워드 위에서부터 20개의 최근 12개월 검색 흐름">📈 트렌드 확인</button>
+            <button class="btn-secondary" data-action="kwx-surge" title="대기 키워드 25개 + 🎮 달력의 다가오는 게임 이름을 하루 단위로 — 최근 3일이 앞 2주보다 50% 넘게 많으면 🔥, 등급과 상관없이 먼저 씁니다">🔥 급상승 찾기</button>
             <span class="muted" id="kw-tools-msg"></span>
           </div>
+          <div class="kw-surge" id="kw-surge" hidden></div>
           <div class="kw-scroll"><table class="kw-table" id="kw-table"></table></div>
           <div class="kw-why" id="kw-why" hidden></div>
         </div>
@@ -1111,6 +1156,7 @@
             <button class="kw-chip" data-guide-pick="new">🐣 방금 설치했어요</button>
             <button class="kw-chip" data-guide-pick="ai">🤖 글이 AI 같고 비슷비슷해요</button>
             <button class="kw-chip" data-guide-pick="seo" data-owner-only>📈 검색에 더 잘 걸리고 싶어요</button>
+            <button class="kw-chip" data-guide-pick="game" data-owner-only>🎮 게임 출시·이슈로 유입을 늘리고 싶어요</button>
             <button class="kw-chip" data-guide-pick="best" data-owner-only>💎 한 편을 공들여 쓰고 싶어요</button>
             <button class="kw-chip" data-guide-pick="kw" data-owner-only>🔎 키워드가 안 모여요</button>
             <button class="kw-chip" data-guide-pick="none" data-owner-only>🌅 아침에 글이 안 쌓여요</button>
@@ -1153,6 +1199,8 @@
           <div class="kw-scroll"><table class="kw-table guide-table">
             <thead><tr><th>언제</th><th>할 일</th><th>어디서</th></tr></thead>
             <tbody>
+              <tr data-owner-only><td>매일 아침</td><td>🔔 홈의 «오늘의 게임 포스팅» 단계 글 만들기 · 🔥 급상승 찾기</td><td>🏠 홈 · 🎮 출시 달력 · 🔎</td></tr>
+              <tr data-owner-only><td>주 1회</td><td>🔍 출시 예정 게임 찾기 → 달력에 넣기 · 📊 발행 3일 지난 글 유입 적기</td><td>🎮 출시 달력 · 📜 발행 이력</td></tr>
               <tr data-owner-only><td>주 1회</td><td>📈 트렌드 확인 · ⑥ 뉴스에서 새 키워드 넣기</td><td>🔎 네이버 키워드</td></tr>
               <tr data-owner-only><td>30일마다</td><td>키워드 다시 모으기 (표에 «30일 지남» 이 뜨면)</td><td>🔎 ② 키워드 모으기</td></tr>
               <tr><td>한 달에 한 번</td><td>내 블로그 다시 분석 → 새 버전 승인</td><td>🎨 내 블로그 분석</td></tr>
@@ -1172,6 +1220,7 @@
               <tr><td>📜 발행 이력</td><td>올린 글 · 사진 출처 CSV</td><td>필요할 때</td><td><span class="guide-safe">없음</span></td></tr>
               <tr data-owner-only><td>🔎 네이버 키워드</td><td>키워드 미리 모으기 · 보관함 · 트렌드 · 벤치마킹</td><td>처음 · 30일마다</td><td>④ 체크한 카테고리만</td></tr>
               <tr><td>🎨 내 블로그 분석</td><td>내 스타일·진단 → 승인</td><td>처음 · 한 달에 한 번</td><td>④ 체크했을 때만</td></tr>
+              <tr data-owner-only><td>🎮 출시 달력</td><td>게임 출시일 → A~F 단계 글(총정리·사전예약·직업 추천·초보·쿠폰·공략)</td><td>새 게임 소식이 뜰 때</td><td>단계 글만(카테고리 칸은 그대로)</td></tr>
               <tr data-owner-only><td>✍️ 글 작업실</td><td>한 편을 단계마다 확인하며 쓰기</td><td>공들일 때</td><td><span class="guide-safe">없음(따로 돎)</span></td></tr>
               <tr><td>⚙️ <span data-owner-only>관리자 설정</span><span data-trial-only>내 글 스타일</span></td><td><span data-owner-only>AI · 이미지 키 · 블로그 방향 · 예약</span><span data-trial-only>블로그 유형·주제·말투</span></td><td>처음</td><td>모든 글</td></tr>
             </tbody></table></div>
@@ -1202,6 +1251,9 @@
             <details data-owner-only><summary>🔎 키워드 모으기가 1~3초 만에 끝나요</summary><p>② 의 <b>[🩺 점검]</b>을 누르세요. 단계마다 ✅/⚠ 와 네이버가 한 말이 나옵니다.
               ⚠ 가 있으면 캡처해서 보내 주세요. 모두 ✅ 인데 0개면 <b>[키워드 저장]</b> 칸에 넓은 말(예: 전세, 전세 계약)을 넣고 다시 모으세요.</p></details>
             <details data-owner-only><summary>☑️ [포스팅에 적용] 체크가 안 켜져요</summary><p>골드·실버·브론즈 키워드가 1개 이상 있어야 켜집니다. «미확인» 만 있으면 블로그 검색 키를 확인하세요(🩺 점검의 마지막 줄).</p></details>
+            <details data-owner-only><summary>🚪 «이동형» 키워드가 왜 빠지나요?</summary><p>«전적검색·사이트·다운로드·로그인» 처럼 <b>다른 사이트로 바로 가려는 말</b>은 메인에 떠도 블로그를 거의 누르지 않습니다(실측: 롤전적검색OP 골드·메인 노출, 유입 22). 그래서 자동 글쓰기에서 빼고, 같은 등급이면 «방법·추천·공략·조합» 같은 <b>📘 정보형</b>을 먼저 씁니다.</p></details>
+            <details data-owner-only><summary>🎮 출시 달력은 어떻게 써요?</summary><p>게임 이름과 출시일을 넣으면 A(D-14) 총정리 → B(D-3) 사전예약 → <b>C(D-1) 직업 추천</b> → D(당일) 초보 가이드 → E(D+1) 쿠폰 → F(D+3) 공략 순서로 단계가 열립니다. 홈 🔔 에 오늘 할 단계가 뜨면 [✍️ 글 만들기]. 출시 전날 C단계가 가장 많이 찾는 때입니다(실측: 도깨비의 세계 2,810).</p></details>
+            <details data-owner-only><summary>🔥 급상승은 무엇을 보나요?</summary><p>보관함 대기 키워드 25개와 달력의 다가오는 게임 이름을 <b>하루 단위 30일</b>로 보고, 최근 3일이 앞 2주보다 50% 넘게 많으면 🔥 를 답니다. 🔥 가 붙은 말은 등급과 상관없이 다음 글에 먼저 쓰고(72시간), 뉴스 기사 수로 진짜 이슈인지 같이 보여 줍니다.</p></details>
             <details data-owner-only><summary>📈 트렌드 확인이 안 돼요</summary><p>NAVER API HUB 앱에서 <b>«검색어트렌드»</b> 도 골라 두셨는지 확인하세요. 블로그 검색과 같은 키를 씁니다.</p></details>
             <details><summary>🎨 블로그 분석이 «글 목록을 받지 못했습니다» 라고 해요</summary><p>블로그 글이 «전체 공개» 인지, 주소가 blog.naver.com/아이디 꼴인지 확인하세요. 비공개·RSS 꺼짐이면 읽을 수 없습니다.</p></details>
             <details data-owner-only><summary>✍️ 글 작업실 ② 의 글자수가 모두 «–» 예요</summary><p>상위 글 본문을 읽지 못한 것입니다. 제목·요약만으로 정리한 것이니 참고만 하시고 알려 주세요.</p></details>

@@ -2092,3 +2092,61 @@ a.ai-step-link {
   background: var(--bg-elevated); color: var(--text); text-decoration: none; font-weight: 600;
 }
 .cmd-steps > li.ai-step.is-locked:last-child::before { background: var(--border); color: var(--text-muted); }
+
+/* 키워드 의도 배지 — 🚪 이동형은 자동으로 안 쓴다, 📘 정보형은 먼저 쓴다, 🔥 급상승은 맨 앞 */
+.kw-tag { display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 10px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+.kw-tag.nav { background: #fdecea; color: #b42318; }
+.kw-tag.info { background: #e8f1ff; color: #1d4ed8; }
+.kw-tag.surge { background: #fff1e6; color: #c2410c; }
+
+/* 레인 — 🔥 이슈 · 📘 정보형 · 🧱 일반 (발행 이력·달력) */
+.lane-tag { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 0.74rem; font-weight: 600; white-space: nowrap; background: var(--bg-elevated); border: 1px solid var(--border); }
+.lane-tag.issue { background: #fff1e6; color: #c2410c; border-color: #fed7aa; }
+.lane-tag.info { background: #e8f1ff; color: #1d4ed8; border-color: #bfdbfe; }
+.lane-tag.general { color: var(--text-muted); }
+.lane-stats .lane-row { display: grid; grid-template-columns: 90px minmax(80px, 1fr) auto; gap: 4px 10px; align-items: center; margin: 8px 0; }
+.lane-stats .lane-row .small { grid-column: 1 / -1; }
+.lane-bar { height: 10px; border-radius: 6px; background: var(--border); overflow: hidden; }
+.lane-bar i { display: block; height: 100%; background: var(--gold); }
+.inflow-box { display: inline-flex; gap: 4px; align-items: center; }
+.inflow-input { width: 80px !important; flex: 0 0 auto; padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-elevated); color: var(--text); }
+td.followups { white-space: normal; min-width: 120px; }
+td.followups .kw-mini { margin: 2px 0; }
+.small { font-size: 0.8rem; }
+
+.kw-surge { margin: 8px 0; padding: 10px 12px; border: 1px solid #fed7aa; border-radius: 8px; background: #fffaf5; }
+.kw-surge ul { margin: 6px 0 0; padding-left: 18px; }
+.kw-surge li { margin: 4px 0; }
+
+/* 🎮 출시 달력 */
+.nav-count { margin-left: auto; min-width: 18px; padding: 0 6px; border-radius: 9px; background: #c2410c; color: #fff; font-size: 0.72rem; font-weight: 700; text-align: center; }
+.ev-form, .ev-discover { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+.ev-form #ev-title { flex: 1 1 200px; }
+.ev-form .ev-date, .ev-form .ev-kind, .ev-form .ev-cat { flex: 0 1 auto; }
+.ev-discover #ev-hint { flex: 1 1 200px; }
+.ev-discover #ev-found { flex-basis: 100%; }
+.ev-found-list { margin: 6px 0; padding-left: 18px; }
+.ev-found-list li { margin: 6px 0; }
+.ev-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 10px; font-size: 0.82rem; }
+.ev-leg b { display: inline-block; width: 20px; height: 20px; line-height: 20px; text-align: center; border-radius: 50%; background: var(--gold); color: var(--gold-text); font-size: 0.75rem; }
+.ev-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin: 12px 0; background: var(--bg-elevated); }
+.ev-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.ev-title { font-size: 1.05rem; }
+.ev-del { margin-left: auto; }
+.ev-dday { display: inline-block; padding: 2px 8px; border-radius: 10px; background: var(--border); font-weight: 700; font-size: 0.78rem; }
+.ev-dday.soon { background: #fff1e6; color: #c2410c; }
+.ev-dday.today { background: #c2410c; color: #fff; }
+.ev-guide { margin: 8px 0; }
+.ev-steps { list-style: none; margin: 0; padding: 0; }
+.ev-step { display: flex; gap: 10px; padding: 8px 0; border-top: 1px dashed var(--border); }
+.ev-key { flex: 0 0 26px; height: 26px; line-height: 26px; text-align: center; border-radius: 50%; background: var(--border); color: var(--text-muted); font-weight: 700; }
+.ev-step.is-now .ev-key { background: var(--gold); color: var(--gold-text); }
+.ev-step.is-done .ev-key { background: var(--success); color: #fff; }
+.ev-step.is-now { background: var(--gold-soft); border-radius: 8px; padding-left: 6px; }
+.ev-step.is-done, .ev-step.is-skip, .ev-step.is-passed { opacity: 0.7; }
+.ev-step-body { flex: 1; min-width: 0; }
+.ev-state { font-size: 0.75rem; font-weight: 600; margin-left: 4px; }
+.ev-actions { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+.home-events .home-ev { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 0; border-top: 1px solid var(--border); }
+.home-events .home-ev:first-of-type { border-top: 0; }
+.home-events .home-ev .kw-mini { margin-left: auto; }

@@ -139,7 +139,16 @@ function runMigrations(database: Database.Database) {
   칸붙이기(database, "categories", "kw_job", "TEXT");
   칸붙이기(database, "categories", "kw_seeds", "TEXT");
   칸붙이기(database, "categories", "kw_last", "TEXT");          // 마지막 모으기 결과 (JSON) — 왜 끝났는지 화면에         // 직접 정한 씨앗 (JSON 배열) — 비면 이름·주제에서
-  칸붙이기(database, "keyword_pool", "trend_json", "TEXT");      // 검색어트렌드 12개월 {months, dir, change, at}           // 모으다 멈춘 자리 (JSON) — [이어서 모으기]
+  칸붙이기(database, "keyword_pool", "trend_json", "TEXT");
+  칸붙이기(database, "keyword_pool", "surge_pct", "INTEGER");     // 🔥 급상승 % (최근 3일 ÷ 앞 2주)
+  칸붙이기(database, "keyword_pool", "surge_json", "TEXT");      // 급상승 근거 {days, news, at}
+  칸붙이기(database, "posts", "lane", "TEXT");                  // 🔥 issue · 📘 info · 🧱 general
+  칸붙이기(database, "posts", "kw", "TEXT");                    // 이 글의 주제 키워드
+  칸붙이기(database, "posts", "angle", "TEXT");                 // 후속·단계 글의 각도
+  칸붙이기(database, "posts", "inflow", "INTEGER");             // 사장님이 적은 유입 수
+  칸붙이기(database, "posts", "inflow_at", "TEXT");
+  칸붙이기(database, "posts", "event_id", "INTEGER");           // 🎮 달력 단계 글이면 그 일정
+  칸붙이기(database, "posts", "event_step", "TEXT");            // A~F      // 검색어트렌드 12개월 {months, dir, change, at}           // 모으다 멈춘 자리 (JSON) — [이어서 모으기]
 
   // ── 글 쓰는 방식 (카테고리 폼 ⑦) — 비워 두면 예전처럼 자동. src/claude/글방식.ts ──
   칸붙이기(database, "categories", "write_mode", "TEXT");      // info / experience

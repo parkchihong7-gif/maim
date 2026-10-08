@@ -1,4 +1,6 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
+import type { Category } from "../../db/repositories/categories.js";
+import type { 글주문 } from "../../pipeline/글전략.js";
 import { getCategory, updateCategory } from "../../db/repositories/categories.js";
 import { getPost, markReady } from "../../db/repositories/posts.js";
 import { 체험인가, 지금주인, 체험_하루상한, 상한안내 } from "../../tenancy.js";
@@ -43,6 +45,36 @@ function 막힌답(상태: AI상태, 주인: boolean) {
       : `지금은 글 쓸 AI 연결이 끊겨 있어 글을 만들 수 없습니다. `
         + `보내 주신 분께 «AI 연결이 끊겼다» 고 알려 주세요. 오늘 한도는 줄지 않았습니다.`,
   };
+}
+
+/**
+ * **주문을 붙여 한 편 만들기** — 🎮 달력 단계 글 · 🔥 후속 글이 쓴다. 주인 자리 전용.
+ * [지금 생성] 과 같은 길(AI·이미지 키 확인 → 글 → 사진 → 준비 완료)인데, 키워드·각도·레인을 정해 들어간다.
+ * 카테고리의 주제 키워드 칸은 건드리지 않는다.
+ */
+export async function 주문해서만들기(category: Category, 주문: 글주문, reply: FastifyReply) {
+  const 상태 = await 쓸수있나();
+  if (상태.ok === false) { reply.code(409); return 막힌답(상태, true); }
+  if (이미지키들().count === 0) { reply.code(409); return 이미지없는답(true); }
+  const [directive] = assignDirectives(1);
+  const 기록: 생성기록 = 빈기록();
+  const 시작 = Date.now();
+  let post;
+  try {
+    post = await generatePost(category, directive, 기록, 주문);
+  } catch (탈) {
+    오류적기("글쓰기", category.name, (탈 as Error).message);
+    throw 탈;
+  }
+  try {
+    await attachImage(post, { selectTimeoutMs: 사진고르기시간(Date.now() - 시작) });
+  } catch (err) {
+    오류적기("이미지", category.name, (err as Error).message);
+    markReady(post.id);
+    return { ...getPost(post.id), imageError: (err as Error).message, timing: { ...기록, 전체ms: Date.now() - 시작 } };
+  }
+  markReady(post.id);
+  return { ...getPost(post.id), timing: { ...기록, 전체ms: Date.now() - 시작 } };
 }
 
 export async function manualRunRoutes(app: FastifyInstance) {

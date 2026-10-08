@@ -5,6 +5,12 @@
 import fs from "node:fs";
 const 잠 = Number(process.env.FAKE_SLEEP||0); if (잠) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,잠);
 { const a=process.argv.slice(2); const q=a[a.indexOf("-p")+1]||"";
+  if (q.includes("앞으로 45일 안에")) { const 날=(n)=>new Date(Date.now()+n*864e5).toISOString().slice(0,10);
+    process.stdout.write(JSON.stringify({ is_error:false, result: JSON.stringify({ games:[
+      { title:"별빛 연대기", date:날(5), kind:"release", platform:"모바일·PC", source:"(공식 카페, 사전예약 공지)", note:"수집형 RPG, 사전예약 진행 중" },
+      { title:"아이언 프론티어", date:날(12), kind:"release", platform:"PC", source:"(게임 매체)", note:"오픈월드 액션" },
+      { title:"이미 지난 게임", date:날(-3), kind:"release", platform:"모바일", source:"", note:"" } ] }) })); process.exit(0); } }
+{ const a=process.argv.slice(2); const q=a[a.indexOf("-p")+1]||"";
   if (q.includes("자료만 빠르게")) { process.stdout.write(JSON.stringify({ is_error:false, num_turns:4, result: JSON.stringify({ blog_brief: q.includes("■ blog_brief") ? "(블로그) 생활 정보. ".repeat(10) : "", brief: q.includes("■ brief") ? "(KOSIS) 물가 2.1% 상승. ".repeat(8) : "", news: q.includes("■ news") ? "(2026-09-30, 연합뉴스) 물가 둔화" : "" }) })); process.exit(0); } }
 { const a=process.argv.slice(2); const q=a[a.indexOf("-p")+1]||"";
   if (q.includes("[글 준비 요청]")) { process.stdout.write(JSON.stringify({ is_error:false, result: JSON.stringify({

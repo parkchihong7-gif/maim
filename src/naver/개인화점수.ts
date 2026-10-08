@@ -5,11 +5,13 @@
  *   내 블로그와 맞는 말          카테고리(이름·설명·함께 들어갈 말·내 경험) · 승인한 스타일(주제·독자)의 낱말이
  *                               키워드에 들어 있으면 하나에 20, 최대 40
  *   검색량                       300~5,000 이 20(쓰기 좋음) · 100~300·5,000~20,000 이 12 · 그 밖 6
+ *   검색 의도                    📘 정보형 +15 · 🚪 이동형 −40 (사이트로 바로 가는 말은 블로그를 안 누른다)
  *
  * 도톨이의 «개인화 점수» 라는 이름만 참고했다. 그쪽 계산식은 공개되지 않았고 이것과 다르다.
  */
 import type { Category } from "../db/repositories/categories.js";
 import { 낱말들 } from "./낱말세기.js";
+import { 의도보기 } from "./키워드점수.js";
 
 export interface 점수 { score: number; why: string[] }
 
@@ -37,5 +39,9 @@ export function 개인화점수(row: { keyword: string; grade: string; pc: numbe
   const 량 = (row.pc ?? 0) + (row.mobile ?? 0);
   const 량점 = 량 >= 300 && 량 <= 5000 ? 20 : (량 >= 100 && 량 < 300) || (량 > 5000 && 량 <= 20000) ? 12 : 6;
   why.push(`검색량 ${량.toLocaleString()} +${량점}`);
-  return { score: Math.min(100, g + 맞음 + 량점), why };
+  const 뜻 = 의도보기(row.keyword);
+  const 의도점 = 뜻 === "info" ? 15 : 뜻 === "nav" ? -40 : 0;
+  if (뜻 === "info") why.push("📘 정보형(답을 찾는 말) +15");
+  if (뜻 === "nav") why.push("🚪 이동형(사이트로 바로 가는 말 — 블로그를 잘 안 누름) −40");
+  return { score: Math.max(0, Math.min(100, g + 맞음 + 량점 + 의도점)), why };
 }

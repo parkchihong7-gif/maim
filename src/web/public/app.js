@@ -692,6 +692,8 @@ async function refreshQueue() {
   }
 }
 
+const 레인글 = { issue: "🔥 이슈", info: "📘 정보형", general: "🧱 일반" };
+
 async function refreshHistory() {
   const items = await api("/api/history?limit=30");
   historyCache = items;
@@ -699,15 +701,47 @@ async function refreshHistory() {
   tbody.innerHTML = "";
   for (const p of items) {
     const tr = document.createElement("tr");
+    const 레인 = p.lane ? `<span class="lane-tag ${escapeHtml(p.lane)}">${레인글[p.lane] || ""}</span> ` : "";
+    const 키 = p.kw ? `<div class="muted small">키워드 «${escapeHtml(p.kw)}»${p.event_step ? ` · 🎮 ${escapeHtml(p.event_step)}단계` : ""}${p.angle ? ` · ${escapeHtml(String(p.angle).split(" — ")[0])}` : ""}</div>` : "";
+    const 쓸수 = p.status === "ready" || p.status === "published";
+    const 유입 = 쓸수
+      ? `<span class="inflow-box"><input type="number" min="0" class="inflow-input" data-id="${p.id}" value="${p.inflow ?? ""}" placeholder="—"><button class="btn-secondary kw-mini" data-action="save-inflow" data-id="${p.id}">저장</button></span>`
+      : "-";
+    const 후속 = Array.isArray(p.followups) && 쓸수 && !document.body.classList.contains("is-trial")
+      ? p.followups.map((f) => f.done
+          ? `<span class="muted small">✔ ${escapeHtml(f.name)}</span>`
+          : `<button class="btn-secondary kw-mini" data-action="follow-up" data-id="${p.id}" data-kind="${f.kind}">${escapeHtml(f.name)}</button>`).join(" ")
+      : "";
     tr.innerHTML = `
       <td>${p.id}</td>
       <td>${escapeHtml(p.category_name)}</td>
-      <td>${escapeHtml(p.title ?? "")}</td>
+      <td>${레인}${escapeHtml(p.title ?? "")}${키}</td>
       <td><span class="badge badge-${p.status}">${p.status}</span></td>
       <td>${p.published_at ?? "-"}</td>
+      <td>${유입}</td>
+      <td class="followups">${후속}</td>
       <td>${escapeHtml(p.error_message ?? "")}</td>`;
     tbody.appendChild(tr);
   }
+  레인통계그리기().catch(() => {});
+}
+
+async function 레인통계그리기() {
+  const 칸 = document.getElementById("lane-stats");
+  if (!칸) return;
+  const { lanes } = await api("/api/history/lanes");
+  const 차례 = ["issue", "info", "general"];
+  const 줄들 = 차례.map((k) => lanes.find((l) => l.lane === k) || { lane: k, posts: 0, withInflow: 0, avg: null, best: null });
+  const 최고 = Math.max(1, ...줄들.map((l) => l.avg || 0));
+  칸.innerHTML = 줄들.map((l) => `
+    <div class="lane-row">
+      <span class="lane-tag ${l.lane}">${레인글[l.lane]}</span>
+      <span class="lane-bar"><i style="width:${l.avg ? Math.round((l.avg / 최고) * 100) : 0}%"></i></span>
+      <strong>${l.avg === null ? "—" : `평균 ${숫자(l.avg)}`}</strong>
+      <span class="muted small">글 ${l.posts}편 중 ${l.withInflow}편 적음${l.best ? ` · 최고 ${숫자(l.best.inflow)} «${escapeHtml(String(l.best.title || "").slice(0, 24))}»` : ""}</span>
+    </div>`).join("")
+    + `<p class="muted small">🔥 이슈 = 급상승·출시 달력·후속·뉴스형 · 📘 정보형 = 방법·추천·공략 같은 답을 찾는 키워드 · 🧱 일반 = 그 밖.
+       적은 글이 쌓이면 어느 쪽에 힘을 줄지 보입니다.</p>`;
 }
 
 // --- 홈: 통계 카드 / 최근 활동 / 최근 발행 요약 ---
@@ -820,6 +854,7 @@ function renderHome() {
   renderHomeStats();
   renderActivityFeed();
   renderHomeHistoryTable();
+  홈알림그리기().catch(() => {});
 }
 
 async function refreshAll() {
@@ -1028,6 +1063,7 @@ async function switchView(view) {
   if (view === "settings") { await refreshSettings(); await refreshSchedule(); await refreshEngines(); await refreshErrors(); }
   if (view === "home") renderHome();
   if (view === "keywords") refreshKeywords().catch((err) => alert(err.message));
+  if (view === "events") refreshEvents().catch((err) => alert(err.message));
   if (view === "style") refreshStyle().catch((err) => alert(err.message));
   if (view === "workshop") refreshWorkshop().catch((err) => alert(err.message));
   if (view === "guide") 사용법그리기();
@@ -1290,6 +1326,77 @@ document.addEventListener("click", async (e) => {
       setTimeout(() => {
         btn.textContent = original;
       }, 1500);
+    } else if (action === "save-inflow") {
+      const 칸 = document.querySelector(`.inflow-input[data-id="${btn.dataset.id}"]`);
+      await api(`/api/posts/${btn.dataset.id}/inflow`, { method: "PUT", body: JSON.stringify({ inflow: 칸 ? 칸.value : null }) });
+      btn.textContent = "✔";
+      setTimeout(() => { btn.textContent = "저장"; }, 1200);
+      레인통계그리기().catch(() => {});
+    } else if (action === "follow-up") {
+      if (!confirm(`«${btn.textContent}» 후속 글을 만들까요? (2~5분, AI 한도를 씁니다)`)) return;
+      const 원래 = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "만드는 중… (2~5분)";
+      try {
+        const 답 = await api(`/api/posts/${btn.dataset.id}/follow-up`, { method: "POST", body: JSON.stringify({ kind: btn.dataset.kind }) });
+        alert(`✅ 후속 글이 준비됐습니다 — «${답.title || ""}»\n[포스팅] 에서 확인하세요.`);
+        await refreshAll();
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 원래;
+        throw err;
+      }
+    } else if (action === "ev-add") {
+      const 값 = {
+        title: document.getElementById("ev-title").value.trim(),
+        date: document.getElementById("ev-date").value,
+        kind: document.getElementById("ev-kind").value,
+        categoryId: Number(document.getElementById("ev-cat").value) || null,
+      };
+      await api("/api/events", { method: "POST", body: JSON.stringify(값) });
+      document.getElementById("ev-title").value = "";
+      document.getElementById("ev-msg").textContent = `«${값.title}» 를 넣었습니다. 아래 ② 에서 A~F 단계를 확인하세요.`;
+      await refreshEvents();
+    } else if (action === "ev-discover") {
+      const 칸 = document.getElementById("ev-found");
+      btn.disabled = true;
+      칸.innerHTML = '<p class="muted">🔍 AI 가 웹에서 출시 예정 게임을 찾는 중… (1~2분)</p>';
+      try {
+        const r = await api("/api/events/discover", { method: "POST", body: JSON.stringify({ hint: document.getElementById("ev-hint").value }) });
+        ev찾은것 = r.games;
+        찾은게임그리기();
+      } catch (err) {
+        칸.innerHTML = `<p class="muted">⚠ ${escapeHtml(err.message)}</p>`;
+      } finally { btn.disabled = false; }
+    } else if (action === "ev-found-add") {
+      const g = ev찾은것[Number(btn.dataset.i)];
+      if (!g) return;
+      await api("/api/events", { method: "POST", body: JSON.stringify({ ...g, categoryId: Number(document.getElementById("ev-cat").value) || null }) });
+      ev찾은것.splice(Number(btn.dataset.i), 1);
+      찾은게임그리기();
+      await refreshEvents();
+    } else if (action === "ev-gen") {
+      if (!confirm(`«${btn.dataset.title}» ${btn.dataset.key}단계 글을 만들까요? (2~5분, AI 한도를 씁니다)`)) return;
+      const 원래 = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "만드는 중… (2~5분)";
+      try {
+        const 답 = await api(`/api/events/${btn.dataset.id}/steps/${btn.dataset.key}/generate`, { method: "POST" });
+        alert(`✅ ${btn.dataset.key}단계 글이 준비됐습니다 — «${답.title || ""}»\n[포스팅] 에서 다듬어 발행하세요.`);
+        await refreshAll();
+        if (currentView === "events") await refreshEvents();
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 원래;
+        throw err;
+      }
+    } else if (action === "ev-skip") {
+      await api(`/api/events/${btn.dataset.id}/steps/${btn.dataset.key}/skip`, { method: "POST" });
+      await refreshEvents();
+    } else if (action === "ev-del") {
+      if (!confirm(`«${btn.dataset.title}» 일정을 지울까요? (만든 글은 그대로 남습니다)`)) return;
+      await api(`/api/events/${btn.dataset.id}`, { method: "DELETE" });
+      await refreshEvents();
     } else if (action === "download-image-log") {
       const token = getDashboardToken();
       const url = `/api/image-downloads/csv${token ? `?token=${encodeURIComponent(token)}` : ""}`;
@@ -2766,7 +2873,7 @@ function 보관함그리기() {
           : r.status === "hold" ? `보류 <button class="btn-secondary kw-mini" data-action="kw-unhold" data-id="${r.id}">후보로</button>`
           : `${r.keyword === 다음 ? "<strong>다음에 씀</strong>" : "대기"} <button class="btn-secondary kw-mini" data-action="kw-hold" data-id="${r.id}">보류</button>`;
         return `<tr data-action="kw-row" data-id="${r.id}" class="${r.id === kw고른줄 ? "sel" : ""}${r.status === "used" ? " used" : ""}">
-          <td><strong>${escapeHtml(r.keyword)}</strong>${r.manual ? ' <span class="kw-src">직접</span>' : ""}</td>
+          <td><strong>${escapeHtml(r.keyword)}</strong>${r.manual ? ' <span class="kw-src">직접</span>' : ""}${의도배지(r)}</td>
           <td><span class="kw-g ${r.grade}">${등급글[r.grade] || r.grade}</span></td>
           <td class="num">${숫자(r.pc + r.mobile)}</td>
           <td class="num">${r.docTotal === null ? '<span class="muted">미확인</span>' : 숫자(r.docTotal)}</td>
@@ -2778,6 +2885,28 @@ function 보관함그리기() {
       }).join("") + "</tbody>";
   }
   근거그리기();
+}
+
+/** 🔥 급상승 결과 — 보관함 밖의 말(🎮 달력 게임 이름)은 [보관함에 넣기] 로. */
+function 급상승그리기(rows) {
+  const 칸 = document.getElementById("kw-surge");
+  if (!칸) return;
+  칸.hidden = false;
+  칸.innerHTML = rows.length
+    ? `<strong>🔥 지금 뜨는 말</strong> <span class="muted small">(최근 3일 ÷ 앞 2주 · 뉴스는 최근 3일 기사 수) — 보관함 안의 말은 등급과 상관없이 다음 글에 먼저 씁니다</span>
+       <ul>${rows.map((x) => `<li><b>${escapeHtml(x.keyword)}</b> <span class="kw-tag surge">🔥 ${x.surge >= 999 ? "새로 뜸" : `+${x.surge}%`}</span>
+         ${x.news3d === null ? "" : `<span class="muted small">뉴스 ${x.news3d}건${x.newsTitle ? ` · «${escapeHtml(x.newsTitle.slice(0, 40))}»` : ""}</span>`}
+         ${x.inPool ? "" : `<button class="btn-secondary kw-mini" data-action="kwx-surge-add" data-kw="${escapeHtml(x.keyword)}">보관함에 넣기</button>`}</li>`).join("")}</ul>`
+    : `<span class="muted">지금은 급상승한 말이 없습니다. 🎮 출시 달력에 게임을 넣어 두면 그 이름도 같이 봅니다.</span>`;
+}
+
+/** 🚪 이동형 · 📘 정보형 · 🔥 급상승 배지. */
+function 의도배지(r) {
+  let 글 = "";
+  if (r.surge) 글 += ` <span class="kw-tag surge" title="최근 3일 검색이 앞 2주보다 ${r.surge}% 많음 — 등급과 상관없이 먼저 씁니다">🔥 +${r.surge}%</span>`;
+  if (r.intent === "nav") 글 += ' <span class="kw-tag nav" title="사이트·도구로 바로 가려는 말 — 메인에 떠도 블로그를 잘 안 누릅니다. 자동 글쓰기에서 뺍니다">🚪 이동형</span>';
+  if (r.intent === "info") 글 += ' <span class="kw-tag info" title="답을 찾는 말 — 블로그를 누릅니다. 같은 등급이면 먼저 씁니다">📘 정보형</span>';
+  return 글;
 }
 
 function 근거그리기() {
@@ -3518,6 +3647,16 @@ document.addEventListener("click", async (e) => {
       const r = await api(`/api/keywords/${카.id}/trend`, { method: "POST" });
       알림.textContent = `${r.done}개의 12개월 흐름을 적었습니다.${r.why ? ` 일부 실패: ${r.why}` : ""}`;
       await 보관함불러오기(카.id);
+    } else if (할일 === "kwx-surge") {
+      if (!카) return;
+      const 알림 = document.getElementById("kw-tools-msg");
+      알림.textContent = "🔥 급상승 찾는 중… (하루 단위 30일 · 몇 초~30초)";
+      const r = await api(`/api/keywords/${카.id}/surge`, { method: "POST" });
+      알림.textContent = `${r.checked}개를 봤고 🔥 ${r.rows.length}개가 급상승입니다.${r.why ? ` 일부 실패: ${r.why}` : ""}`;
+      급상승그리기(r.rows);
+      await 보관함불러오기(카.id);
+    } else if (할일 === "kwx-surge-add") {
+      await 키워드직접넣기(btn.dataset.kw, "급상승");
     } else if (할일 === "kwx-all-load") {
       kw전체 = (await api("/api/keywords/all")).items;
       전체보관함그리기();
@@ -3818,6 +3957,7 @@ const 사용법답 = {
   new: ["🐣 방금 설치했다면", ["아래 <b>✅ 처음 세팅 체크리스트</b>의 «필수» 를 위에서부터", "[지금 생성]으로 첫 글을 받아 보고 📝 포스팅에서 확인", "괜찮으면 «추천» 항목(🎨 블로그 분석 → 🔎 키워드)으로"]],
   ai: ["🤖 AI 느낌을 줄이려면", ["🎨 <b>내 블로그 분석</b> → 고쳐서 승인 → ④ 적용 체크", "③ 진단에서 «마무리가 같다» 같은 개선점 체크", "📁 카테고리 ⑦ 에서 <b>글 구성</b>을 다른 것으로 · <b>내 경험</b> 칸 채우기", "발행 전 🔎 <b>최종 검수</b> → «과장·상투 표현» 고치기 → 내 경험 한두 줄"]],
   seo: ["📈 검색에 더 잘 걸리려면", ["🔎 <b>네이버 키워드</b> → [지금 모으기] → 골드·실버가 많은 카테고리부터 ④ 적용", "보관함에서 <b>개인화 점수</b> 높은 것 · 📈 오름 키워드를 남기고 나머지는 보류", "공들일 키워드는 ✍️ <b>글 작업실</b>에서 상위 5편의 «빈틈» 을 채워 쓰기"]],
+  game: ["🎮 게임 출시·이슈로 유입을 늘리려면", ["🎮 <b>출시 달력</b> → [🔍 출시 예정 게임 찾기] 또는 직접 넣기 — A~F 단계가 날짜에 맞춰 열림", "홈 🔔 에 뜬 단계를 그날 [✍️ 글 만들기] — <b>출시 전날 C(직업 추천)</b> 가 가장 많이 찾는 때", "🔎 <b>[🔥 급상승 찾기]</b> 로 갑자기 뜬 말을 먼저 · 🚪 이동형(전적검색·사이트)은 자동으로 빠짐", "📜 발행 이력에 3일 뒤 <b>유입 수</b>를 적고 🔥·📘·🧱 평균을 비교 · 경쟁에 밀리면 [D+1·D+3 후속 글]"]],
   best: ["💎 한 편을 공들이려면", ["✍️ <b>글 작업실</b> → 보관함 키워드 고르기 → 검색 방향 1~3개", "② 상위 5개·사전 지식 → «✨ 빈틈» 을 읽고", "③ «필요한 내 자료» 에 직접 겪은 것을 적고 승인 → ④ 4구간 → 포스팅 저장 → 최종 검수"]],
   kw: ["🔎 키워드가 안 모이면", ["② 의 <b>[🩺 점검]</b> → ⚠ 줄을 캡처해서 보내 주세요", "모두 ✅ 인데 0개면 <b>[키워드 저장]</b> 칸에 넓은 말(예: 전세, 전세 계약)", "블로그 검색 ⚠ 면 ① 키 칸을 다시 확인(API HUB 의 Client ID·Secret)"]],
   none: ["🌅 아침 글이 안 쌓이면", ["⚙️ 관리자 설정 4) 맨 위 <b>⏰ 경고</b> 확인 — 자명종(Cloud Scheduler)을 한 번 걸어야 합니다", "하루 건수가 0 이 아닌지, 📁 카테고리 «활성» 이 켜졌는지", "무료 이미지 키가 1개 이상 있는지"]],
@@ -3829,6 +3969,8 @@ const 효과표 = [
   ["🎛 변주 (자동)", [1, 3, 1, 2, 0], false],
   ["📁 ⑦ 글 쓰는 방식", [1, 2, 2, 1, 0], false],
   ["🔎 키워드 보관함", [3, 0, 1, 2, 0], true],
+  ["🎮 출시 달력 A~F · 🔥 급상승", [3, 0, 1, 2, 0], true],
+  ["📊 유입 기록 · 🚪 이동형 거르기", [2, 0, 1, 1, 2], true],
   ["✍️ 글 작업실", [3, 2, 2, 0, 2], true],
   ["🔎 최종 검수", [1, 2, 1, 1, 3], false],
   ["✍️ 내 경험 한두 줄", [2, 3, 3, 0, 0], false],
@@ -3925,4 +4067,105 @@ async function 이미지칸그리기(p, 대상) {
         <button class="btn-secondary kw-mini" data-rv="img-copy" data-i="${i}">복사</button></div><pre>${escapeHtml(x.글)}</pre></div>`).join("")}</div>
     <div class="rv-img-foot"><button class="btn-secondary" data-rv="img-copy-all">모두 복사 (${이미지프롬프트목록.length}장)</button>
       <span class="muted">이 프로그램은 이미지를 만들지 않습니다 · 쓰신 이미지에는 «AI 생성 이미지» 표시를 남겨 주세요</span></div>`;
+}
+
+
+/* ── 🎮 출시 달력 ───────────────────────────────────────────────────────── */
+let ev찾은것 = [];
+const 단계상태글 = { done: "✔ 완료", skip: "건너뜀", now: "👉 지금", upcoming: "곧", passed: "지남" };
+
+async function refreshEvents() {
+  const r = await api("/api/events");
+  const 카칸 = document.getElementById("ev-cat");
+  if (카칸) {
+    const 고른 = 카칸.value;
+    카칸.innerHTML = categoriesCache.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+    if (고른) 카칸.value = 고른;
+  }
+  const 날칸 = document.getElementById("ev-date");
+  if (날칸 && !날칸.value) 날칸.value = r.today;
+  document.getElementById("ev-legend").innerHTML = r.steps.map((s) =>
+    `<span class="ev-leg"><b>${s.key}</b> ${escapeHtml(s.이름)} <span class="muted">${디데이범위(s.창)}</span></span>`).join("");
+  const 목록 = document.getElementById("ev-list");
+  목록.innerHTML = r.events.length
+    ? r.events.map(일정카드).join("")
+    : '<p class="muted">아직 넣은 게임이 없습니다. ① 에서 게임 이름과 출시일을 넣거나 [🔍 출시 예정 게임 찾기] 를 눌러 보세요.</p>';
+  if (r.past.length) 목록.innerHTML += `<details class="ev-past"><summary>지난 일정 ${r.past.length}개</summary>${r.past.map(일정카드).join("")}</details>`;
+  알림숫자(r.events);
+}
+
+function 디데이범위(창) {
+  const 글 = (n) => (n > 0 ? `D+${n}` : n === 0 ? "D-day" : `D${n}`);
+  return 창[0] === 창[1] ? 글(창[0]) : `${글(창[0])}~${글(창[1])}`;
+}
+
+function 일정카드(e) {
+  const 카 = categoriesCache.find((c) => c.id === e.categoryId);
+  const 안내 = e.now
+    ? `👉 <strong>지금 할 일: ${e.now}단계 «${escapeHtml(e.steps.find((s) => s.key === e.now).이름)}»</strong>`
+    : e.next ? `다음: <strong>${e.next.key}단계 «${escapeHtml(e.next.이름)}»</strong> — ${escapeHtml(e.next.시작)}부터`
+    : e.doneCount === 6 ? "🎉 여섯 단계를 모두 마쳤습니다" : "열린 단계가 없습니다";
+  return `<div class="ev-card">
+    <div class="ev-head">
+      <span class="ev-dday ${e.dday === 0 ? "today" : e.dday > 0 && e.dday <= 3 ? "soon" : ""}">${escapeHtml(e.ddayText)}</span>
+      <strong class="ev-title">${escapeHtml(e.title)}</strong>
+      <span class="muted small">${escapeHtml(e.date)} ${e.kind === "update" ? "업데이트" : "출시"}${카 ? ` · ${escapeHtml(카.name)}` : ""} · 완료 ${e.doneCount}/6</span>
+      <button class="btn-link ev-del" data-action="ev-del" data-id="${e.id}" data-title="${escapeHtml(e.title)}">지우기</button>
+    </div>
+    <p class="ev-guide">${안내}</p>
+    <ol class="ev-steps">${e.steps.map((s) => `
+      <li class="ev-step is-${s.상태}">
+        <span class="ev-key">${s.key}</span>
+        <div class="ev-step-body">
+          <div><strong>${escapeHtml(s.이름)}</strong> <span class="ev-state">${단계상태글[s.상태]}</span>
+            <span class="muted small">${escapeHtml(s.시작.slice(5))}${s.시작 !== s.끝 ? `~${escapeHtml(s.끝.slice(5))}` : ""}</span></div>
+          <div class="muted small">키워드 «${escapeHtml(s.키워드)}» · 제목 예: ${escapeHtml(s.제목예)}</div>
+          ${s.상태 === "done"
+            ? `<div class="small">✔ «${escapeHtml(s.postTitle || "글")}» ${s.postStatus === "published" ? "(발행함)" : "(포스팅에서 확인)"}</div>`
+            : `<div class="ev-actions">
+                <button class="${s.상태 === "now" ? "btn-primary" : "btn-secondary"} kw-mini" data-action="ev-gen" data-id="${e.id}" data-key="${s.key}" data-title="${escapeHtml(e.title)}">✍️ 글 만들기</button>
+                <button class="btn-link" data-action="ev-skip" data-id="${e.id}" data-key="${s.key}">${s.상태 === "skip" ? "되돌리기" : "건너뛰기"}</button>
+              </div>`}
+        </div>
+      </li>`).join("")}</ol>
+  </div>`;
+}
+
+function 찾은게임그리기() {
+  const 칸 = document.getElementById("ev-found");
+  if (!칸) return;
+  칸.innerHTML = ev찾은것.length
+    ? `<p class="muted small">⚠ AI 가 웹에서 찾은 날짜입니다 — 공식 발표를 한 번 확인한 뒤 넣으세요.</p>
+       <ul class="ev-found-list">${ev찾은것.map((g, i) => `<li><strong>${escapeHtml(g.title)}</strong> · ${escapeHtml(g.date)} ${g.kind === "update" ? "업데이트" : "출시"}
+         ${g.platform ? `<span class="muted small">${escapeHtml(g.platform)}</span>` : ""}
+         <span class="muted small">${escapeHtml(g.note || "")} ${g.source ? `(${escapeHtml(g.source)})` : ""}</span>
+         <button class="btn-secondary kw-mini" data-action="ev-found-add" data-i="${i}">달력에 넣기</button></li>`).join("")}</ul>`
+    : '<p class="muted">새로 찾은 게임이 없습니다 (이미 달력에 있거나, 날짜가 공식 발표된 것이 없음).</p>';
+}
+
+function 알림숫자(events) {
+  const n = events.filter((e) => e.now).length;
+  const 배지 = document.getElementById("nav-events-count");
+  if (!배지) return;
+  배지.hidden = !n;
+  배지.textContent = n;
+}
+
+/** 🔔 홈 — 오늘 할 단계(열린 것)와 3일 안에 열릴 단계. */
+async function 홈알림그리기() {
+  const 칸 = document.getElementById("home-events");
+  if (!칸 || document.body.classList.contains("is-trial")) return;
+  const r = await api("/api/events/today");
+  const 지금 = r.items.filter((x) => x.when === "now");
+  const 곧 = r.items.filter((x) => x.when === "soon");
+  const 배지 = document.getElementById("nav-events-count");
+  if (배지) { 배지.hidden = !지금.length; 배지.textContent = 지금.length; }
+  if (!r.items.length) { 칸.hidden = true; return; }
+  칸.hidden = false;
+  칸.innerHTML = `<div class="card-header"><h2>🔔 오늘의 게임 포스팅</h2><a href="#" data-action="switch-view" data-view="events">출시 달력 →</a></div>
+    ${지금.map((x) => `<div class="home-ev now"><span class="ev-dday ${x.ddayText === "D-day" ? "today" : "soon"}">${escapeHtml(x.ddayText)}</span>
+      <strong>${escapeHtml(x.title)}</strong> — ${x.key}단계 «${escapeHtml(x.이름)}» <span class="muted small">키워드 «${escapeHtml(x.키워드)}» · ${escapeHtml(x.끝.slice(5))}까지</span>
+      <button class="btn-primary kw-mini" data-action="ev-gen" data-id="${x.eventId}" data-key="${x.key}" data-title="${escapeHtml(x.title)}">✍️ 글 만들기</button></div>`).join("")}
+    ${곧.map((x) => `<div class="home-ev soon"><span class="ev-dday">${escapeHtml(x.ddayText)}</span>
+      <strong>${escapeHtml(x.title)}</strong> — 곧 ${x.key}단계 «${escapeHtml(x.이름)}» <span class="muted small">${escapeHtml(x.시작.slice(5))}부터</span></div>`).join("")}`;
 }

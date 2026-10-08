@@ -16,6 +16,9 @@ import { 보관함개수, 보관함목록, 다음키워드, 키워드상태 } fr
 import { 키워드모으기, 모으기진행보기, 모으기멈추기, 씨앗뽑기, 모으기한도ms, 직접씨앗, 키워드하나넣기 } from "../../naver/키워드모으기.js";
 import { 전체보관함, 트렌드적기, type 보관키워드 } from "../../db/repositories/keywordPool.js";
 import { 개인화점수, 내낱말 } from "../../naver/개인화점수.js";
+import { 의도보기 } from "../../naver/키워드점수.js";
+import { 급상승찾기 } from "../../naver/급상승.js";
+import { 다가오는일정말 } from "../../db/repositories/gameEvents.js";
 import { 쓰는스타일 } from "../../pipeline/내스타일.js";
 import { 검색어트렌드 } from "../../naver/검색어트렌드.js";
 import { 블로그검색 as 블로그찾기, 뉴스검색 } from "../../naver/블로그검색.js";
@@ -48,6 +51,9 @@ function 줄모양(r: 보관키워드, 낱말: string[]) {
     status: r.status, fetchedAt: r.fetched_at, usedAt: r.used_at,
     top: top.slice(0, 3).map((t) => t.title),
     score: 점.score, scoreWhy: 점.why, trend,
+    intent: 의도보기(r.keyword),
+    surge: r.surge_pct ?? null,
+    surgeInfo: (() => { try { return JSON.parse(r.surge_json ?? "null"); } catch { return null; } })(),
   };
 }
 
@@ -225,6 +231,17 @@ export async function keywordsRoutes(app: FastifyInstance) {
     }
     if (!한 && 까닭) { reply.code(502); return { error: 까닭 }; }
     return { ok: true, done: 한, why: 까닭 || null };
+  });
+
+  // 🔥 급상승 찾기(B) — 보관함 대기 키워드 + 🎮 달력의 다가오는 게임 이름을 일 단위로.
+  app.post("/api/keywords/:id/surge", async (req, reply) => {
+    if (막기(reply)) return { error: 체험은못함 };
+    const id = Number((req.params as { id: string }).id);
+    if (!getCategory(id)) { reply.code(404); return { error: "카테고리를 찾을 수 없습니다." }; }
+    if (키없음()) { reply.code(409); return { error: "네이버 키가 아직 없습니다. ① 네이버 연결에서 넣어 주세요." }; }
+    const 답 = await 급상승찾기(id, 다가오는일정말(id));
+    if (!답.checked && 답.why) { reply.code(502); return { error: 답.why }; }
+    return { ok: true, ...답 };
   });
 
   // 전체 보관함 — 모든 카테고리. 화면이 CSV 로 내려받는다.

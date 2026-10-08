@@ -23,6 +23,8 @@ export interface 글옵션 {
   내스타일?: string;
   /** 변주 블록 (src/pipeline/변주.ts) — 최근 글과 다른 도입·소제목·마무리 */
   변주?: string;
+  /** 레인(🔥 이슈·📘 정보형)·각도·🎮 일정 규칙 (src/pipeline/글전략.ts). 없으면 예전과 같다 */
+  전략?: string;
 }
 
 export function buildPostPrompt(
@@ -119,7 +121,7 @@ ${blogProfileBlock}
 카테고리 설명: ${category.prompt_hint}
 ${searchInstruction}
 ${topicKeywordBlock}
-${옵션.키워드자료 ? `${옵션.키워드자료}\n` : ""}${categoryUrlBlock}
+${옵션.키워드자료 ? `${옵션.키워드자료}\n` : ""}${옵션.전략 ? `${옵션.전략}\n` : ""}${categoryUrlBlock}
 ${recentTitlesBlock}
 ${buildStyleRulesBlock(directive)}
 ${옵션.내스타일 ? `${옵션.내스타일}\n` : ""}${글방식블록(category)}

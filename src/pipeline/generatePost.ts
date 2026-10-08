@@ -18,8 +18,11 @@ import { 보관함키워드고르기 } from "../naver/보관함사용.js";
 import { 적용할스타일블록 } from "./내스타일.js";
 import { 변주고르기, 변주블록, 변주요약, 최근모양보기 } from "./변주.js";
 import { 변주적기 } from "../db/repositories/posts.js";
-import { 키워드썼음 } from "../db/repositories/keywordPool.js";
+import { 키워드썼음, 급상승살아있나 } from "../db/repositories/keywordPool.js";
 import { 분량고르기 } from "../claude/글방식.js";
+import { 레인정하기, 전략블록, type 글주문, type 레인 } from "./글전략.js";
+import { 글전략적기 } from "../db/repositories/posts.js";
+import { 의도보기 } from "../naver/키워드점수.js";
 
 // 목표 분량(2500~4500자)에 못 미치더라도 최소한 이 정도는 되어야 재시도 없이 통과시킨다.
 // 최소 분량은 **화면에서 정하신다.** 예전에는 2000 이 코드에 박혀 있어서,
@@ -61,6 +64,8 @@ export interface 생성기록 {
   스타일버전?: number;
   /** 이번 글의 변주(도입·소제목·이모지·목록·장치·리듬·마무리) 한 줄 */
   변주?: string;
+  /** 🔥 이슈 · 📘 정보형 · 🧱 일반 */
+  레인?: 레인;
 }
 
 export function 빈기록(): 생성기록 {
@@ -68,14 +73,16 @@ export function 빈기록(): 생성기록 {
 }
 
 /** 카테고리 1개에 대해 조사 → 글쓰기로 draft 포스팅 1건을 생성한다. */
-export async function generatePost(category: Category, directive: PostDirective, 기록: 생성기록 = 빈기록()): Promise<Post> {
+export async function generatePost(category: Category, directive: PostDirective, 기록: 생성기록 = 빈기록(), 주문?: 글주문): Promise<Post> {
   const 시작 = Date.now();
+  // 🎮 달력 단계·후속 글처럼 키워드를 정해 들어오면 보관함보다 먼저 — 이 글에서만.
+  if (주문?.키워드?.trim()) category = { ...category, topic_keyword: 주문.키워드.trim() };
 
   // ── 0) 🔎 보관함 키워드 — [포스팅에 적용] 을 켠 카테고리만 ──────────
   // 네이버를 부르지 않고 미리 모아 둔 표만 읽는다. 끈 카테고리·주제 키워드를
   // 직접 적은 카테고리·보관함이 빈 카테고리는 null 이 와서 예전과 똑같다.
   // 고른 키워드는 **이 글에서만** 주제 키워드 자리에 넣는다(카테고리 칸은 그대로).
-  const 보관 = 보관함키워드고르기(category);
+  const 보관 = 주문?.키워드?.trim() ? null : 보관함키워드고르기(category);
   기록.키워드출처 = 보관 ? "보관함" : (category.topic_keyword ?? "").trim() ? "직접" : "AI";
   if (보관) {
     기록.보관키워드 = 보관.kw.keyword;
@@ -155,11 +162,16 @@ export async function generatePost(category: Category, directive: PostDirective,
     변주글 = 변주블록(변주, 모양);
     기록.변주 = 변주요약(변주);
   } catch (err) { console.warn(`[변주] 건너뜀: ${(err as Error).message}`); }
+  // 레인과 그 쓰기 규칙(F) — 🔥 이슈는 답부터·날짜 밝히기, 📘 정보형은 결론부터·숫자 제목.
+  const 레인값 = 레인정하기(주문, 보관 ? { surge: 급상승살아있나(보관.kw) ? 보관.kw.surge_pct : null, info: 의도보기(보관.kw.keyword) === "info" } : null,
+    category.requires_search === 1);
+  기록.레인 = 레인값;
+  const 전략 = 전략블록(레인값, (category.topic_keyword ?? "").trim(), today, 주문);
   const 내스타일 = 적용할스타일블록();
   if (내스타일) 기록.스타일버전 = 내스타일.ver;
   const prompt = buildPostPrompt(category, directive, today, recentTitles, blogProfileBlock,
     { 블로그메모, 카테고리메모, 최근소식, 조사실패: 조사실패 && (소식찾기 || 블로그읽기 || 카테고리읽기),
-      키워드자료: 보관?.자료, 내스타일: 내스타일?.블록, 변주: 변주글 });
+      키워드자료: 보관?.자료, 내스타일: 내스타일?.블록, 변주: 변주글, 전략 });
   const 글시작 = Date.now();
   const 다시 = 기록.다시;
 
@@ -253,6 +265,12 @@ export async function generatePost(category: Category, directive: PostDirective,
   });
 
   if (변주) { try { 변주적기(post.id, 변주); } catch { /* 기록 못 해도 글은 그대로 */ } }
+  try {
+    글전략적기(post.id, {
+      lane: 레인값, kw: (category.topic_keyword ?? "").trim() || parsed.post.keyword || "",
+      angle: 주문?.각도 ?? null, eventId: 주문?.이벤트?.id ?? null, eventStep: 주문?.이벤트?.step ?? null,
+    });
+  } catch { /* 기록 못 해도 글은 그대로 */ }
   markCategoryUsed(category.id);
   // 글이 나왔으니 그 키워드는 «씀» — 다음 글은 그다음 키워드로. 여기서 탈이
   // 나도 글은 이미 저장됐다. 놓치면 다음에 같은 키워드가 한 번 더 나올 뿐이다.

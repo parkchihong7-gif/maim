@@ -26,6 +26,15 @@ export interface Post {
   final_at?: string | null;
   review_json?: string | null;
   review_count?: number;
+  /** 🔥 issue · 📘 info · 🧱 general */
+  lane?: string | null;
+  kw?: string | null;
+  angle?: string | null;
+  /** 사장님이 적은 유입 수 */
+  inflow?: number | null;
+  inflow_at?: string | null;
+  event_id?: number | null;
+  event_step?: string | null;
 }
 
 export function insertDraftPost(input: {
@@ -172,4 +181,32 @@ export function 최근글들(limit = 8): { content: string; final_content: strin
 
 export function 변주적기(postId: number, 값: unknown): void {
   getDb().prepare("UPDATE posts SET variation_json = ? WHERE id = ? AND owner_key = ?").run(JSON.stringify(값), postId, 지금주인());
+}
+
+/** 이 글의 레인·키워드·각도·🎮 일정 단계를 적는다. */
+export function 글전략적기(postId: number, 값: { lane: string; kw: string; angle?: string | null; eventId?: number | null; eventStep?: string | null }): void {
+  getDb().prepare("UPDATE posts SET lane = ?, kw = ?, angle = ?, event_id = ?, event_step = ? WHERE id = ? AND owner_key = ?")
+    .run(값.lane, 값.kw || null, 값.angle ?? null, 값.eventId ?? null, 값.eventStep ?? null, postId, 지금주인());
+}
+
+/** 유입 수 — 네이버 블로그 통계는 공개 API 가 없어 사장님이 적는다. null 이면 지운다. */
+export function 유입적기(postId: number, 수: number | null): boolean {
+  const r = getDb().prepare("UPDATE posts SET inflow = ?, inflow_at = ? WHERE id = ? AND owner_key = ?")
+    .run(수, 수 === null ? null : new Date().toISOString(), postId, 지금주인());
+  return r.changes > 0;
+}
+
+/** 레인별 유입 — 적은 글만 센다. */
+export function 레인통계(): { lane: string; posts: number; withInflow: number; avg: number | null; best: { id: number; title: string; inflow: number } | null }[] {
+  const db = getDb();
+  const 줄들 = db.prepare(
+    `SELECT COALESCE(lane, 'general') AS lane, COUNT(*) AS posts, COUNT(inflow) AS withInflow, AVG(inflow) AS avg
+     FROM posts WHERE owner_key = ? AND status IN ('ready','published') GROUP BY COALESCE(lane, 'general')`,
+  ).all(지금주인()) as { lane: string; posts: number; withInflow: number; avg: number | null }[];
+  return 줄들.map((r) => {
+    const best = db.prepare(
+      "SELECT id, title, inflow FROM posts WHERE owner_key = ? AND COALESCE(lane,'general') = ? AND inflow IS NOT NULL ORDER BY inflow DESC LIMIT 1",
+    ).get(지금주인(), r.lane) as { id: number; title: string; inflow: number } | undefined;
+    return { ...r, avg: r.avg === null ? null : Math.round(r.avg), best: best ?? null };
+  });
 }
