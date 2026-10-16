@@ -437,10 +437,36 @@ function 주제칸맞추기() {
 }
 window.addEventListener("resize", () => { if (categoriesCache.length) 주제칸맞추기(); });
 
+/**
+ * 🎮 게임 블로그인가 — 출시 달력처럼 게임에만 맞는 기능은 그때만 보인다.
+ * 판매용으로 산 분이 게임과 상관없는 블로그를 쓰면 메뉴에서 아예 안 보인다.
+ *   - 관리자 설정 2) 블로그 주제에 «게임» 이 들어 있거나
+ *   - 블로그 관리에 주제·설명·주제 키워드에 «게임» 이 들어간 카테고리가 있으면
+ */
+let 게임블로그주제 = false;
+function 게임말(글) { return /게임|game/i.test(String(글 || "")); }
+function 게임모드맞추기() {
+  // 설치하면 깔리는 기본 카테고리 «게임 웹진» 을 손대지 않은 채 두었으면 세지 않는다 —
+  // 그것만으로 모든 구매자에게 게임 메뉴가 뜨면 안 된다.
+  const 손안댄기본 = (c) => c.name === "게임 웹진" && c.prompt_hint === "최신 게임 업계 소식과 신작 정보를 다룬다." && !c.topic_keyword;
+  const 켜짐 = 게임블로그주제
+    || (categoriesCache || []).some((c) => !손안댄기본(c) && (게임말(c.name) || 게임말(c.prompt_hint) || 게임말(c.topic_keyword)));
+  const 바뀜 = document.body.classList.contains("game-mode") !== 켜짐;
+  document.body.classList.toggle("game-mode", 켜짐);
+  if (!켜짐 && currentView === "events") switchView("home");
+  if (바뀜 && document.getElementById("guide-matrix")) { try { 사용법그리기(); } catch { /* 사용법 화면이 아직 없으면 넘어간다 */ } }
+}
+function 게임주제읽기(s) {
+  const 주제들 = Array.isArray(s.blog_topics) ? s.blog_topics : [];
+  게임블로그주제 = s.blog_topic === "game" || 게임말(s.blog_topic_label) || 주제들.some(게임말);
+  게임모드맞추기();
+}
+
 async function refreshCategories() {
   const categories = await api("/api/categories");
   categoriesCache = categories;
   renderCategories(categories);
+  게임모드맞추기();
   await 하루치예고();
 }
 
@@ -1665,6 +1691,8 @@ function safeRefreshAll() {
 
 safeRefreshAll();
 setInterval(safeRefreshAll, 15000);
+// 🎮 게임 전용 메뉴를 보일지 — 블로그 주제를 처음에 한 번 읽는다(카테고리는 위 새로고침이 본다).
+api("/api/settings").then(게임주제읽기).catch(() => { /* 못 읽으면 카테고리로만 판단 */ });
 
 // 홈 화면의 "AI 연결 상태" 카드가 처음부터 정확한 값을 보여주도록, 설정
 // 섹션을 열기 전이라도 한 번 가볍게 불러와둔다(전부 로컬 DB 조회라 저렴함).
@@ -2456,6 +2484,7 @@ const 주소안내 = {
 };
 
 function 블로그정보받기(s) {
+  게임주제읽기(s);
   블로그정보.type = s.blog_type === "business" ? "business" : "personal";
   블로그정보.topics = Array.isArray(s.blog_topics) ? [...s.blog_topics] : [];
   블로그정보.links = Array.isArray(s.blog_links) ? s.blog_links.map((l) => ({ ...l })) : [];
@@ -3969,7 +3998,8 @@ const 효과표 = [
   ["🎛 변주 (자동)", [1, 3, 1, 2, 0], false],
   ["📁 ⑦ 글 쓰는 방식", [1, 2, 2, 1, 0], false],
   ["🔎 키워드 보관함", [3, 0, 1, 2, 0], true],
-  ["🎮 출시 달력 A~F · 🔥 급상승", [3, 0, 1, 2, 0], true],
+  ["🎮 출시 달력 A~F", [3, 0, 1, 2, 0], true, "game"],
+  ["🔥 급상승 찾기", [3, 0, 1, 2, 0], true],
   ["📊 유입 기록 · 🚪 이동형 거르기", [2, 0, 1, 1, 2], true],
   ["✍️ 글 작업실", [3, 2, 2, 0, 2], true],
   ["🔎 최종 검수", [1, 2, 1, 1, 3], false],
@@ -3993,7 +4023,7 @@ function 사용법그리기() {
   const 점 = (n) => (n === 0 ? '<span class="muted">–</span>' : "●".repeat(n) + '<span class="guide-off">' + "○".repeat(3 - n) + "</span>");
   const 이름 = ["검색 노출", "AI 느낌 줄이기", "내 블로그다움", "시간 절약", "실수 막기"];
   const 체험 = document.body.classList.contains("is-trial");
-  document.getElementById("guide-matrix").innerHTML = 효과표.filter(([, , 주인만]) => !(체험 && 주인만)).map(([기능, 값]) =>
+  document.getElementById("guide-matrix").innerHTML = 효과표.filter(([, , 주인만, 게임]) => !(체험 && 주인만) && (!게임 || document.body.classList.contains("game-mode"))).map(([기능, 값]) =>
     `<tr><td>${기능}</td>${값.map((n, i) => `<td class="guide-dot" title="${이름[i]}: ${["상관없음", "조금", "보통", "크게"][n]}" aria-label="${이름[i]} ${["상관없음", "조금", "보통", "크게"][n]}">${점(n)}</td>`).join("")}</tr>`).join("");
   체크리스트그리기();
 }

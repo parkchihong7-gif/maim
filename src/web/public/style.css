@@ -2150,3 +2150,6 @@ td.followups .kw-mini { margin: 2px 0; }
 .home-events .home-ev { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 0; border-top: 1px solid var(--border); }
 .home-events .home-ev:first-of-type { border-top: 0; }
 .home-events .home-ev .kw-mini { margin-left: auto; }
+
+/* 🎮 출시 달력 등 게임 전용 — 게임 블로그일 때만 (app.js 게임모드맞추기) */
+body:not(.game-mode) [data-game-only] { display: none !important; }
