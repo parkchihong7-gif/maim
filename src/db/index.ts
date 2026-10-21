@@ -169,6 +169,7 @@ function runMigrations(database: Database.Database) {
   칸붙이기(database, "posts", "source", "TEXT");                // 'game' = 퀘스트 공략 글
   칸붙이기(database, "posts", "game_quest_id", "INTEGER");
   칸붙이기(database, "categories", "game_id", "TEXT");          // 연결 게임 — 있으면 무료 이미지 대신 내 캡처
+  칸붙이기(database, "game_shots", "window_title", "TEXT");     // 단축키로 찍은 창의 제목 — «기타» 를 게임으로 등록할 때 씀
 
   database.exec(`
     CREATE INDEX IF NOT EXISTS idx_categories_owner ON categories (owner_key);

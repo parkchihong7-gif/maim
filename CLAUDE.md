@@ -71,8 +71,8 @@ src/pipeline/           generatePost·조사·자료메모·attachImage·directi
 src/claude/             promptBuilder·blogProfile·제목규칙·parseResponse·styleRules·검색노출규칙
 src/ai/                 engines·run      src/images/  searchImages·selectImage·processImage
 src/scheduler/          dailyJob(아침 6시)·예약·시간예상·cron·죽은자리치우기
-src/persistence/        gcsState         tools/  fake-claude.mjs(시험용 가짜 AI)·건지기.py·게임시험.mjs
-src/game/ · routes/game.ts · agent/   🕹️ 게임 플레이(주인 전용) — GAME_PLAN.md 15번, docs/game/인수인계.md
+src/persistence/        gcsState         tools/  fake-claude.mjs(시험용 가짜 AI)·건지기.py
+src/game/ · routes/game.ts · agent/   🕹️ 게임 스샷(관리자 전용, 단축키 스샷 → 글에 3장) — docs/game/게임스샷.md
 ```
 주요 API: `POST /api/run/generate`(지금 생성, 응답에 `timing`) · `POST /api/run/daily` · `GET/POST/PUT/DELETE /api/categories`
 · `POST /api/categories/:id/brief-reset` · `GET /api/queue` · `POST /api/posts/:id/regenerate-image|mark-published`

@@ -662,9 +662,9 @@ async function refreshQueue() {
             ${anyAlt ? `<p class="muted post-image-hint">💡 이미지를 네이버 에디터에 붙여넣은 뒤, 위 파란 박스 안의 문구를 복사해 에디터의 "대체텍스트" 입력란에 붙여넣으면 검색엔진이 이미지 내용을 인식하는 데 도움이 됩니다.</p>` : ""}
           </div>`
         : `<div class="post-images-section"><p class="muted">이미지 없음</p></div>`;
-    // 🕹️ 게임 연결 카테고리는 캡처가 모자라도 무료 이미지로 채우지 않는다 — 빈 자리를 알려 준다(15-8).
+    // 🕹️ 게임 연결 카테고리는 스샷이 모자라도 무료 이미지로 채우지 않는다 — 빈 자리를 알려 준다.
     const 캡처부족 = p.category_game_id && imagePaths.length < 3
-      ? `<p class="g-shortage">📷 캡처 부족 (${imagePaths.length}/3) — [🕹️ 내 게임 캡처에서 고르기] 로 직접 고르거나 집 PC에서 더 찍어 주세요.</p>` : "";
+      ? `<p class="g-shortage">📷 스샷 부족 (${imagePaths.length}/3) — 게임에서 단축키로 더 찍은 뒤 [+ 스샷 더 넣기], 또는 [🔄 스샷 바꾸기] 로 직접 고르세요.</p>` : "";
 
     const checklistHtml = `<div class="post-quality-checklist">${buildQualityChecklist(p)
       .map((item) => `<span class="badge ${item.ok ? "badge-active" : "badge-failed"}">${item.ok ? "✅" : "⚠"} ${escapeHtml(item.label)}</span>`)
@@ -708,8 +708,8 @@ async function refreshQueue() {
       <div class="post-card-actions">
         <button class="btn-secondary" data-action="copy" data-id="${p.id}" title="제목 + 본문 + 태그를 한꺼번에">전체 복사하기</button>
         ${p.category_game_id
-          ? `<button class="btn-secondary" data-action="g-shots-auto" data-id="${p.id}" title="무료 이미지는 찾지 않습니다">캡처 다시 고르기(AI)</button>
-             <button class="btn-secondary" data-action="g-shots-pick" data-id="${p.id}" data-game="${escapeHtml(p.category_game_id)}">🕹️ 내 게임 캡처에서 고르기</button>`
+          ? `<button class="btn-secondary" data-action="g-shots-auto" data-id="${p.id}" title="이 게임에서 아직 안 쓴 최근 스샷 3장을 뒤에 더합니다">+ 스샷 더 넣기</button>
+             <button class="btn-secondary" data-action="g-shots-pick" data-id="${p.id}" data-game="${escapeHtml(p.category_game_id)}">🔄 스샷 바꾸기</button>`
           : `<button class="btn-secondary" data-action="regenerate-image" data-id="${p.id}">이미지 재생성</button>`}
         <button class="btn-secondary" data-action="mobile-preview" data-id="${p.id}" title="휴대폰 네이버 앱에서 대략 어떻게 보일지">📱 미리보기</button>
         <button class="btn-secondary" data-action="review-open" data-id="${p.id}" title="AI 가 사실·숫자·경험·과장을 표시 → 고쳐서 최종본으로">🔎 최종 검수</button>

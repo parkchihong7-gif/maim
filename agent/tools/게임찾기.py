@@ -3,7 +3,7 @@
 게임(또는 런처)을 한 번 직접 켜 둔 뒤:
   python tools/게임찾기.py              보이는 창 전부
   python tools/게임찾기.py Aniimo 도깨비  이 말이 들어간 창만
-→ «창제목» 과 «실행 파일» 을 프로필에 올릴 때 쓴다(tools/프로필올리기.py).
+→ 대시보드 [🕹️ 게임 스샷 → 게임 목록] 의 «창 제목 글자» 를 정할 때 쓴다.
 """
 
 from __future__ import annotations

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# 🕹️ 게임 플레이 기능을 운영 서버(Cloud Run «maim»)에 올린다 — Cloud Shell 에서 사장님이 실행.
+# 🕹️ 게임 스샷 기능을 운영 서버(Cloud Run «maim»)에 올린다 — Cloud Shell 에서 사장님이 실행.
 #
 #   bash ~/maim/deploy/게임배포.sh
 #
 # 하는 일 (몇 번을 돌려도 같다):
-#   1) 저장소를 게임 플레이 브랜치로 맞춘다
+#   1) 저장소를 게임 스샷 브랜치로 맞춘다
 #   2) 게임 사진 전용 저장통이 없으면 만든다 (이름: <프로젝트>-game-shots, 공개 안 함)
 #   3) Cloud Run 서비스 계정에 그 저장통 쓰기 권한 + 서명 주소 권한
 #   4) 집 PC 연결 토큰(GAME_AGENT_TOKEN)이 서버에 없으면 새로 만든다 — 값은 ~/maim-game-agent-token.txt 에만 남긴다
@@ -69,4 +69,4 @@ URL="$(gcloud run services describe "$SERVICE" --region="$REGION" --format='valu
 echo
 echo "✅ 끝 — $URL"
 echo "   빌드 시각 확인: curl -s $URL/api/health | head -c 200"
-echo "   대시보드 새로고침(Ctrl+F5) → 왼쪽 메뉴 🕹️ 게임 플레이"
+echo "   대시보드 새로고침(Ctrl+F5) → 왼쪽 메뉴 🕹️ 게임 스샷"

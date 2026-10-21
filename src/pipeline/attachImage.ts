@@ -41,12 +41,12 @@ export function 사진고르기시간(지난ms: number): number {
  * 생성)면 요청한 개수만큼 새로 만들어 통째로 교체한다.
  */
 export async function attachImage(post: Post, options: AttachImageOptions = {}): Promise<string[]> {
-  // 🕹️ 게임을 연결한 카테고리는 무료 이미지를 찾지 않고 내 게임 캡처만 쓴다(GAME_PLAN 15-8).
-  // 모자라면 빈 자리로 둔다 — 카드에 «캡처 부족» 이 뜬다.
-  // 판매용·체험 접속키로 만든 글은 예전처럼 무료 이미지 — 게임 캡처는 관리자 접속에서만 쓴다.
+  // 🕹️ 게임을 연결한 카테고리는 무료 이미지를 찾지 않고 내 게임 스샷만 쓴다 — 안 쓴 최근 것부터.
+  // 모자라면 빈 자리로 둔다 — 카드에 «스샷 부족» 이 뜬다.
+  // 판매용·체험 접속키로 만든 글은 예전처럼 무료 이미지 — 게임 스샷은 관리자 접속에서만 쓴다.
   const 카테고리 = getCategory(post.category_id);
   if (카테고리?.game_id && 관리자인가()) {
-    await pickGameShots(post, 카테고리.game_id, { count: options.count ?? 3, append: options.append, selectTimeoutMs: options.selectTimeoutMs });
+    await pickGameShots(post, 카테고리.game_id, { count: options.count ?? 3, append: options.append });
     return getImagePaths(getPost(post.id)!);
   }
   if (!post.image_query) {

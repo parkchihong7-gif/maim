@@ -31,7 +31,7 @@ $url = $url.TrimEnd('/')
 [Environment]::SetEnvironmentVariable('MAIM_SERVER_URL', $url, 'User'); $env:MAIM_SERVER_URL = $url
 
 Write-Host "`n[4/5] 집 PC 연결 토큰" -ForegroundColor Cyan
-Write-Host "  대시보드 [🕹️ 게임 플레이 → 설정 → 🔑 집 PC 연결] 에서 [📋 복사] 한 것을 붙여 넣으세요(마우스 오른쪽 클릭 = 붙여넣기)."
+Write-Host "  대시보드 [🕹️ 게임 스샷 → 설정 → 🔑 집 PC 연결] 에서 [📋 복사] 한 것을 붙여 넣으세요(마우스 오른쪽 클릭 = 붙여넣기)."
 $cur = [Environment]::GetEnvironmentVariable('MAIM_GAME_AGENT_TOKEN', 'User')
 $prompt = if ($cur) { "  토큰 (그냥 Enter = 지금 것 그대로)" } else { "  토큰" }
 $sec = Read-Host $prompt -AsSecureString
@@ -55,7 +55,7 @@ Write-Host "`n연결 시험" -ForegroundColor Cyan
 & $py @pyArgs "$agent\main.py" --연결시험
 if ($LASTEXITCODE -eq 0) {
   Write-Host "`n✅ 준비 끝. 이제 집 PC 의 Claude Code 에 이렇게 말하세요:" -ForegroundColor Green
-  Write-Host '   docs/game/집PC-클로드.md 를 읽고 «클로드가 할 일» 을 순서대로 진행해 줘'
+  Write-Host '   바탕화면 «maim 게임 켜기» 를 켜고 게임에서 F9 — 대시보드 [🕹️ 게임 스샷] 에 쌓입니다'
 } else {
   Write-Host "`n연결이 안 됐습니다. 위 ❌ 문구를 Claude 에 보여 주세요." -ForegroundColor Yellow
 }
