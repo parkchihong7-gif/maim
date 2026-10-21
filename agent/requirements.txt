@@ -1,0 +1,9 @@
+mss>=9.0
+pillow>=10.0
+imagehash>=4.3
+pywin32>=306
+keyboard>=0.13
+requests>=2.31
+pyyaml>=6.0
+# 감독 모드에서만 쓴다. 기록 모드는 이 모듈을 불러오지 않는다.
+pydirectinput>=1.0.4

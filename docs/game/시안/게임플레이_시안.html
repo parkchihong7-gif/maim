@@ -1,0 +1,833 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>게임 플레이 시안</title>
+<style>
+/* ── maim 운영 style.css 의 토큰·클래스를 그대로 옮겨 왔다(2026-10-20 운영 서버 기준) ── */
+:root{
+  color-scheme: light;
+  --bg:#f7f8fa; --bg-elevated:#fff; --bg-card:#f7f8fa; --bg-sunk:#eef0f4; --border:#e4e7ec;
+  --text:#14161a; --text-muted:#545c6b; --text-faint:#8b93a1;
+  --gold:#1f5eff; --gold-hover:#1747c4; --gold-text:#fff; --gold-soft:#eaf0ff;
+  --success:#0f8a4f; --success-bg:#e7f6ee; --success-line:#b7e3cb;
+  --danger:#c1341f; --danger-bg:#fdeceb; --danger-line:#f3c3bd;
+  --info:#1f5eff; --info-bg:#eaf0ff; --info-line:#c3d5ff;
+  --violet:#6b3fb5; --violet-bg:#f1ebfb;
+  --todo:#a8660a; --todo-bg:#fdf3e3; --todo-line:#f0d5a8;
+  --sidebar-bg:#fff; --sidebar-width:250px; --radius:10px;
+}
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic","Noto Sans KR",sans-serif;margin:0;font-size:15px;line-height:1.65;word-break:keep-all;background:var(--bg);color:var(--text)}
+.app-shell{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-width);flex-shrink:0;background:var(--sidebar-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sidebar-brand{display:flex;align-items:center;gap:10px;padding:0 20px 18px;margin-bottom:12px;border-bottom:1px solid var(--border)}
+.sidebar-brand-mark{width:32px;height:32px;border-radius:9px;background:var(--gold);color:var(--gold-text);display:flex;align-items:center;justify-content:center;font-weight:800}
+.sidebar-brand-name{font-weight:700;font-size:1.05rem}
+.sidebar-nav{display:flex;flex-direction:column;gap:2px;padding:0 10px}
+.sidebar-nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;background:transparent;border:none;color:var(--text-muted);font-size:.88rem;font-weight:500;text-align:left;width:100%}
+.sidebar-nav-item.active{background:var(--gold-soft);color:var(--gold);font-weight:700}
+.sidebar-nav-item .new{margin-left:auto;font-size:.68rem;background:var(--violet-bg);color:var(--violet);border-radius:999px;padding:1px 8px;font-weight:700}
+.main-content{flex:1;min-width:0;padding:28px 32px 72px;max-width:1180px}
+.page-header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:24px}
+.page-header h1{font-size:1.5rem;margin:0 0 6px;font-weight:700}
+.page-header p{margin:0}
+.page-header-actions{display:flex;gap:10px;flex-wrap:wrap}
+.card{margin-bottom:24px;padding:20px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap}
+.card-header h2{margin:0;font-size:1.08rem}
+.card-header a{font-size:.82rem;color:var(--gold-hover);text-decoration:none}
+.muted{color:var(--text-muted)} .faint{color:var(--text-faint)}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:18px}
+.stat-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.stat-card-label{font-size:.8rem;color:var(--text-muted)}
+.stat-card-value{font-size:1.75rem;font-weight:700}
+.stat-card-sub{margin:4px 0 0;font-size:.78rem;color:var(--text-muted)}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--border);vertical-align:middle}
+th{color:var(--text-muted);font-weight:600;font-size:.8rem;letter-spacing:.04em}
+.badge{display:inline-block;padding:3px 12px;border-radius:999px;background:var(--info-bg);color:var(--info);font-size:.78rem;font-weight:600;white-space:nowrap}
+.badge-active{background:var(--success-bg);color:var(--success)}
+.badge-inactive{background:var(--bg-sunk);color:var(--text-muted)}
+.badge-todo{background:var(--todo-bg);color:var(--todo)}
+.badge-failed{background:var(--danger-bg);color:var(--danger)}
+.badge-violet{background:var(--violet-bg);color:var(--violet)}
+button{cursor:pointer;font-family:inherit;font-size:.85rem;font-weight:600;padding:8px 16px;border-radius:8px;border:1px solid transparent}
+button:disabled{opacity:.55;cursor:not-allowed}
+.btn-primary{background:var(--gold);border-color:var(--gold);color:var(--gold-text)}
+.btn-secondary{background:transparent;color:var(--text);border-color:var(--border)}
+.btn-danger{background:var(--danger-bg);color:var(--danger);border-color:var(--danger-line)}
+.btn-success{background:var(--success);border-color:var(--success);color:#fff}
+.btn-small{font-size:.78rem;padding:4px 10px;border-radius:6px}
+input,select,textarea{font-family:inherit;font-size:.9rem;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text)}
+input{min-width:0}
+label.f{display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin:0 0 4px}
+
+/* 운영 화면 맨 위 초록 상태줄 — 운영 style.css 그대로 */
+.ai-bar{border-radius:10px;padding:10px 14px;margin:0 0 18px;font-size:14px;line-height:1.6;border:1px solid #d8dde6;background:#f7f8fa}
+.ai-bar-line{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}
+.ai-bar-ok{background:#e9f7ef;border-color:#bfe5cc}
+.ai-bar-when{color:#6b7280;font-size:13px}
+
+/* ── 시안 전용 (실제 화면에는 없음) ── */
+.mock-bar{position:sticky;top:0;z-index:20;background:#14161a;color:#fff;padding:10px 16px;display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;font-size:.82rem}
+.mock-bar b{margin-right:6px}
+.mock-bar button{background:#2a2e36;color:#cfd5df;border:1px solid #3a3f49;padding:4px 10px;font-size:.78rem}
+.mock-bar button.on{background:#fff;color:#14161a}
+.mock-note{background:var(--violet-bg);color:var(--violet);border:1px dashed #c9b5ee;border-radius:8px;padding:8px 12px;font-size:.8rem;margin:0 0 16px}
+.screen{display:none} .screen.on{display:block}
+
+/* ── 새 화면 부품 ── */
+.play-bar{border-radius:12px;padding:14px 16px;margin:0 0 20px;border:1px solid var(--border);background:var(--bg-elevated);display:grid;grid-template-columns:1fr auto;gap:12px 20px;align-items:center}
+.play-bar .line{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;font-size:.9rem}
+.play-bar .state{font-weight:700;font-size:1rem}
+.play-bar .when{color:var(--text-faint);font-size:.8rem}
+.play-bar .note{grid-column:1/-1;font-size:.84rem;margin:0}
+.play-bar.ok{background:var(--success-bg);border-color:var(--success-line)}
+.play-bar.run{background:var(--info-bg);border-color:var(--info-line)}
+.play-bar.todo{background:var(--todo-bg);border-color:var(--todo-line)}
+.play-bar.bad{background:var(--danger-bg);border-color:var(--danger-line)}
+.play-bar .ctrl{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px;background:var(--text-faint)}
+.dot.g{background:var(--success)} .dot.r{background:var(--danger)} .dot.b{background:var(--gold)} .dot.y{background:var(--todo)}
+.meter{height:8px;background:var(--bg-sunk);border-radius:99px;overflow:hidden;min-width:80px}
+.meter i{display:block;height:100%;background:var(--gold);border-radius:99px}
+.meter.g i{background:var(--success)}
+.run-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:20px}
+.run-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.run-form .full{grid-column:1/-1}
+.run-form select{width:100%}
+.mode-tip{font-size:.82rem;border-radius:8px;padding:10px 12px;background:var(--bg-card);border:1px solid var(--border)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border);border-radius:999px;padding:3px 10px;font-size:.8rem;background:var(--bg-elevated);color:var(--text-muted)}
+.chip.done{background:var(--success-bg);border-color:var(--success-line);color:var(--success);font-weight:600}
+.chip.miss{background:var(--todo-bg);border-color:var(--todo-line);color:var(--todo);font-weight:600}
+.chip.now{border-color:var(--gold);color:var(--gold);font-weight:700}
+.chip.ban{background:var(--danger-bg);border-color:var(--danger-line);color:var(--danger)}
+.shot{position:relative;border-radius:8px;overflow:hidden;aspect-ratio:16/9;background:linear-gradient(135deg,#3b4a6b,#7a8fb8);color:#fff;display:flex;align-items:flex-end;padding:6px 8px;font-size:.74rem;font-weight:600}
+.shot.map{background:linear-gradient(135deg,#2f5d50,#8bb59c)}
+.shot.boss{background:linear-gradient(135deg,#6b2b2b,#c46a4a)}
+.shot.talk{background:linear-gradient(135deg,#5b4a7a,#a996c9)}
+.shot.reward{background:linear-gradient(135deg,#7a5b1e,#d8b257)}
+.shot.dark{background:#1b1d22}
+.shot .tag{position:absolute;top:6px;left:6px;background:rgba(0,0,0,.55);border-radius:5px;padding:1px 7px;font-weight:600}
+.shot .num{position:absolute;top:6px;right:6px;background:#fff;color:#14161a;border-radius:5px;padding:0 6px;font-weight:800}
+.strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.log{font-size:.82rem;margin:0;padding:0;list-style:none}
+.log li{display:flex;gap:10px;padding:6px 0;border-bottom:1px dashed var(--border)}
+.log time{color:var(--text-faint);flex:0 0 56px;font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin:0 0 12px}
+.tabs button{background:none;border:none;border-bottom:2px solid transparent;border-radius:0;color:var(--text-muted);padding:8px 14px}
+.tabs button.on{color:var(--gold);border-bottom-color:var(--gold)}
+.q-name{font-weight:600}
+.q-sub{font-size:.78rem;color:var(--text-faint)}
+.prog{display:flex;align-items:center;gap:8px;font-size:.8rem;font-variant-numeric:tabular-nums}
+.wait-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.wait-card{border:1px solid var(--todo-line);background:var(--bg-elevated);border-radius:12px;overflow:hidden}
+.wait-card .body{padding:12px 14px}
+.wait-card .why{font-size:.84rem;margin:6px 0 10px}
+.album{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.album-item{border:1px solid var(--border);border-radius:10px;background:var(--bg-elevated);overflow:hidden}
+.album-item .meta{padding:8px 10px;font-size:.8rem}
+.album-item .acts{display:flex;gap:4px;padding:0 10px 10px}
+.album-item.off{opacity:.45}
+.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.form-grid .full{grid-column:1/-1}
+.form-grid input,.form-grid select{width:100%}
+.target-row{display:grid;grid-template-columns:120px 1fr 90px 32px;gap:8px;margin-bottom:8px}
+.post-card{border:1px solid var(--border);border-radius:12px;background:var(--bg-elevated);padding:18px;margin-bottom:16px}
+.post-card-header{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.post-card h3{margin:0 0 8px;font-size:1.05rem}
+.post-preview{font-size:.9rem;background:var(--bg-card);border-radius:8px;padding:12px 14px}
+.ph{display:inline-block;background:var(--gold-soft);color:var(--gold);border-radius:5px;padding:0 6px;font-weight:700;font-size:.8rem}
+.setting-row{display:grid;grid-template-columns:200px 1fr;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+.setting-row:last-child{border-bottom:0}
+.alert{border-radius:10px;padding:12px 14px;font-size:.88rem;margin:0 0 16px}
+.alert.warn{background:var(--todo-bg);border:1px solid var(--todo-line);color:#6e4306}
+.alert.bad{background:var(--danger-bg);border:1px solid var(--danger-line);color:#7d2214}
+.alert code{background:rgba(0,0,0,.06);border-radius:4px;padding:0 5px}
+.phone-wrap{display:flex;gap:28px;flex-wrap:wrap;justify-content:center}
+.phone{width:375px;max-width:100%;border:10px solid #14161a;border-radius:36px;background:var(--bg);overflow:hidden}
+.phone-in{padding:16px;height:720px;overflow-y:auto}
+.phone .play-bar{grid-template-columns:1fr}
+.phone .play-bar .ctrl{justify-content:stretch}
+.phone .play-bar .ctrl button{flex:1}
+.check-big{list-style:none;margin:0;padding:0}
+.check-big li{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--bg-elevated);font-size:.92rem}
+.check-big li.done{background:var(--success-bg);border-color:var(--success-line)}
+.check-big li.need{border-color:var(--todo-line);background:var(--todo-bg)}
+.check-big .mk{width:22px;text-align:center;font-weight:800}
+.check-big .hint{margin-left:auto;font-size:.74rem;color:var(--text-faint)}
+.pick-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.pick-filters select,.pick-filters input{font-size:.82rem;padding:6px 10px}
+.pick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.pick{cursor:pointer}
+.pager{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:12px;font-size:.84rem;font-variant-numeric:tabular-nums;color:var(--text-muted)}
+@media (max-width:760px){ .pick-grid{grid-template-columns:repeat(2,1fr)} }
+.pick{position:relative;border:2px solid transparent;border-radius:10px;overflow:hidden;background:var(--bg-elevated)}
+.pick.on{border-color:var(--gold)}
+.pick .ck{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:6px;background:#fff;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.8rem;color:var(--gold)}
+.pick.on .ck{background:var(--gold);color:#fff;border-color:var(--gold)}
+.pick .cap{font-size:.74rem;padding:5px 7px;color:var(--text-muted)}
+.pick .used{position:absolute;top:30px;left:6px;font-size:.66rem;background:rgba(0,0,0,.6);color:#fff;border-radius:4px;padding:0 5px}
+.post-images{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.post-image-item{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--bg-elevated)}
+.post-image-item .meta{padding:6px 8px;font-size:.76rem}
+.post-image-item .acts{display:flex;gap:4px;padding:0 8px 8px}
+
+@media (max-width:900px){ .run-grid{grid-template-columns:1fr} }
+@media (max-width:760px){
+  .app-shell{flex-direction:column}
+  .sidebar{width:100%;height:auto;position:static;flex-direction:row;align-items:center;padding:12px;overflow-x:auto}
+  .sidebar-brand{border-bottom:none;border-right:1px solid var(--border);padding:0 14px 0 4px;margin-bottom:0;flex-shrink:0}
+  .sidebar-nav{flex-direction:row;padding:0 0 0 10px}
+  .sidebar-nav-item span,.sidebar-nav-item .new{display:none}
+  .main-content{padding:20px 16px 56px}
+  .play-bar{grid-template-columns:1fr}
+  .play-bar .ctrl{justify-content:flex-start}
+  .run-form,.form-grid{grid-template-columns:1fr}
+  .strip{grid-template-columns:repeat(2,1fr)}
+  .setting-row{grid-template-columns:1fr;gap:4px}
+  .evi-grid{grid-template-columns:1fr !important}
+  .ref-row{grid-template-columns:1fr 32px !important}
+  .ref-row select,.ref-row input{grid-column:1/-1}
+  .ref-row .badge{justify-self:start}
+  .target-row{grid-template-columns:1fr 1fr}
+  .q-table thead{display:none}
+  .q-table tr{display:grid;grid-template-columns:1fr auto;gap:6px 10px;padding:12px 4px;border-bottom:1px solid var(--border)}
+  .q-table td{border:0;padding:0}
+  .q-table td.acts{grid-column:1/-1}
+  .scroll-x{overflow-x:auto}
+}
+</style>
+</head>
+<body>
+
+<div class="mock-bar" id="mockBar">
+  <b>🕹️ 게임 플레이 시안</b>
+  <button data-go="main" class="on">1 메인</button>
+  <button data-go="missions">2 미션</button>
+  <button data-go="album">3 앨범</button>
+  <button data-go="post">4 공략 글</button>
+  <button data-go="settings">5 설정</button>
+  <button data-go="setup">6 처음 연결 전</button>
+  <button data-go="phone">7 휴대폰</button>
+  <button data-go="general">8 일반 글 사진</button>
+</div>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand"><div class="sidebar-brand-mark">N</div><div class="sidebar-brand-name">블로그 포스팅</div></div>
+    <nav class="sidebar-nav">
+      <button class="sidebar-nav-item">🏠 <span>홈</span></button>
+      <button class="sidebar-nav-item">📁 <span>블로그 관리</span></button>
+      <button class="sidebar-nav-item" data-go="post">📝 <span>포스팅</span></button>
+      <button class="sidebar-nav-item">📜 <span>발행 이력</span></button>
+      <button class="sidebar-nav-item">🔎 <span>네이버 키워드</span></button>
+      <button class="sidebar-nav-item">🎮 <span>출시 달력</span></button>
+      <button class="sidebar-nav-item active" data-go="main">🕹️ <span>게임 플레이</span><em class="new">주인</em></button>
+      <button class="sidebar-nav-item">🎨 <span>내 블로그 분석</span></button>
+      <button class="sidebar-nav-item">✍️ <span>글 작업실</span></button>
+      <button class="sidebar-nav-item">⚙️ <span>관리자 설정</span></button>
+      <button class="sidebar-nav-item">📖 <span>사용법</span></button>
+    </nav>
+  </aside>
+
+  <main class="main-content">
+
+<!-- 운영 화면에 이미 있는 초록 상태줄. 모든 화면 맨 위에 그대로 두고, 게임 화면은 이 아래에 놓는다 -->
+<div class="ai-bar ai-bar-ok"><div class="ai-bar-line">
+  <span>👤 <b>사장님(주인)</b> 접속 중</span>
+  <span>🤖 글 쓰는 AI: <b>Claude (Anthropic)</b></span>
+  <span>✅ <b>연결됨</b> <span class="ai-bar-when">(10. 20. 오전 6:17 확인)</span></span>
+  <span>🖼️ 무료 이미지: <b>Unsplash · Pexels · Pixabay</b> (3/3)</span>
+</div></div>
+
+<!-- ════════════ ① 메인 ════════════ -->
+<section class="screen on" id="s-main">
+  <p class="mock-note">시안 1 — 🕹️ 게임 플레이 첫 화면. 맨 위 상태 막대는 7가지 모양이 있다. 아래 단추로 바꿔 볼 수 있다(시안 전용).
+    <br><span id="stateBtns"></span></p>
+
+  <div class="page-header">
+    <div><h1>게임 플레이</h1><p class="muted">집 PC가 게임을 켜고 미션대로 진행하며 사진을 모읍니다. 글은 퀘스트마다 만들고, 발행은 직접 합니다.</p></div>
+  </div>
+
+  <div class="play-bar" id="playBar"></div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-card-top"><span class="stat-card-label">오늘 사용</span><span>⏱</span></div><div class="stat-card-value">96<span style="font-size:1rem" class="muted"> / 240분</span></div><div class="meter" style="margin-top:8px"><i style="width:40%"></i></div></div>
+    <div class="stat-card"><div class="stat-card-top"><span class="stat-card-label">오늘 남긴 사진</span><span>📸</span></div><div class="stat-card-value">38</div><p class="stat-card-sub">원본은 집 PC에 412장</p></div>
+    <div class="stat-card"><div class="stat-card-top"><span class="stat-card-label">글 쓸 준비 된 퀘스트</span><span>✅</span></div><div class="stat-card-value">3</div><p class="stat-card-sub">사진 체크리스트가 다 찬 것</p></div>
+    <div class="stat-card"><div class="stat-card-top"><span class="stat-card-label">직접 플레이 대기</span><span>🙋</span></div><div class="stat-card-value" style="color:var(--todo)">2</div><p class="stat-card-sub">막혀서 넘긴 퀘스트</p></div>
+  </div>
+
+  <div class="run-grid">
+    <div class="card">
+      <div class="card-header"><h2>▶ 게임 실행</h2><span class="faint" style="font-size:.8rem">누르면 집 PC가 5초 안에 받아 갑니다</span></div>
+      <div class="run-form">
+        <div><label class="f">게임</label>
+          <select id="gameSel"><option value="dokkaebi">도깨비의세계 · 감독 모드</option><option value="aniimo">애니모 · 기록 모드</option></select></div>
+        <div><label class="f">미션</label>
+          <select><option>[예시] 메인 3개 진행 (0/3)</option><option>[예시] 장터 서브 전부 (2/5)</option><option>미션 없이 자유 진행</option></select></div>
+        <div class="full mode-tip" id="modeTip"></div>
+        <div class="full" style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-primary">▶ 게임 실행</button>
+          <button class="btn-secondary">미션 만들기</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h2>지금 퀘스트</h2><a href="#" data-go="album">앨범 →</a></div>
+      <div class="q-name">[예시] 메인 2장 · 장터의 소문 <span class="badge">메인</span></div>
+      <div class="q-sub" style="margin-bottom:10px">미션 「메인 3개 진행」 2번째 · 시작 14:02</div>
+      <div class="chips" style="margin-bottom:12px">
+        <span class="chip done">✔ 퀘스트 받음</span><span class="chip done">✔ 지도</span><span class="chip done">✔ 중간 지점 1</span>
+        <span class="chip now">● 중간 지점 2</span><span class="chip">도착</span><span class="chip">대화</span><span class="chip">전투/보스</span><span class="chip">보상</span>
+      </div>
+      <div class="prog"><div class="meter" style="flex:1"><i style="width:37%"></i></div>3 / 8</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>방금 남긴 사진</h2><span class="faint" style="font-size:.8rem">서버에는 줄인 사진만(가로 1280px)</span></div>
+    <div class="strip">
+      <div class="shot"><span class="tag">퀘스트받음</span>장터 상인에게 의뢰를 받음</div>
+      <div class="shot map"><span class="tag">지도</span>목적지: 동쪽 숲 입구</div>
+      <div class="shot"><span class="tag">중간 지점</span>다리 건너 갈림길</div>
+      <div class="shot"><span class="tag">이동중</span>숲길 진입</div>
+    </div>
+    <ul class="log" style="margin-top:14px">
+      <li><time>14:09</time><span>📍 이동 중 — 미니맵 변화, 중간 지점 사진 남김</span></li>
+      <li><time>14:06</time><span>🗺️ 지도 열기 → 찍기 → 닫기 (체크리스트에 지도가 없어서)</span></li>
+      <li><time>14:02</time><span>📜 퀘스트 받음 — 「장터의 소문」 (메인)</span></li>
+      <li><time>13:58</time><span>✅ 퀘스트 완료 — 「도깨비 시장 입장」 사진 8/8, 글 쓸 준비 됨</span></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>퀘스트</h2>
+      <select style="font-size:.82rem;padding:5px 10px"><option>도깨비의세계</option><option>애니모</option></select></div>
+    <div class="tabs"><button class="on">메인 <span class="faint">6</span></button><button>서브 <span class="faint">11</span></button><button>기타 <span class="faint">2</span></button></div>
+    <div class="scroll-x">
+    <table class="q-table">
+      <thead><tr><th>퀘스트</th><th>상태</th><th>사진</th><th>체크리스트</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><div class="q-name">[예시] 도깨비 시장 입장</div><div class="q-sub">10-20 13:41 ~ 13:58</div></td>
+          <td><span class="badge badge-active">글 쓸 준비</span></td><td>9장</td>
+          <td><div class="prog"><div class="meter g" style="width:90px"><i style="width:100%"></i></div>8/8</div></td>
+          <td class="acts"><button class="btn-secondary btn-small" data-go="album">앨범</button> <button class="btn-primary btn-small" data-go="post">공략 글 만들기</button></td></tr>
+        <tr><td><div class="q-name">[예시] 장터의 소문</div><div class="q-sub">진행 중 · 14:02 ~</div></td>
+          <td><span class="badge">진행 중</span></td><td>4장</td>
+          <td><div class="prog"><div class="meter" style="width:90px"><i style="width:37%"></i></div>3/8</div></td>
+          <td class="acts"><button class="btn-secondary btn-small">앨범</button> <button class="btn-primary btn-small" disabled>공략 글 만들기</button></td></tr>
+        <tr><td><div class="q-name">[예시] 붉은 불씨의 정체</div><div class="q-sub">10-20 12:10 · 보스 3분 내 처치 못 함</div></td>
+          <td><span class="badge badge-todo">직접 플레이 대기</span></td><td>6장</td>
+          <td><div class="prog"><div class="meter" style="width:90px"><i style="width:75%"></i></div>6/8</div></td>
+          <td class="acts"><button class="btn-secondary btn-small">앨범</button> <button class="btn-secondary btn-small">완료로 표시</button></td></tr>
+        <tr><td><div class="q-name">[예시] 첫 번째 의뢰</div><div class="q-sub">10-19 · 📝 초안 있음</div></td>
+          <td><span class="badge badge-violet">글 완료</span></td><td>7장</td>
+          <td><div class="prog"><div class="meter g" style="width:90px"><i style="width:100%"></i></div>8/8</div></td>
+          <td class="acts"><button class="btn-secondary btn-small" data-go="post">글 보기 →</button></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>🙋 직접 플레이 대기</h2><span class="faint" style="font-size:.8rem">직접 끝낸 뒤 [완료로 표시] → 공략 글 대상이 됩니다. 빠진 장면은 F9로 찍으세요.</span></div>
+    <div class="wait-list">
+      <div class="wait-card">
+        <div class="shot boss" style="border-radius:0"><span class="tag">마지막 사진</span>보스 체력 62% 남음</div>
+        <div class="body">
+          <div class="q-name">[예시] 붉은 불씨의 정체 <span class="badge">메인</span></div>
+          <p class="why">⚠ 보스전 3분 안에 처치하지 못함 · 사망 1회</p>
+          <div class="chips" style="margin-bottom:10px"><span class="chip miss">빠짐: 보스 처치</span><span class="chip miss">빠짐: 보상</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center"><span class="faint" style="font-size:.78rem">10-20 12:13</span><button class="btn-success btn-small">완료로 표시</button></div>
+        </div>
+      </div>
+      <div class="wait-card">
+        <div class="shot" style="border-radius:0"><span class="tag">마지막 사진</span>같은 화면 5분</div>
+        <div class="body">
+          <div class="q-name">[예시] 잃어버린 장부 <span class="badge badge-inactive">서브</span></div>
+          <p class="why">⚠ 같은 장면 5분 이상 — 자동 진행이 목적지를 못 찾음</p>
+          <div class="chips" style="margin-bottom:10px"><span class="chip miss">빠짐: 도착</span><span class="chip miss">빠짐: 완료</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center"><span class="faint" style="font-size:.78rem">10-20 11:40</span><button class="btn-success btn-small">완료로 표시</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ ② 미션 ════════════ -->
+<section class="screen" id="s-missions">
+  <p class="mock-note">시안 2 — 맨 위: 게임 속 미션 목록을 통째로 읽어 저장하고 "할 수 있는 것부터" 순서대로 보여 준다. 못 읽은 줄은 [📷 캡처 추가]로 확인.
+    아래: 미션 = "진행할 퀘스트 목록" + "퀘스트마다 필요한 사진". [게임 실행]에서 고른다.</p>
+  <div class="page-header">
+    <div><h1>미션</h1><p class="muted">어떤 퀘스트를 몇 개 진행하고, 글에 어떤 사진이 필요한지 정합니다.</p></div>
+    <div class="page-header-actions"><button class="btn-secondary" data-go="main">← 게임 플레이</button></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>🎯 게임 미션 목록 <span class="faint" style="font-size:.8rem;font-weight:400">게임 속 목록 창에서 읽어 옴</span></h2>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select style="font-size:.82rem;padding:5px 10px"><option>도깨비의세계</option><option>애니모</option></select>
+        <span class="faint" style="font-size:.78rem">14:02 읽음 · 목록 사진 3장</span>
+        <button class="btn-secondary btn-small">🔄 게임에서 다시 읽기</button>
+      </div>
+    </div>
+    <div class="chips" style="margin-bottom:12px">
+      <span class="chip now">진행 중 1</span><span class="chip done">진행 가능 6</span><span class="chip">조건 미달 3</span><span class="chip miss">확인 필요 2</span><span class="chip">완료 14 ▸</span>
+    </div>
+    <div class="scroll-x">
+    <table class="q-table">
+      <thead><tr><th>순서</th><th>미션</th><th>상태</th><th>조건</th><th>근거</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><b>1</b></td><td><div class="q-name">[예시] 장터의 소문</div><div class="q-sub">메인 · 게임 목록 2번째</div></td>
+          <td><span class="badge">진행 중</span></td><td class="faint">—</td>
+          <td><div class="shot" style="width:64px;padding:0"></div></td>
+          <td class="acts"><button class="btn-secondary btn-small">📷 캡처 추가</button></td></tr>
+        <tr><td><b>2</b></td><td><div class="q-name">[예시] 시장 관리인의 부탁</div><div class="q-sub">메인 · 게임 목록 3번째</div></td>
+          <td><span class="badge badge-active">진행 가능</span></td><td class="faint">—</td>
+          <td><div class="shot" style="width:64px;padding:0"></div></td>
+          <td class="acts"><button class="btn-secondary btn-small">📷 캡처 추가</button></td></tr>
+        <tr><td><b>3</b></td><td><div class="q-name">[예시] 잃어버린 장부</div><div class="q-sub">서브 · 게임 목록 7번째 · <span style="color:var(--success)">✔ 사람이 확인함</span></div></td>
+          <td><span class="badge badge-active">진행 가능</span></td><td class="faint">—</td>
+          <td><div style="display:flex;gap:4px"><div class="shot" style="width:64px;padding:0"></div><div class="shot talk" style="width:64px;padding:0"></div></div></td>
+          <td class="acts"><button class="btn-secondary btn-small">📷 캡처 추가</button></td></tr>
+        <tr style="background:var(--todo-bg)"><td><b>4</b></td><td><div class="q-name">[예시] 붉은 ■■의 …</div><div class="q-sub">이름이 잘려서 못 읽음 (확신 0.42)</div></td>
+          <td><span class="badge badge-todo">확인 필요</span></td><td class="faint">?</td>
+          <td><div class="shot" style="width:64px;padding:0"></div></td>
+          <td class="acts"><button class="btn-primary btn-small">📷 캡처 추가</button></td></tr>
+        <tr><td colspan="6" style="padding:0">
+          <div style="margin:4px 0 12px;border:1px solid var(--todo-line);border-radius:10px;background:var(--bg-elevated);padding:14px">
+            <div class="q-name" style="margin-bottom:8px">4번 확인하기 — 캡처를 붙이면 AI가 이 줄만 다시 읽습니다</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+              <button class="btn-secondary btn-small">🖥️ 집 PC에서 지금 찍기</button>
+              <button class="btn-secondary btn-small">📁 사진 파일 올리기</button>
+              <button class="btn-secondary btn-small">🖼️ 최근 사진에서 고르기</button>
+            </div>
+            <div style="display:grid;grid-template-columns:200px 1fr;gap:14px;align-items:start" class="evi-grid">
+              <div class="shot talk"><span class="tag">붙인 캡처</span>퀘스트 상세 창</div>
+              <div class="form-grid">
+                <div class="full"><label class="f">이름 (AI가 읽은 값 — 고칠 수 있음)</label><input value="[예시] 붉은 불씨의 정체"></div>
+                <div><label class="f">종류</label><select><option>메인</option><option>서브</option><option>일일</option><option>기타</option></select></div>
+                <div><label class="f">상태</label><select><option>진행 가능</option><option>진행 중</option><option>조건 미달</option><option>완료</option></select></div>
+                <div class="full"><label class="f">조건</label><input placeholder="예: 레벨 30 필요"></div>
+                <div class="full" style="display:flex;gap:8px"><button class="btn-success btn-small">✔ 확인</button><button class="btn-secondary btn-small">닫기</button>
+                  <span class="faint" style="font-size:.76rem;align-self:center">확인한 값은 다음에 다시 읽어도 덮어쓰지 않습니다</span></div>
+              </div>
+            </div>
+          </div></td></tr>
+        <tr><td><b>5</b></td><td><div class="q-name">[예시] 도깨비 순찰대 합류</div><div class="q-sub">서브 · 게임 목록 9번째</div></td>
+          <td><span class="badge badge-inactive">조건 미달</span></td><td>레벨 30 필요</td>
+          <td><div class="shot" style="width:64px;padding:0"></div></td>
+          <td class="acts"><button class="btn-secondary btn-small">📷 캡처 추가</button></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <button class="btn-primary btn-small">이 순서로 미션 만들기 (진행 가능 위에서 3개)</button>
+      <span class="faint" style="font-size:.78rem;align-self:center">기록 모드(애니모)는 게임에서 목록 창을 열고 <b>F10</b>을 누르면 읽습니다.</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>미션 목록</h2></div>
+    <div class="scroll-x">
+    <table class="q-table">
+      <thead><tr><th>미션</th><th>게임</th><th>목표</th><th>상태</th><th></th></tr></thead>
+      <tbody>
+        <tr><td class="q-name">[예시] 메인 3개 진행</td><td>도깨비의세계</td><td><div class="prog"><div class="meter" style="width:80px"><i style="width:33%"></i></div>1/3 퀘스트</div></td><td><span class="badge">진행 중</span></td><td class="acts"><button class="btn-secondary btn-small">고치기</button></td></tr>
+        <tr><td class="q-name">[예시] 장터 서브 전부</td><td>도깨비의세계</td><td><div class="prog"><div class="meter" style="width:80px"><i style="width:40%"></i></div>2/5 퀘스트</div></td><td><span class="badge badge-inactive">대기</span></td><td class="acts"><button class="btn-secondary btn-small">고치기</button></td></tr>
+        <tr><td class="q-name">[예시] 첫 포획 3종</td><td>애니모</td><td><div class="prog"><div class="meter g" style="width:80px"><i style="width:100%"></i></div>3/3 퀘스트</div></td><td><span class="badge badge-active">준비됨</span></td><td class="acts"><button class="btn-primary btn-small" data-go="post">공략 글 만들기</button></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>＋ 새 미션</h2></div>
+    <div class="form-grid">
+      <div><label class="f">게임</label><select><option>도깨비의세계 · 감독 모드</option><option>애니모 · 기록 모드</option></select></div>
+      <div><label class="f">미션 이름</label><input placeholder="예: 메인 3개 진행"></div>
+      <div class="full"><label class="f">목표 — 위에서부터 차례로 진행</label>
+        <div class="target-row"><select><option>목록 순서대로</option><option>종류로</option><option>이름으로</option></select><span class="faint" style="font-size:.8rem;align-self:center">게임 미션 목록의 진행 가능 위에서부터</span><input value="3" type="number"><button class="btn-secondary btn-small">×</button></div>
+        <div class="target-row"><select><option>종류로</option><option>이름으로</option></select><select><option>메인</option><option>서브</option><option>기타</option></select><input value="3" type="number"><button class="btn-secondary btn-small">×</button></div>
+        <div class="target-row"><select><option>이름으로</option><option>종류로</option></select><input placeholder="퀘스트 이름 (예: 잃어버린 장부)"><span class="faint" style="font-size:.8rem;align-self:center">1개</span><button class="btn-secondary btn-small">×</button></div>
+        <button class="btn-secondary btn-small">＋ 목표 추가</button>
+      </div>
+      <div class="full"><label class="f">퀘스트마다 필요한 사진 — 기본 틀(메인)이 미리 체크됨</label>
+        <div class="chips">
+          <label class="chip done"><input type="checkbox" checked> 퀘스트 받음</label>
+          <label class="chip done"><input type="checkbox" checked> 지도</label>
+          <label class="chip done"><input type="checkbox" checked> 중간 지점 ×2</label>
+          <label class="chip done"><input type="checkbox" checked> 도착</label>
+          <label class="chip done"><input type="checkbox" checked> 대화</label>
+          <label class="chip done"><input type="checkbox" checked> 전투 또는 보스</label>
+          <label class="chip done"><input type="checkbox" checked> 보상</label>
+          <label class="chip"><input type="checkbox"> 보스 처치</label>
+          <label class="chip"><input type="checkbox"> 포획(애니모)</label>
+        </div>
+      </div>
+      <div class="full mode-tip">끝나는 조건: 목표를 다 채우거나 · 하루 상한(240분)에 닿거나 · 막히면 그 퀘스트는 <b>직접 플레이 대기</b>로 넘기고 다음 목표로 갑니다.</div>
+      <div class="full"><button class="btn-primary">미션 저장</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ ③ 앨범 ════════════ -->
+<section class="screen" id="s-album">
+  <p class="mock-note">시안 3 — 퀘스트 한 개의 사진. 이 순서대로 글에 들어간다. 빼기·순서 바꾸기·F9 사진 표시.</p>
+  <div class="page-header">
+    <div><h1>앨범 · [예시] 도깨비 시장 입장</h1><p class="muted">도깨비의세계 · 메인 · 10-20 13:41 ~ 13:58 · 9장 중 8장 사용</p></div>
+    <div class="page-header-actions"><button class="btn-secondary" data-go="main">← 게임 플레이</button><button class="btn-primary" data-go="post">공략 글 만들기</button></div>
+  </div>
+  <div class="card">
+    <div class="chips"><span class="chip done">✔ 퀘스트 받음</span><span class="chip done">✔ 지도</span><span class="chip done">✔ 중간 지점 ×2</span><span class="chip done">✔ 도착</span><span class="chip done">✔ 대화</span><span class="chip done">✔ 보스</span><span class="chip done">✔ 보상</span></div>
+  </div>
+  <div class="album">
+    <div class="album-item"><div class="shot"><span class="tag">퀘스트받음</span><span class="num">1</span></div><div class="meta">문지기에게 시장 입장 의뢰를 받음</div><div class="acts"><button class="btn-secondary btn-small">↑</button><button class="btn-secondary btn-small">↓</button><button class="btn-secondary btn-small" style="margin-left:auto">빼기</button></div></div>
+    <div class="album-item"><div class="shot map"><span class="tag">지도</span><span class="num">2</span></div><div class="meta">목적지 표시: 북쪽 돌다리</div><div class="acts"><button class="btn-secondary btn-small">↑</button><button class="btn-secondary btn-small">↓</button><button class="btn-secondary btn-small" style="margin-left:auto">빼기</button></div></div>
+    <div class="album-item"><div class="shot"><span class="tag">중간 지점</span><span class="num">3</span></div><div class="meta">마을 광장을 지나 오른쪽 길</div><div class="acts"><button class="btn-secondary btn-small">↑</button><button class="btn-secondary btn-small">↓</button><button class="btn-secondary btn-small" style="margin-left:auto">빼기</button></div></div>
+    <div class="album-item"><div class="shot"><span class="tag">중간 지점</span><span class="num">4</span></div><div class="meta">돌다리 앞 갈림길</div><div class="acts"><button class="btn-secondary btn-small">↑</button><button class="btn-secondary btn-small">↓</button><button class="btn-secondary btn-small" style="margin-left:auto">빼기</button></div></div>
+    <div class="album-item"><div class="shot"><span class="tag">도착</span><span class="num">5</span></div><div class="meta">시장 입구 도착</div><div class="acts"><button class="btn-secondary btn-small">↑</button><button class="btn-secondary btn-small">↓</button><button class="btn-secondary btn-small" style="margin-left:auto">빼기</button></div></div>
+    <div class="album-item"><div class="shot talk"><span class="tag">대화</span><span class="num">6</span></div><div class="meta">시장 관리인과 대화</div><div class="acts"><button class="btn-secondary btn-small">↑</button><button class="btn-secondary btn-small">↓</button><button class="btn-secondary btn-small" style="margin-left:auto">빼기</button></div></div>
+    <div class="album-item"><div class="shot boss"><span class="tag">보스처치 · F9</span><span class="num">7</span></div><div class="meta">관문 도깨비 처치 <span class="badge badge-violet" style="font-size:.68rem;padding:1px 7px">직접 찍음</span></div><div class="acts"><button class="btn-secondary btn-small">↑</button><button class="btn-secondary btn-small">↓</button><button class="btn-secondary btn-small" style="margin-left:auto">빼기</button></div></div>
+    <div class="album-item"><div class="shot reward"><span class="tag">보상</span><span class="num">8</span></div><div class="meta">퀘스트 보상 창</div><div class="acts"><button class="btn-secondary btn-small">↑</button><button class="btn-secondary btn-small">↓</button><button class="btn-secondary btn-small" style="margin-left:auto">빼기</button></div></div>
+    <div class="album-item off"><div class="shot"><span class="tag">이동중</span></div><div class="meta">뺀 사진 · 비슷한 장면</div><div class="acts"><button class="btn-secondary btn-small">다시 넣기</button></div></div>
+  </div>
+</section>
+
+<!-- ════════════ ④ 공략 글 ════════════ -->
+<section class="screen" id="s-post">
+  <p class="mock-note">시안 4 — 위: [공략 글 만들기]를 누르면 먼저 뜨는 참고 글 칸(인벤·커뮤니티 주소). 아래: 결과는 기존 📝 포스팅 화면에 같은 카드 모양으로 뜬다.</p>
+
+  <div class="card" style="border-color:var(--info-line)">
+    <div class="card-header"><h2>📚 참고 글 — [예시] 도깨비 시장 입장</h2><span class="faint" style="font-size:.8rem">사실 확인·빠진 정보 보충용. 문장·사진은 베끼지 않습니다</span></div>
+    <div class="ref-list">
+      <div class="target-row ref-row" style="grid-template-columns:150px 1fr 150px 32px">
+        <select><option>인벤</option><option>공식 홈페이지/공지</option><option>커뮤니티</option><option>유튜브</option><option>기타</option></select>
+        <input value="https://www.inven.co.kr/board/…/예시글">
+        <span class="badge badge-active" style="align-self:center;text-align:center">읽음 · 메모 있음</span>
+        <button class="btn-secondary btn-small">×</button>
+      </div>
+      <div class="target-row ref-row" style="grid-template-columns:150px 1fr 150px 32px">
+        <select><option>공식 홈페이지/공지</option><option>인벤</option><option>커뮤니티</option><option>유튜브</option><option>기타</option></select>
+        <input value="https://…공식 공지 (예시)">
+        <span class="badge" style="align-self:center;text-align:center">아직 안 읽음</span>
+        <button class="btn-secondary btn-small">×</button>
+      </div>
+      <div class="target-row ref-row" style="grid-template-columns:150px 1fr 150px 32px">
+        <select><option>커뮤니티</option><option>인벤</option><option>공식 홈페이지/공지</option><option>유튜브</option><option>기타</option></select>
+        <input value="https://cafe.naver.com/…(예시)">
+        <span class="badge badge-todo" style="align-self:center;text-align:center">로그인 필요 · 못 읽음</span>
+        <button class="btn-secondary btn-small">×</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 14px">
+        <button class="btn-secondary btn-small">＋ 주소 추가</button>
+        <button class="btn-secondary btn-small">🔎 찾아 넣기 (도깨비의세계 도깨비 시장 입장 공략)</button>
+      </div>
+    </div>
+    <div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--bg-card);margin-bottom:14px">
+      <div style="font-weight:600;font-size:.86rem;margin-bottom:6px">🔎 찾은 후보 — 체크한 것만 넣습니다</div>
+      <label style="display:flex;gap:8px;font-size:.86rem;padding:3px 0"><input type="checkbox" checked> <span><span class="badge" style="font-size:.7rem;padding:1px 8px">인벤</span> [예시] 도깨비 시장 입장 퀘스트 동선 정리</span></label>
+      <label style="display:flex;gap:8px;font-size:.86rem;padding:3px 0"><input type="checkbox"> <span><span class="badge badge-inactive" style="font-size:.7rem;padding:1px 8px">커뮤니티</span> [예시] 시장 입장 막혔을 때 팁</span></label>
+      <label style="display:flex;gap:8px;font-size:.86rem;padding:3px 0"><input type="checkbox"> <span><span class="badge badge-inactive" style="font-size:.7rem;padding:1px 8px">유튜브</span> [예시] 영상 공략 (본문은 읽지 않음)</span></label>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <label style="font-size:.86rem"><input type="checkbox" checked> 글 끝에 「참고한 글」 목록 넣기</label>
+      <span style="flex:1"></span>
+      <button class="btn-secondary">참고 없이 만들기</button>
+      <button class="btn-primary">참고해서 공략 글 만들기</button>
+    </div>
+    <p class="faint" style="font-size:.76rem;margin:10px 0 0">수치는 내 사진·기록 → 공식 → 참고 글 순서로 믿습니다. 참고 글에만 있는 수치는 "커뮤니티 정보 기준"이라고 밝힙니다. 게임별 기본 참고 주소는 설정 화면에서 정합니다.</p>
+  </div>
+
+  <div class="page-header">
+    <div><h1>포스팅</h1><p class="muted">AI가 글과 이미지를 준비해두면, 여기서 복사해서 네이버 블로그에 직접 붙여넣으세요.</p></div>
+  </div>
+  <div class="post-card">
+    <div class="post-card-header">
+      <span class="badge badge-violet">🕹️ 게임 공략</span><span class="badge badge-inactive">도깨비의세계</span>
+      <span class="faint" style="font-size:.8rem">제목 36자</span>
+      <button class="btn-secondary btn-small" style="margin-left:auto">복사하기</button>
+    </div>
+    <h3>[예시] 도깨비의세계 도깨비 시장 입장 퀘스트 공략 — 길 헤매지 않는 순서</h3>
+    <div class="chips" style="margin-bottom:12px"><span class="chip">후킹 ① …</span><span class="chip">후킹 ② …</span><span class="chip">후킹 ③ …</span></div>
+    <div class="post-preview">
+      <p style="margin-top:0">도깨비 시장 입장은 메인 이야기 초반에 받는 퀘스트입니다. 문지기에게 의뢰를 받는 것부터 시작합니다. …</p>
+      <p><span class="ph">[사진 1]</span> <span class="faint">문지기에게 시장 입장 의뢰를 받음</span></p>
+      <p>지도를 열면 목적지가 북쪽 돌다리로 표시됩니다. …</p>
+      <p><span class="ph">[사진 2]</span> <span class="faint">목적지 표시: 북쪽 돌다리</span></p>
+      <p>시장 관리인이 요구하는 입장 조건은 레벨 12입니다 <span class="badge badge-inactive" style="font-size:.68rem;padding:1px 7px">커뮤니티 정보 기준</span> …</p>
+      <p class="faint">… (본문 계속, 사진 8장 자리) …</p>
+      <p style="margin-bottom:0;font-size:.84rem"><b>참고한 글</b><br>· 인벤 — [예시] 도깨비 시장 입장 퀘스트 동선 정리 (주소)</p>
+    </div>
+    <div style="margin:14px 0 6px;font-weight:600;font-size:.88rem">이 글의 사진 8장 <span class="faint" style="font-weight:400">— 내려받아 순서대로 붙이세요</span></div>
+    <div class="strip" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">
+      <div class="shot"><span class="num">1</span></div><div class="shot map"><span class="num">2</span></div><div class="shot"><span class="num">3</span></div><div class="shot"><span class="num">4</span></div>
+      <div class="shot"><span class="num">5</span></div><div class="shot talk"><span class="num">6</span></div><div class="shot boss"><span class="num">7</span></div><div class="shot reward"><span class="num">8</span></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+      <button class="btn-primary">전체 복사</button><button class="btn-secondary">사진 모두 내려받기</button><button class="btn-secondary">앨범에서 고치기</button><button class="btn-secondary">품질 체크</button><button class="btn-success">발행 완료로 표시</button>
+    </div>
+    <p class="faint" style="font-size:.78rem;margin:10px 0 0">사진·이벤트에 없는 수치(드랍률·보상 수량)는 쓰지 않았습니다. 발행 완료 30일 뒤 서버 사진은 자동 삭제됩니다(원본은 집 PC).</p>
+  </div>
+</section>
+
+<!-- ════════════ ⑤ 설정 ════════════ -->
+<section class="screen" id="s-settings">
+  <p class="mock-note">시안 5 — 게임 플레이 안의 [설정]. 게임 프로필(좌표는 집 PC 시험 도구로 잰 값)과 한도·보관일.</p>
+  <div class="page-header">
+    <div><h1>게임 플레이 설정</h1><p class="muted">주인만 보입니다. 바꾸면 집 PC가 다음 연결 때 받아 갑니다.</p></div>
+    <div class="page-header-actions"><button class="btn-secondary" data-go="main">← 게임 플레이</button></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>공통</h2></div>
+    <div class="setting-row"><label class="f">하루 실행 상한</label><div><input type="number" value="240" style="width:100px"> 분 <span class="faint" style="font-size:.8rem">· 닿으면 자동 정지</span></div></div>
+    <div class="setting-row"><label class="f">서버 사진 보관</label><div>발행 완료 후 <input type="number" value="30" style="width:80px"> 일 · 글에 안 쓴 사진 <input type="number" value="60" style="width:80px"> 일</div></div>
+    <div class="setting-row"><label class="f">집 PC 원본 보관</label><div><input type="number" value="30" style="width:80px"> 일 <span class="faint" style="font-size:.8rem">· 저장 위치: G:\maim-game (집 PC에서 정함)</span></div></div>
+    <div class="setting-row"><label class="f">즉시 정지 단축키</label><div><span class="chip">F12 정지</span> <span class="chip">F9 수동 캡처</span> <span class="chip">F10 목록 찍기</span> <span class="faint" style="font-size:.8rem">· 집 PC에서 바꿈</span></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>게임 프로필</h2>
+      <div class="tabs" style="margin:0;border:0"><button class="on">도깨비의세계</button><button>애니모</button><button>＋ 게임 추가</button></div></div>
+    <div class="setting-row"><label class="f">모드</label><div><label><input type="radio" name="m" checked> 감독 — 공식 자동 진행 + 아래 버튼만 누름</label><br><label><input type="radio" name="m"> 기록 — 직접 플레이, 입력 0건</label></div></div>
+    <div class="setting-row"><label class="f">창 제목</label><input value="도깨비의세계"></div>
+    <div class="setting-row"><label class="f">실행 파일</label><div><input value="C:\…\launcher.exe" style="width:100%"><div class="faint" style="font-size:.78rem;margin-top:4px">로그인은 공식 런처의 자동 로그인. 로그인 화면이 뜨면 정지합니다.</div></div></div>
+    <div class="setting-row"><label class="f">누를 수 있는 버튼</label>
+      <div class="scroll-x"><table style="font-size:.84rem">
+        <thead><tr><th>이름</th><th>키 / 위치</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>런처 게임 시작</td><td>x 0.80 · y 0.90</td><td><button class="btn-secondary btn-small">×</button></td></tr>
+          <tr><td>임무창열기</td><td>키 J</td><td><button class="btn-secondary btn-small">×</button></td></tr>
+          <tr><td>자동진행</td><td>x 0.88 · y 0.30</td><td><button class="btn-secondary btn-small">×</button></td></tr>
+          <tr><td>보상받기</td><td>x 0.50 · y 0.78</td><td><button class="btn-secondary btn-small">×</button></td></tr>
+          <tr><td>지도열기 / 창닫기</td><td>키 M / ESC</td><td><button class="btn-secondary btn-small">×</button></td></tr>
+        </tbody></table></div></div>
+    <div class="setting-row"><label class="f">금지 화면 (보이면 정지)</label><div class="chips"><span class="chip ban">상점</span><span class="chip ban">결제</span><span class="chip ban">거래소</span><span class="chip ban">경매장</span><span class="chip ban">채팅</span><span class="chip ban">문파</span><span class="chip ban">우편</span><span class="chip ban">대전</span><span class="chip ban">PvP</span><span class="chip">＋</span></div></div>
+    <div class="setting-row"><label class="f">기본 참고 주소</label><div><input value="https://www.inven.co.kr/…(게임 게시판, 예시)" style="width:100%"><div class="faint" style="font-size:.78rem;margin-top:4px">공략 글 만들 때 이 곳부터 후보를 찾습니다. 여러 개 넣을 수 있습니다.</div></div></div>
+    <div class="setting-row"><label class="f">목록 읽기</label><div>목록 창 열기 <span class="chip">임무창열기 (J)</span> · 다음 장 <span class="chip">목록다음 (선택)</span> · 하루 자동 읽기 최대 <input type="number" value="20" style="width:70px"> 번</div></div>
+    <div class="setting-row"><label class="f">막힘 판단</label><div>같은 장면 <input type="number" value="5" style="width:70px"> 분 · 보스전 <input type="number" value="3" style="width:70px"> 분 · 사망 <input type="number" value="2" style="width:70px"> 회</div></div>
+    <div style="margin-top:14px"><button class="btn-primary">저장</button></div>
+  </div>
+</section>
+
+<!-- ════════════ ⑥ 처음 연결 전 ════════════ -->
+<section class="screen" id="s-setup">
+  <p class="mock-note">시안 6 — 사진 저장통이나 집 PC 연결이 아직 없을 때. 게임 기능 전체를 막고 할 일만 보여 준다.</p>
+  <div class="page-header"><div><h1>게임 플레이</h1><p class="muted">시작하려면 아래 두 가지를 먼저 해 주세요.</p></div></div>
+  <div class="alert bad">⛔ <b>사진 저장통이 연결되지 않았습니다.</b> Cloud Shell에서 저장통을 만들고 <code>GAME_SHOT_BUCKET</code>을 넣어 다시 배포해 주세요. <a href="#">순서 보기 →</a></div>
+  <div class="alert warn">🔌 <b>집 PC가 아직 연결된 적이 없습니다.</b> 집 PC에서 <code>python main.py</code>를 켜 두면 여기 «연결됨»이 뜹니다. <a href="#">설치 안내 →</a></div>
+  <div class="card">
+    <div class="card-header"><h2>처음 세팅 순서</h2></div>
+    <ol style="margin:0;padding-left:20px;line-height:2">
+      <li>Cloud Shell — 사진 저장통 만들기 · 권한 주기 · 배포 <span class="badge badge-failed">아직</span></li>
+      <li>집 PC — Python 설치, <code>pip install -r requirements.txt</code> <span class="badge badge-inactive">확인 불가</span></li>
+      <li>집 PC — 환경변수 3개 (서버 주소 · 집 PC 토큰 · 저장 위치) <span class="badge badge-inactive">확인 불가</span></li>
+      <li>집 PC — 0단계 시험 (켜기 · 캡처 · 입력) <span class="badge badge-inactive">확인 불가</span></li>
+      <li>집 PC — <code>python main.py</code> 켜 두기 → 첫 연결 <span class="badge badge-failed">아직</span></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ════════════ ⑦ 휴대폰 ════════════ -->
+<section class="screen" id="s-phone">
+  <p class="mock-note">시안 7 — 휴대폰으로 같은 주소. 왼쪽: 애니모를 직접 하면서 체크리스트 보기(기록 모드). 오른쪽: 밖에서 도깨비의세계 자동 진행 지켜보기·정지.</p>
+  <div class="phone-wrap">
+    <div class="phone"><div class="phone-in">
+      <div class="play-bar ok"><div class="line"><span class="state"><span class="dot g"></span>직접 플레이 중</span><span>애니모 · 기록 모드</span></div>
+        <div class="ctrl"><button class="btn-secondary">F9 대신 찍기</button><button class="btn-danger">⏹ 끝내기</button></div></div>
+      <div class="q-name" style="font-size:1.05rem">[예시] 숲의 첫 친구</div>
+      <div class="q-sub" style="margin-bottom:12px">미션 「첫 포획 3종」 1번째 · 사진 4/6</div>
+      <ul class="check-big">
+        <li class="done"><span class="mk">✔</span>퀘스트 받음</li>
+        <li class="done"><span class="mk">✔</span>지도<span class="hint">F9로 찍음</span></li>
+        <li class="done"><span class="mk">✔</span>도착</li>
+        <li class="done"><span class="mk">✔</span>대화</li>
+        <li class="need"><span class="mk">○</span>포획 성공<span class="hint">결과 화면에서 자동</span></li>
+        <li class="need"><span class="mk">○</span>보상<span class="hint">안 찍히면 F9</span></li>
+      </ul>
+      <div class="strip" style="grid-template-columns:repeat(2,1fr);margin-top:12px">
+        <div class="shot map"><span class="tag">지도</span></div><div class="shot talk"><span class="tag">대화</span></div>
+      </div>
+    </div></div>
+
+    <div class="phone"><div class="phone-in">
+      <div class="play-bar run"><div class="line"><span class="state"><span class="dot b"></span>자동 진행 중</span><span>도깨비의세계</span><span class="when">집 PC 3초 전</span></div>
+        <div class="ctrl"><button class="btn-danger">⏹ 즉시 정지</button></div></div>
+      <div class="stat-card" style="margin-bottom:12px"><div class="stat-card-top"><span class="stat-card-label">오늘 사용</span></div><div class="stat-card-value" style="font-size:1.3rem">96 / 240분</div><div class="meter" style="margin-top:6px"><i style="width:40%"></i></div></div>
+      <div class="q-name">[예시] 장터의 소문</div>
+      <div class="q-sub" style="margin-bottom:8px">미션 2/3 · 사진 3/8</div>
+      <div class="chips" style="margin-bottom:12px"><span class="chip done">✔ 받음</span><span class="chip done">✔ 지도</span><span class="chip done">✔ 중간1</span><span class="chip now">● 중간2</span><span class="chip">도착</span><span class="chip">대화</span><span class="chip">보스</span><span class="chip">보상</span></div>
+      <div class="shot" style="margin-bottom:12px"><span class="tag">방금</span>다리 건너 갈림길</div>
+      <ul class="log"><li><time>14:09</time><span>📍 중간 지점 남김</span></li><li><time>14:06</time><span>🗺️ 지도 찍음</span></li><li><time>14:02</time><span>📜 퀘스트 받음</span></li></ul>
+      <div class="alert warn" style="margin-top:12px;font-size:.82rem">🙋 직접 플레이 대기 2개 — 집에서 처리</div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ════════════ 8 일반 글 사진 ════════════ -->
+<section class="screen" id="s-general">
+  <p class="mock-note">시안 8 — 도깨비의세계·애니모가 주제인 <b>일반 글</b>(최근 소식·트렌드)에 무료 이미지 대신 내 게임 캡처를 쓴다.
+    위: 📁 블로그 관리 카테고리 수정에 «연결 게임·사진 출처» 추가. 아래: 📝 포스팅 카드 이미지 칸의 [🕹️ 내 게임 캡처에서 고르기] 창.</p>
+
+  <div class="card">
+    <div class="card-header"><h2>📁 카테고리 수정 — 게임 웹진</h2><span class="faint" style="font-size:.8rem">기존 ①~⑥ 칸 아래에 붙는 부분 (주인만)</span></div>
+    <div class="form-grid">
+      <div><label class="f">⑦ 연결 게임</label><select><option>도깨비의세계</option><option>애니모</option><option>없음</option></select></div>
+      <div><label class="f">사진 출처</label>
+        <div style="padding:9px 0"><span class="badge badge-violet">🕹️ 내 캡처만</span> <span class="faint" style="font-size:.78rem">게임 연결 시 고정 · 무료 이미지 검색 안 함</span></div></div>
+      <div class="full mode-tip">글을 만들 때 AI가 제목·태그·소제목과 캡처 설명을 견주어 <b>내 캡처 3장</b>을 고릅니다. 캡처 설명이 대체텍스트가 되고, 출처는 «직접 촬영(게임 화면)»으로 적힙니다.
+        맞는 캡처가 모자라면 무료 이미지로 채우지 않고 빈 자리로 둡니다.</div>
+    </div>
+  </div>
+
+  <div class="page-header" style="margin-top:8px">
+    <div><h1>포스팅</h1><p class="muted">AI가 글과 이미지를 준비해두면, 여기서 복사해서 네이버 블로그에 직접 붙여넣으세요.</p></div>
+  </div>
+
+  <div class="post-card">
+    <div class="post-card-header">
+      <span class="badge badge-inactive">게임 웹진</span><span class="badge badge-violet">🕹️ 도깨비의세계 연결</span>
+      <span class="faint" style="font-size:.8rem">제목 34자</span>
+      <button class="btn-secondary btn-small" style="margin-left:auto">복사하기</button>
+    </div>
+    <h3>[예시] 도깨비의세계 가을 업데이트 정리 — 새 지역과 달라진 점</h3>
+    <div class="post-preview" style="margin-bottom:14px"><p style="margin:0">이번 업데이트에서 가장 눈에 띄는 것은 … <span class="faint">(본문 생략)</span></p></div>
+
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <b style="font-size:.9rem">이미지 3자리</b><span class="faint" style="font-size:.78rem">내 캡처 2 · 빈 자리 1 (무료 이미지 안 씀)</span>
+      <span style="flex:1"></span>
+      <button class="btn-primary btn-small">🕹️ 내 게임 캡처에서 고르기</button>
+      <button class="btn-secondary btn-small">캡처 다시 고르기(AI)</button>
+    </div>
+    <div class="post-images">
+      <div class="post-image-item"><div class="shot map" style="border-radius:0"><span class="tag">내 캡처</span><span class="num">1</span></div>
+        <div class="meta">대체텍스트: 새 지역 지도 화면</div><div class="acts"><button class="btn-secondary btn-small">복사</button><button class="btn-secondary btn-small">내려받기</button><button class="btn-secondary btn-small">빼기</button></div></div>
+      <div class="post-image-item"><div class="shot boss" style="border-radius:0"><span class="tag">내 캡처</span><span class="num">2</span></div>
+        <div class="meta">대체텍스트: 새 보스 등장 장면</div><div class="acts"><button class="btn-secondary btn-small">복사</button><button class="btn-secondary btn-small">내려받기</button><button class="btn-secondary btn-small">빼기</button></div></div>
+      <div class="post-image-item" style="border-style:dashed;border-color:var(--todo-line);background:var(--todo-bg)">
+        <div style="aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;color:var(--todo);font-size:.8rem;font-weight:600"><span style="font-size:1.3rem">＋</span>빈 자리 3</div>
+        <div class="meta" style="color:#6e4306">캡처 부족 — 직접 고르거나 집 PC에서 더 찍어 주세요</div></div>
+    </div>
+
+    <!-- 고르기 창 (단추를 누르면 카드 안에 펼쳐짐) -->
+    <div style="margin-top:16px;border:1px solid var(--info-line);border-radius:12px;padding:14px;background:var(--bg-card)">
+      <div class="card-header" style="margin-bottom:10px"><h2 style="font-size:1rem">🕹️ 내 게임 캡처에서 고르기</h2><button class="btn-secondary btn-small">닫기</button></div>
+      <div class="pick-filters">
+        <select><option>도깨비의세계</option><option>애니모</option></select>
+        <select><option>모든 퀘스트</option><option>[예시] 도깨비 시장 입장</option><option>[예시] 장터의 소문</option></select>
+        <select><option>모든 장면</option><option>지도</option><option>보스</option><option>보상</option><option>대화</option><option>도착</option></select>
+        <select><option>최근 7일</option><option>최근 30일</option><option>전체</option></select>
+        <input placeholder="설명 검색 (예: 지도, 보스)" style="flex:1;min-width:140px">
+        <label style="font-size:.8rem;align-self:center"><input type="checkbox"> 아직 글에 안 쓴 것만</label>
+      </div>
+      <div class="faint" style="font-size:.78rem;margin-bottom:8px">✨ AI 추천 순서 — 이 글 제목·태그와 가까운 캡처가 앞에 옵니다 · <b id="pickCount" style="color:var(--gold)">선택 2장</b> (다른 쪽 포함, 최대 10장)</div>
+      <div class="pick-grid" id="pickGrid"></div>
+      <div class="pager">
+        <button class="btn-secondary btn-small" id="pgPrev">‹ 이전 8건</button>
+        <span id="pgInfo">1–8 / 37</span>
+        <button class="btn-secondary btn-small" id="pgNext">다음 8건 ›</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px">
+        <label style="font-size:.84rem"><input type="radio" name="pm" checked> 빈 자리부터 채우기</label>
+        <label style="font-size:.84rem"><input type="radio" name="pm"> 지금 사진 바꾸기</label>
+        <label style="font-size:.84rem"><input type="radio" name="pm"> 뒤에 더하기</label>
+        <span style="flex:1"></span>
+        <button class="btn-secondary">선택 사진 복사</button>
+        <button class="btn-primary">이 글에 넣기</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+  </main>
+</div>
+
+<script>
+// 시안 전용: 화면 바꾸기, 상태 막대 7가지 미리 보기
+const 상태들 = {
+  끊김:   {cls:'bad',  dot:'r', 이름:'집 PC 연결 끊김', 줄:'마지막 연결 12분 전', 버튼:['재시도 안내'], 메모:'집 PC에서 python main.py 가 꺼졌거나 인터넷이 끊겼습니다. [게임 실행]은 연결될 때까지 막힙니다.'},
+  대기:   {cls:'',     dot:'g', 이름:'준비됨', 줄:'집 PC 연결됨 · 3초 전 · 실행 중인 게임 없음', 버튼:[], 메모:''},
+  켜는중: {cls:'run',  dot:'b', 이름:'게임 켜는 중', 줄:'도깨비의세계 · 런처 실행 → 게임 창 기다리는 중 (42/180초)', 버튼:['stop'], 메모:''},
+  로그인: {cls:'todo', dot:'y', 이름:'로그인 필요 — 멈춤', 줄:'도깨비의세계 · 로그인 화면이 떠서 멈췄습니다', 버튼:['다시 실행'], 메모:'공식 런처에서 로그인(자동 로그인 켜기)을 해 주세요. 프로그램은 비밀번호를 다루지 않습니다.'},
+  자동:   {cls:'run',  dot:'b', 이름:'자동 진행 중', 줄:'도깨비의세계 · 감독 모드 · 미션 「메인 3개」 2/3 · 집 PC 3초 전', 버튼:['stop'], 메모:''},
+  직접:   {cls:'ok',   dot:'g', 이름:'직접 플레이 중', 줄:'애니모 · 기록 모드(입력 0건) · 사진 자동 + F9 · 집 PC 2초 전', 버튼:['stop'], 메모:''},
+  확인:   {cls:'bad',  dot:'r', 이름:'멈춤 — 확인 필요', 줄:'도깨비의세계 · 14:21 금지 화면(상점) 감지', 버튼:['사진 보기','다시 실행'], 메모:'안전 규칙으로 스스로 멈췄습니다. 마지막 사진을 확인한 뒤 다시 실행하세요.'},
+};
+function 막대(키){
+  const s = 상태들[키];
+  const 버튼 = s.버튼.map(b => b==='stop'
+      ? '<button class="btn-danger">⏹ 즉시 정지</button>'
+      : `<button class="btn-secondary">${b}</button>`).join('');
+  document.getElementById('playBar').className = 'play-bar ' + s.cls;
+  document.getElementById('playBar').innerHTML =
+    `<div class="line"><span class="state"><span class="dot ${s.dot}"></span>${s.이름}</span><span>${s.줄}</span><span class="when">오늘 96/240분</span></div>
+     <div class="ctrl">${버튼}</div>${s.메모 ? `<p class="note">${s.메모}</p>` : ''}`;
+  document.querySelectorAll('#stateBtns button').forEach(b => b.classList.toggle('on', b.dataset.k===키));
+}
+document.getElementById('stateBtns').innerHTML = Object.keys(상태들)
+  .map(k => `<button class="btn-secondary btn-small" data-k="${k}" style="margin:4px 4px 0 0">${상태들[k].이름}</button>`).join('');
+document.getElementById('stateBtns').addEventListener('click', e => { if (e.target.dataset.k) 막대(e.target.dataset.k); });
+막대('자동');
+
+function 모드안내(){
+  const g = document.getElementById('gameSel').value;
+  document.getElementById('modeTip').innerHTML = g === 'dokkaebi'
+    ? '<b>감독 모드</b> — 게임을 켜고 공식 자동 진행으로 미션 퀘스트를 차례로 합니다. 누르는 건 설정에 적힌 버튼뿐이고, 상점·결제·채팅 화면이 보이면 바로 멈춥니다.'
+    : '<b>기록 모드</b> — 게임만 켜 드립니다. 플레이는 직접 하시고, 프로그램은 사진만 찍습니다(키보드·마우스 입력 0건). 휴대폰으로 체크리스트를 보며 하시면 편합니다.';
+}
+document.getElementById('gameSel').addEventListener('change', 모드안내);
+모드안내();
+
+// 시안 전용: 캡처 고르기 8건씩 넘겨 보기 (예시 37장)
+const 장면들 = [['지도','map'],['보스','boss'],['도착',''],['보상','reward'],['대화','talk'],['이동중',''],['퀘스트받음',''],['보스처치','boss']];
+const 캡처 = Array.from({length:37}, (_, i) => {
+  const [이름, 색] = 장면들[i % 장면들.length];
+  return {id:i, 이름, 색, 설명:`[예시] ${이름} 장면 ${i + 1}`, 날:`10-${String(20 - Math.floor(i / 6)).padStart(2,'0')}`, 씀: i % 5 === 3};
+});
+const 고름 = [0, 1];
+let 쪽 = 0;
+function 고르기그리기(){
+  const 시작 = 쪽 * 8, 끝 = Math.min(시작 + 8, 캡처.length);
+  document.getElementById('pickGrid').innerHTML = 캡처.slice(시작, 끝).map(c => {
+    const n = 고름.indexOf(c.id);
+    return `<div class="pick${n >= 0 ? ' on' : ''}" data-id="${c.id}"><div class="shot ${c.색}"><span class="tag">${c.이름}</span></div>
+      <span class="ck">${n >= 0 ? n + 1 : ''}</span>${c.씀 ? '<span class="used">다른 글 1편에 씀</span>' : ''}<div class="cap">${c.설명} · ${c.날}</div></div>`;
+  }).join('');
+  document.getElementById('pgInfo').textContent = `${시작 + 1}–${끝} / ${캡처.length}`;
+  document.getElementById('pgPrev').disabled = 쪽 === 0;
+  document.getElementById('pgNext').disabled = 끝 >= 캡처.length;
+  document.getElementById('pickCount').textContent = `선택 ${고름.length}장`;
+}
+document.getElementById('pgPrev').addEventListener('click', () => { 쪽--; 고르기그리기(); });
+document.getElementById('pgNext').addEventListener('click', () => { 쪽++; 고르기그리기(); });
+document.getElementById('pickGrid').addEventListener('click', e => {
+  const p = e.target.closest('.pick'); if (!p) return;
+  const id = +p.dataset.id, n = 고름.indexOf(id);
+  if (n >= 0) 고름.splice(n, 1); else if (고름.length < 10) 고름.push(id);
+  고르기그리기();
+});
+고르기그리기();
+
+function 가기(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 's-' + id));
+  document.querySelectorAll('#mockBar button').forEach(b => b.classList.toggle('on', b.dataset.go === id));
+  document.querySelectorAll('.sidebar-nav-item[data-go]').forEach(b =>
+    b.classList.toggle('active', (id === 'post' || id === 'general') === (b.dataset.go === 'post')));
+  window.scrollTo(0, 0);
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-go]');
+  if (t) { e.preventDefault(); 가기(t.dataset.go); }
+});
+</script>
+</body>
+</html>
