@@ -5,3 +5,7 @@ data/
 .env.local
 *.log
 image-test-out/
+# 집 PC 게임 프로그램 — 시험 사진·개인 설정은 올리지 않는다
+agent/시험결과/
+agent/config.yaml
+__pycache__/
