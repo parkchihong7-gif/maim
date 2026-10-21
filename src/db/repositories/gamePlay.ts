@@ -3,6 +3,7 @@
  * 라우트(`routes/game.ts`)가 주인이 아니면 404 로 막는다.
  * (🎮 출시 달력은 `gameEvents.ts` — 이름이 비슷하지만 다른 것)
  */
+import crypto from "node:crypto";
 import { DateTime } from "luxon";
 import { getDb } from "../index.js";
 import { getSetting, setSetting } from "./settings.js";
@@ -46,6 +47,29 @@ export function 게임설정저장(값: Partial<게임설정>): 게임설정 {
   };
   setSetting("game_settings", JSON.stringify(새것));
   return 새것;
+}
+
+// ── 집 PC 연결 토큰 ──────────────────────────────────────────
+/**
+ * 집 PC 가 드는 토큰. 배포 때 넣은 환경변수 GAME_AGENT_TOKEN 과, 대시보드 [설정 → 🔑 집 PC 연결] 에서
+ * 만든 토큰(DB) **둘 다** 받는다. 대시보드에서 복사할 수 있어야 Cloud Shell 을 안 열고도 집 PC 를 붙인다.
+ */
+export function 에이전트토큰들(): string[] {
+  return [(process.env.GAME_AGENT_TOKEN ?? "").trim(), (getSetting("game_agent_token") ?? "").trim()].filter((t) => t.length >= 16);
+}
+
+/** 화면에 보여 줄 토큰 — 대시보드에서 만든 것이 먼저, 없으면 환경변수 것. */
+export function 보여줄토큰(): { token: string; from: "db" | "env" | null } {
+  const db = (getSetting("game_agent_token") ?? "").trim();
+  if (db.length >= 16) return { token: db, from: "db" };
+  const env = (process.env.GAME_AGENT_TOKEN ?? "").trim();
+  return env.length >= 16 ? { token: env, from: "env" } : { token: "", from: null };
+}
+
+export function 새토큰(): string {
+  const t = crypto.randomBytes(24).toString("hex");
+  setSetting("game_agent_token", t);
+  return t;
 }
 
 // ── 프로필 ───────────────────────────────────────────────────

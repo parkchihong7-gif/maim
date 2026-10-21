@@ -88,13 +88,13 @@
     const 알림 = [];
     if (s.needsGameBucket) 알림.push(`<div class="g-alert bad"><b>게임 사진 저장통이 없습니다.</b> 서버 환경변수 <code>GAME_SHOT_BUCKET</code> 을 넣어야 게임 기능이 켜집니다.
       서버는 Cloud Shell 에서 저장통을 만들고 배포 때 넣습니다(GAME_PLAN 12번). PC 에서 시험할 때는 <code>.env</code> 에 <code>GAME_SHOT_BUCKET=local:data/game-shots</code>.</div>`);
-    if (!s.agentTokenSet) 알림.push(`<div class="g-alert warn"><b>집 PC 연결 토큰이 없습니다.</b> 서버 환경변수 <code>GAME_AGENT_TOKEN</code>(긴 무작위 글자)을 넣고, 집 PC 에도 같은 값을 <code>MAIM_GAME_AGENT_TOKEN</code> 으로 넣으세요.</div>`);
+    if (!s.agentTokenSet) 알림.push(`<div class="g-alert warn"><b>집 PC 연결 토큰이 없습니다.</b> <a href="#" data-action="g-tab" data-tab="settings">[설정 → 🔑 집 PC 연결]</a> 에서 [토큰 만들기] 를 누르세요.</div>`);
     if (s.agentTokenSet && !s.needsGameBucket && !s.agent.connected && s.agent.secondsAgo === null)
       알림.push(`<div class="g-alert warn"><b>집 PC 가 아직 한 번도 연결되지 않았습니다.</b> 처음 세팅 순서:
-        <ol class="g-ol"><li>집 PC 에 Python 설치 → <code>agent</code> 폴더에서 <code>pip install -r requirements.txt</code></li>
-        <li>환경변수 3개: <code>MAIM_SERVER_URL</code> · <code>MAIM_GAME_AGENT_TOKEN</code> · <code>MAIM_GAME_ROOT</code></li>
-        <li><code>python main.py</code> 를 켜 두기 (게임 없이 시험: <code>python main.py --가상 --빠르게</code>)</li>
-        <li>이 화면 상태 막대가 «준비됨» 으로 바뀌면 [▶ 게임 실행]</li></ol></div>`);
+        <ol class="g-ol"><li><a href="#" data-action="g-tab" data-tab="settings">[설정 → 🔑 집 PC 연결]</a> 에서 토큰 <b>📋 복사</b></li>
+        <li>집 PC 의 Claude Code(저장소 폴더, Shift+Tab 으로 auto)에 «<code>docs/game/집PC-클로드.md</code> 대로 진행해 줘» — 설치·0단계 시험·프로필 채우기는 클로드가 합니다</li>
+        <li>클로드가 띄운 파란 창에 토큰을 붙여 넣고, «게임을 켜 주세요» 하면 게임만 켜 주세요</li>
+        <li>이 막대가 «준비됨» 이 되면 [▶ 게임 실행]</li></ol></div>`);
     칸.innerHTML = 알림.join("");
   }
 
@@ -369,8 +369,8 @@
 
   // ── ④ 설정 ───────────────────────────────────────────
   async function 설정열기() {
-    const [s, p] = await Promise.all([api("/api/game/settings"), api("/api/game/profiles")]);
-    G.settings = s; G.profiles = p.items;
+    const [s, p, t] = await Promise.all([api("/api/game/settings"), api("/api/game/profiles"), api("/api/game/agent-token")]);
+    G.settings = s; G.profiles = p.items; G.token = t;
     G.profileGame = G.profileGame || G.game;
     설정그리기();
   }
@@ -378,7 +378,18 @@
     const s = G.settings, p = G.profiles.find((x) => x.id === G.profileGame) || G.profiles[0];
     const 버튼들 = Object.entries(p.버튼 || {});
     const 실행 = p.실행 || {};
+    const t = G.token || {};
     판("settings").innerHTML = `
+      <div class="card" id="g-token-card"><div class="card-header"><h2>🔑 집 PC 연결</h2><span class="faint g-small">집 PC 준비 스크립트가 물어보면 이 토큰을 붙여 넣으세요</span></div>
+        <div class="g-setting-row"><b>연결 토큰</b><div>
+          ${t.token ? `<code class="g-token">${G.토큰보기 ? esc(t.token) : "••••••••••••" + esc(t.token.slice(-4))}</code>
+            <div class="g-btns g-mt"><button class="btn-primary btn-small" data-action="g-token-copy">📋 복사</button>
+              <button class="btn-secondary btn-small" data-action="g-token-show">${G.토큰보기 ? "가리기" : "보기"}</button>
+              <button class="btn-secondary btn-small" data-action="g-token-new">새로 만들기</button></div>`
+            : `<p class="muted">아직 없습니다.</p><button class="btn-primary btn-small" data-action="g-token-new">토큰 만들기</button>`}
+          <p class="faint g-small">채팅·메모장·저장소에 붙이지 마세요. 집 PC 명령 창에만 붙여 넣습니다. 새로 만들면 집 PC 에도 다시 넣어야 합니다.</p></div></div>
+        <div class="g-setting-row"><b>집 PC 에서</b><div class="g-small">집 PC 의 Claude Code 에 «<code>docs/game/집PC-클로드.md</code> 대로 진행해 줘» 라고 하면 클로드가 준비 창을 띄웁니다. 그 창에 이 토큰을 붙여 넣으세요.</div></div>
+      </div>
       <div class="card"><div class="card-header"><h2>공통 설정</h2></div>
         <div class="g-setting-row"><b>서버 사진 보관일</b><div><input type="number" id="gs-keep" min="1" max="365" value="${s.서버사진보관일}"> 일 <span class="faint g-small">— 이 캡처를 쓴 글을 <b>모두</b> 발행하고 이만큼 지나면 서버 사진을 지웁니다</span></div></div>
         <div class="g-setting-row"><b>안 쓴 사진 보관일</b><div><input type="number" id="gs-unused" min="1" max="365" value="${s.안쓴사진보관일}"> 일 <span class="faint g-small">— 어떤 글에도 안 쓴 사진</span></div></div>
@@ -593,6 +604,15 @@
         참고글목록넣기: document.getElementById("gs-refs").checked }) });
       btn.textContent = "저장됨 ✔"; setTimeout(() => { btn.textContent = "저장"; }, 1500);
       return;
+    }
+    if (a === "g-token-copy") { await navigator.clipboard.writeText(G.token.token); btn.textContent = "복사됨 ✔"; setTimeout(() => { btn.textContent = "📋 복사"; }, 1500); return; }
+    if (a === "g-token-show") { G.토큰보기 = !G.토큰보기; return 설정그리기(); }
+    if (a === "g-token-new") {
+      if (G.token?.token && !confirm("새 토큰을 만들까요? 집 PC 준비 스크립트를 다시 돌려 새 토큰을 넣어야 합니다.")) return;
+      G.token = await api("/api/game/agent-token/new", { method: "POST" });
+      G.토큰보기 = false;
+      await 상태읽기(); 위쪽그리기();
+      return 설정그리기();
     }
     if (a === "gp-btn-add") { const p = G.profiles.find((x) => x.id === G.profileGame); Object.assign(p, 프로필폼읽기()); p.버튼[`새버튼${Object.keys(p.버튼).length + 1}`] = { 키: "" }; return 설정그리기(); }
     if (a === "gp-btn-del") { const p = G.profiles.find((x) => x.id === G.profileGame); Object.assign(p, 프로필폼읽기()); delete p.버튼[Object.keys(p.버튼)[Number(btn.dataset.i)]]; return 설정그리기(); }

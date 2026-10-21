@@ -33,6 +33,12 @@ import win32gui
 import yaml
 from PIL import Image, ImageChops, ImageStat
 
+for _흐름 in (sys.stdout, sys.stderr):   # 윈도 명령 창·클로드 코드에서 한글이 깨지지 않게
+    try:
+        _흐름.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 AGENT_DIR = Path(__file__).resolve().parent.parent
 PROFILE_DIR = AGENT_DIR / "profiles"
 
@@ -155,7 +161,7 @@ def 캡처_시험(hwnd: int, 프로필: dict, 폴더: Path) -> dict:
     return 결과
 
 
-def 입력_시험(hwnd: int, 프로필: dict, 폴더: Path) -> dict:
+def 입력_시험(hwnd: int, 프로필: dict, 폴더: Path, 동의함: bool = False) -> dict:
     if 프로필.get("모드") != "감독":
         print("[건너뜀] 기록 모드 게임은 입력 시험을 하지 않습니다(입력 0건 원칙).")
         return {"입력": None, "이유": "기록 모드"}
@@ -167,7 +173,10 @@ def 입력_시험(hwnd: int, 프로필: dict, 폴더: Path) -> dict:
 
     print("\n입력 시험: 게임 화면에 창 하나(예: 가방·지도)를 열어 둔 상태로 준비해 주세요.")
     print("ESC 키를 딱 한 번 보냅니다. 진행하려면 '예'를 입력하세요.")
-    if input("> ").strip() != "예":
+    if 동의함:
+        print("  (--동의함: 사장님이 미리 동의 — 5초 뒤 보냅니다)")
+        time.sleep(2)
+    elif input("> ").strip() != "예":
         return {"입력": None, "이유": "사장님이 취소"}
 
     import pydirectinput  # 감독 모드 입력 시험에서만 불러온다
@@ -186,6 +195,9 @@ def 입력_시험(hwnd: int, 프로필: dict, 폴더: Path) -> dict:
     차이 = round(평균차이(전, 후), 2)
     print(f"  ESC 전후 화면 차이: {차이}")
 
+    if 동의함:
+        # 클로드가 입력_전/후.png 를 보고 판단한다.
+        return {"입력": None, "화면차이": 차이, "판단": "입력_전.png·입력_후.png 를 보고 정함"}
     답 = input("열어 둔 창이 닫혔나요? (예/아니오) > ").strip()
     return {"입력": 답 == "예", "화면차이": 차이}
 
@@ -312,6 +324,7 @@ def main() -> None:
     ap.add_argument("--coords-launcher", action="store_true", help="마우스 위치 비율 보기 (런처 창)")
     ap.add_argument("--launch", action="store_true", help="게임 켜기 시험 후 캡처 시험")
     ap.add_argument("--root", help="결과 저장 루트 (없으면 MAIM_GAME_ROOT)")
+    ap.add_argument("--동의함", action="store_true", help="입력 시험에 사장님이 미리 동의(클로드가 대신 돌릴 때). 닫혔는지는 사진으로 판단")
     args = ap.parse_args()
 
     고해상도_맞추기()
@@ -362,7 +375,7 @@ def main() -> None:
                "시각": dt.datetime.now().isoformat(timespec="seconds")})
     결과.update(캡처_시험(hwnd, 프로필, 폴더))
     if args.input_test:
-        결과.update(입력_시험(hwnd, 프로필, 폴더))
+        결과.update(입력_시험(hwnd, 프로필, 폴더, args.동의함))
 
     (폴더 / "결과.json").write_text(json.dumps(결과, ensure_ascii=False, indent=2), encoding="utf-8")
 

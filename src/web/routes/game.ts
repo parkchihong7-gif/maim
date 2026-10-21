@@ -13,6 +13,7 @@
  * 판단용 사진(768px)·남길 사진(1280px)은 한 장에 수백 KB 라 이 길이 단순하다.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import crypto from "node:crypto";
 import sharp from "sharp";
 import { 관리자인가 } from "../../tenancy.js";
 import { getPost } from "../../db/repositories/posts.js";
@@ -21,6 +22,7 @@ import {
   게임설정읽기, 게임설정저장, 프로필목록, 프로필읽기, 프로필저장, 에이전트, 하트비트적기, 상태칸고치기, 명령걸기, 명령가져가기,
   세션시작, 세션끝, 열린세션, 오늘사용분, 기록, 최근기록, 퀘스트읽기, 퀘스트목록, 퀘스트고치기, 진행표, 사진기록넣기,
   사진경로적기, 사진읽기 as 사진행읽기, 사진고치기, 퀘스트사진들, 최근사진들, 사진찾기, 글사진들, 글사진빼기,
+  에이전트토큰들, 보여줄토큰, 새토큰,
   미션목록, 미션읽기, 미션저장, 미션지우기, 미션목표들, 미션칸고름, 목록줄들, 목록줄읽기, 목록줄넣기, 목록줄고치기,
   type 사진, type 퀘스트, type 목표,
 } from "../../db/repositories/gamePlay.js";
@@ -101,9 +103,8 @@ function 화면상태(연결: boolean, state: string | null, 모드: string | un
 }
 
 function 에이전트토큰맞나(req: FastifyRequest): boolean {
-  const 정답 = (process.env.GAME_AGENT_TOKEN ?? "").trim();
   const 온것 = String(req.headers["x-game-agent-token"] ?? "").trim();
-  return !!정답 && 정답.length >= 8 && 온것 === 정답;
+  return !!온것 && 에이전트토큰들().some((t) => t.length === 온것.length && crypto.timingSafeEqual(Buffer.from(t), Buffer.from(온것)));
 }
 
 export async function gameRoutes(app: FastifyInstance) {
@@ -111,8 +112,8 @@ export async function gameRoutes(app: FastifyInstance) {
   app.addHook("preHandler", async (req, reply) => {
     const url = req.url.split("?")[0];
     if (url.startsWith("/api/game/agent/")) {
-      if (!(process.env.GAME_AGENT_TOKEN ?? "").trim()) {
-        reply.code(503).send({ error: "서버에 GAME_AGENT_TOKEN 이 설정되지 않았습니다. 집 PC 연결용 토큰을 먼저 넣어 주세요." });
+      if (!에이전트토큰들().length) {
+        reply.code(503).send({ error: "집 PC 연결 토큰이 아직 없습니다. 대시보드 [🕹️ 게임 플레이 → 설정 → 🔑 집 PC 연결] 에서 만들어 주세요." });
         return reply;
       }
       if (!에이전트토큰맞나(req)) { reply.code(401).send({ error: "집 PC 토큰이 맞지 않습니다(MAIM_GAME_AGENT_TOKEN)." }); return reply; }
@@ -176,6 +177,35 @@ export async function gameRoutes(app: FastifyInstance) {
   app.get("/api/game/agent/profile/:id", async (req, reply) => {
     const p = 프로필읽기((req.params as { id: string }).id);
     if (!p) { reply.code(404); return { error: "프로필이 없습니다." }; }
+    return p;
+  });
+
+  /**
+   * 집 PC 의 클로드가 0단계 시험(캡처)을 보고 채운 값을 올리는 길. **창제목·실행 파일·영역(비율)만** 바꾼다.
+   * 버튼(누를 것)·모드·금지 화면은 여기서 못 바꾼다 — 대시보드(관리자)에서만.
+   */
+  app.put("/api/game/agent/profile/:id", async (req, reply) => {
+    const id = (req.params as { id: string }).id;
+    const 원래 = 프로필읽기(id);
+    if (!원래) { reply.code(404); return { error: "프로필이 없습니다." }; }
+    const b = (req.body ?? {}) as { 창제목?: string; 실행?: Record<string, unknown>; 영역?: Record<string, Record<string, number>> };
+    const 비율 = (n: unknown) => { const v = Number(n); return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : null; };
+    const 영역 = { ...원래.영역 };
+    for (const [이름, r] of Object.entries(b.영역 ?? {})) {
+      if (!/^[가-힣A-Za-z0-9_]{1,12}$/.test(이름) || !r) continue;
+      const [x, y, w, h] = [비율(r.x), 비율(r.y), 비율(r.w), 비율(r.h)];
+      if (x === null || y === null || !w || !h) continue;
+      영역[이름] = { x, y, w, h };
+    }
+    const 실행 = { ...(원래.실행 ?? { 파일: "" }) };
+    if (b.실행) {
+      if (typeof b.실행.파일 === "string") 실행.파일 = b.실행.파일.slice(0, 300);
+      if (typeof b.실행.인자 === "string") 실행.인자 = b.실행.인자.slice(0, 200);
+      if (typeof b.실행.런처창제목 === "string") 실행.런처창제목 = b.실행.런처창제목.slice(0, 60);
+      if (b.실행.창대기초 !== undefined) 실행.창대기초 = Math.max(30, Math.min(600, Number(b.실행.창대기초) || 180));
+    }
+    const p = 프로필저장(id, { ...원래, 창제목: typeof b.창제목 === "string" && b.창제목.trim() ? b.창제목.trim() : 원래.창제목, 실행, 영역 });
+    기록("프로필고침", { 누가: "집 PC", 바꾼칸: Object.keys(b) }, id);
     return p;
   });
 
@@ -262,7 +292,7 @@ export async function gameRoutes(app: FastifyInstance) {
     return {
       needsGameBucket: !지금저장통(),
       bucket: 지금저장통()?.kind ?? null,
-      agentTokenSet: !!(process.env.GAME_AGENT_TOKEN ?? "").trim(),
+      agentTokenSet: 에이전트토큰들().length > 0,
       agent: {
         connected: 연결, secondsAgo: 몇초전, version: a.agent_version, state: a.state, game: a.current_game,
         detail: a.detail, display: 화면상태(연결, a.state, 프로필?.모드),
@@ -526,6 +556,13 @@ export async function gameRoutes(app: FastifyInstance) {
     return p;
   });
   app.get("/api/game/settings", async () => 게임설정읽기());
+  // 🔑 집 PC 연결 토큰 — 관리자 화면에서 복사해 집 PC 준비 스크립트에 붙여 넣는다.
+  app.get("/api/game/agent-token", async () => 보여줄토큰());
+  app.post("/api/game/agent-token/new", async () => {
+    const token = 새토큰();
+    기록("토큰새로", {}, null);
+    return { token, from: "db" };
+  });
   app.put("/api/game/settings", async (req) => 게임설정저장((req.body ?? {}) as object));
 
   // ════════════ 📝 포스팅 카드 — 내 게임 캡처 (15-8) ════════════

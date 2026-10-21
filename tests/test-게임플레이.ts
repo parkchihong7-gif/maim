@@ -147,6 +147,15 @@ const 금지판단 = (await app.inject({ method: "POST", url: "/api/game/agent/j
 await app.inject({ method: "POST", url: "/api/game/agent/event", headers: 집, payload: { game: "dokkaebi", kind: "막힘", detail: { quest_id: (R.퀘스트찾거나만들기("dokkaebi", "잃어버린 장부", "서브")).퀘스트.id, 이유: "같은 장면 5분 이상" } } });
 참("막힘 이벤트 → 직접 플레이 대기", R.퀘스트목록("dokkaebi", "직접플레이대기").length === 1);
 
+console.log("\n⑤-2 대시보드 토큰 · 집 PC 프로필 올리기");
+const 새것 = (await app.inject({ method: "POST", url: "/api/game/agent-token/new", headers: 주인 })).json();
+참("대시보드에서 만든 토큰으로도 집 PC 가 붙는다", (await app.inject({ method: "POST", url: "/api/game/agent/heartbeat", headers: { "x-game-agent-token": 새것.token }, payload: { state: "대기" } })).statusCode === 200);
+참("판매용 키는 토큰을 못 본다", (await app.inject({ method: "GET", url: "/api/game/agent-token", headers: 판매 })).statusCode === 404);
+const 올림 = (await app.inject({ method: "PUT", url: "/api/game/agent/profile/dokkaebi", headers: 집,
+  payload: { 창제목: "도깨비의 세계", 실행: { 파일: "C:\\Games\\D.exe" }, 영역: { 미니맵: { x: 0.8, y: 0, w: 0.2, h: 0.2 } }, 버튼: { 상점열기: { x: 0.1, y: 0.1 } }, 모드: "기록" } })).json();
+참("집 PC 는 창제목·실행 파일·영역만 바꾼다(버튼·모드는 그대로)", 올림.창제목 === "도깨비의 세계" && 올림.실행.파일 === "C:\\Games\\D.exe"
+  && 올림.영역.미니맵.x === 0.8 && 올림.모드 === "감독" && !("상점열기" in 올림.버튼) && "자동진행" in 올림.버튼);
+
 console.log("\n⑥ 공략 글");
 const 바깥전 = 바깥부름;
 const 글 = (await app.inject({ method: "POST", url: `/api/game/quests/${퀘스트id}/post`, headers: 주인, payload: { refs: false } })).json();

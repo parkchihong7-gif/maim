@@ -433,7 +433,19 @@ def main() -> None:
     ap.add_argument("--빠르게", action="store_true", help="시간 기준을 줄여 빨리 시험(가상 게임)")
     ap.add_argument("--금지", action="store_true", help="가상 게임에 상점 화면을 끼워 즉시 정지 시험")
     ap.add_argument("--시간", type=float, default=None, help="이 초가 지나면 끝냄(시험용)")
+    ap.add_argument("--연결시험", action="store_true", help="서버에 한 번 신호만 보내 보고 끝냄")
     a = ap.parse_args()
+    if a.연결시험:
+        s = 설정모듈.읽기()
+        print(f"서버: {s.서버주소}")
+        print(f"토큰: {'있음' if s.토큰 else '없음 ← 집PC-준비.ps1 을 먼저'} · 저장 루트: {s.저장루트}")
+        try:
+            서버(s.서버주소, s.토큰).하트비트(설정모듈.버전, None, "대기", {"연결시험": True})
+            print("✅ 연결됨 — 대시보드 🕹️ 게임 플레이 상태 막대가 몇 초 안에 «준비됨» 으로 바뀝니다(20초 뒤엔 다시 «끊김»).")
+            sys.exit(0)
+        except 서버탈 as 탈:
+            print(f"❌ 연결 안 됨 — {탈}")
+            sys.exit(1)
     if not a.가상 and sys.platform != "win32":
         sys.exit("진짜 게임 모드는 윈도(집 PC)에서만 됩니다. 시험은 --가상 을 붙여 주세요.")
     s = 설정모듈.읽기(가상=a.가상, 빠르게=a.빠르게)
