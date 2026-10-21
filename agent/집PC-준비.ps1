@@ -6,6 +6,7 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $agent = Split-Path -Parent $MyInvocation.MyCommand.Path
 $env:PYTHONIOENCODING = 'utf-8'
+$env:PYTHONUTF8 = '1'   # 한국어 윈도(cp949)에서 pip 가 requirements.txt 의 한글 주석을 못 읽는 것 막기
 
 Write-Host "`n[1/5] Python 확인" -ForegroundColor Cyan
 $py = $null; $pyArgs = @()
