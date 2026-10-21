@@ -82,15 +82,25 @@ export async function 사진지우기(경로: string): Promise<void> {
   } catch { /* 이미 없으면 그만 */ }
 }
 
+let 서명안됨 = false;
+
 /**
  * 화면이 사진을 볼 주소. GCS 면 **15분 서명 주소**(저장통은 공개하지 않는다),
  * 로컬이면 null — 그때는 라우트가 파일을 그대로 흘려 준다.
  */
 export async function 서명주소(경로: string): Promise<string | null> {
   const 것 = 지금저장통();
-  if (!것 || 것.kind === "local") return null;
-  const [주소] = await 통(것.bucket).file(경로).getSignedUrl({
-    version: "v4", action: "read", expires: Date.now() + 15 * 60_000,
-  });
-  return 주소;
+  if (!것 || 것.kind === "local" || 서명안됨) return null;
+  try {
+    const [주소] = await 통(것.bucket).file(경로).getSignedUrl({
+      version: "v4", action: "read", expires: Date.now() + 15 * 60_000,
+    });
+    return 주소;
+  } catch (탈) {
+    // Cloud Run 서비스 계정에 «토큰 만들기» 권한이 없으면 서명이 안 된다. 그때는 서버가 사진을
+    // 직접 흘려 준다(라우트가 null 을 보고 사진읽기로 넘어간다). 한 번만 적고 다시 시도하지 않는다.
+    서명안됨 = true;
+    console.warn(`[게임 사진] 서명 주소를 못 만들어 서버가 직접 보냅니다: ${(탈 as Error).message}`);
+    return null;
+  }
 }
