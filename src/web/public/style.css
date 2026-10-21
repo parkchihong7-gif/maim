@@ -2154,6 +2154,10 @@ td.followups .kw-mini { margin: 2px 0; }
 /* 🎮 출시 달력 등 게임 전용 — 게임 블로그일 때만 (app.js 게임모드맞추기) */
 body:not(.game-mode) [data-game-only] { display: none !important; }
 
+/* 🕹️ 게임 플레이는 관리자 접속(마스터 토큰)에서만 — 서버가 확인해 준 뒤에야 body.game-admin 이 붙는다.
+   판매용·체험 접속키에는 메뉴·칸이 아예 안 보인다(서버 API 도 404). */
+body:not(.game-admin) [data-game-admin] { display: none !important; }
+
 /* ── 🕹️ 게임 플레이 (game.js) — 시안 docs/game/시안/게임플레이_시안.html 을 옮김. 이름이 겹치지 않게 g- 를 붙였다 ── */
 .g-tabs,.g-subtabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin:0 0 16px;flex-wrap:wrap}
 .g-tabs button,.g-subtabs button{background:none;border:none;border-bottom:2px solid transparent;border-radius:0;color:var(--text-muted);padding:8px 14px;font-weight:600;cursor:pointer}

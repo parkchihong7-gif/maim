@@ -4,7 +4,7 @@
  *     npx tsx tests/test-게임플레이.ts
  *
  *  ① 판단 답 모양 — 틀리면 «대기»     ② 안전 — 금지 화면 정지·기록 모드 입력 0·화이트리스트·로그인 정지
- *  ③ 사진 체크리스트·게임 목록 순서   ④ 칸막이 — 체험 키 404, 집 PC 토큰 틀리면 401, 저장통 없으면 409
+ *  ③ 사진 체크리스트·게임 목록 순서   ④ 칸막이 — 체험·**판매용** 키 404, 집 PC 토큰 틀리면 401, 저장통 없으면 기능 꺼짐
  *  ⑤ 집 PC 흐름 — 하트비트 start → 판단 → 사진 → 퀘스트 완료 → 미션 목표 → stop
  *  ⑥ 공략 글 — 내 캡처만, 무료 이미지 검색 0회     ⑦ 일반 글(연결 게임) — 캡처 3장·무료 이미지 0회·부족하면 빈 자리
  *  ⑧ 고르기 창 8장씩 · 참고 글(로그인 필요 주소 못읽음)  ⑨ 자동 정리 — 발행 안 한 글이 쓰는 캡처는 남긴다
@@ -94,13 +94,26 @@ const 막힌것 = await Promise.all([
   app.inject({ method: "GET", url: "/api/posts/1/game-shots", headers: 체험 }),
 ]);
 참("체험 키로 /api/game/* → 404", 막힌것.every((r) => r.statusCode === 404));
+// 판매용 접속키(키 서버 role admin) — 글·카테고리는 주인과 같은 자리지만 게임 플레이는 관리자 접속만.
+const 판매 = { "x-dashboard-token": openSession({ key1: "S-SALE", key2: "S-SALE-PC", remoteToken: "r", role: "admin" }) };
+const 판매막힘 = await Promise.all([
+  app.inject({ method: "GET", url: "/api/game/status", headers: 판매 }),
+  app.inject({ method: "GET", url: "/api/game/profiles", headers: 판매 }),
+  app.inject({ method: "POST", url: "/api/game/start", headers: 판매, payload: { game: "dokkaebi" } }),
+  app.inject({ method: "POST", url: "/api/game/stop", headers: 판매 }),
+  app.inject({ method: "GET", url: "/api/game/shots", headers: 판매 }),
+  app.inject({ method: "POST", url: "/api/posts/1/game-shots", headers: 판매, payload: { shot_ids: [1] } }),
+]);
+참("판매용 접속키로 /api/game/* → 404", 판매막힘.every((r) => r.statusCode === 404));
+참("판매용 접속키도 글 목록은 그대로 본다(주인 자리)", (await app.inject({ method: "GET", url: "/api/queue", headers: 판매 })).statusCode === 200);
+참("관리자 접속은 열림", (await app.inject({ method: "GET", url: "/api/game/profiles", headers: 주인 })).statusCode === 200);
 참("집 PC 토큰이 틀리면 401", (await app.inject({ method: "POST", url: "/api/game/agent/heartbeat", headers: { "x-game-agent-token": "wrong-token-123" }, payload: {} })).statusCode === 401);
 참("집 PC 길에 대시보드 토큰은 안 통한다", (await app.inject({ method: "POST", url: "/api/game/agent/heartbeat", headers: 주인, payload: {} })).statusCode === 401);
 const 원래통 = process.env.GAME_SHOT_BUCKET;
 delete process.env.GAME_SHOT_BUCKET;
-const 통없음 = await app.inject({ method: "GET", url: "/api/game/quests", headers: 주인 });
-참("저장통 없으면 409 needsGameBucket", 통없음.statusCode === 409 && 통없음.json().needsGameBucket === true);
-참("저장통 없어도 상태는 열림", (await app.inject({ method: "GET", url: "/api/game/status", headers: 주인 })).json().needsGameBucket === true);
+참("저장통이 없는 서버(판매 설치본)는 관리자에게도 기능이 꺼져 있다", (await app.inject({ method: "GET", url: "/api/game/status", headers: 주인 })).statusCode === 404);
+const 통없음 = await app.inject({ method: "POST", url: "/api/game/agent/shot", headers: 집, payload: {} });
+참("집 PC 길은 저장통 없으면 409 needsGameBucket", 통없음.statusCode === 409 && 통없음.json().needsGameBucket === true);
 process.env.GAME_SHOT_BUCKET = 원래통;
 
 console.log("\n⑤ 집 PC 흐름 (가상 힌트)");
@@ -155,6 +168,11 @@ getDb().prepare("UPDATE game_shots SET removed = 1").run();
 const 부족 = (await app.inject({ method: "POST", url: "/api/run/generate", headers: 주인, payload: { categoryId: 카.id } })).json();
 참("캡처가 없으면 빈 자리(무료 이미지로 안 채움)", JSON.parse(부족.image_paths_json || "[]").length === 0 && 바깥부름 === 바깥전);
 getDb().prepare("UPDATE game_shots SET removed = 0").run();
+const 판매로 = await app.inject({ method: "POST", url: "/api/run/generate", headers: 판매, payload: { categoryId: 카.id } });
+참("판매용 접속키는 게임 연결 카테고리라도 내 캡처를 못 쓴다(이미지 키 없으면 예전처럼 막힘)", 판매로.statusCode === 409 && 바깥부름 === 바깥전);
+참("판매용 접속키에는 포스팅 목록에 연결 게임이 안 보인다", (await app.inject({ method: "GET", url: "/api/queue", headers: 판매 })).json().items.every((p: { category_game_id: unknown }) => !p.category_game_id));
+await app.inject({ method: "PUT", url: `/api/categories/${카.id}`, headers: 판매, payload: { gameId: null } });
+참("판매용 접속키는 연결 게임을 바꾸지 못한다", C.getCategory(카.id)!.game_id === "dokkaebi");
 const 그냥카 = C.createCategory({ name: "생활 정보", requiresSearch: false, promptHint: "생활" });
 참("연결 안 한 카테고리는 예전처럼 이미지 키 막기", (await app.inject({ method: "POST", url: "/api/run/generate", headers: 주인, payload: { categoryId: 그냥카.id } })).statusCode === 409);
 

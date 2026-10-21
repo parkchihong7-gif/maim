@@ -27,10 +27,19 @@ export interface 쓰는이 {
   ownerKey: string;
   /** admin(산 분·주인) / client(체험) */
   role: string;
+  /**
+   * **관리자 마스터 토큰(DASHBOARD_TOKEN)으로 들어왔나.**
+   * 판매용 접속키(키 서버 role admin)도 주인과 같은 자리를 쓰지만, 이 표시는 없다.
+   * 🕹️ 게임 플레이처럼 «관리자 접속으로만» 여는 기능은 이것을 본다.
+   */
+  master?: boolean;
 }
 
-/** 서버가 스스로 하는 일(매일 작업·정리)은 주인의 자리에서 돈다. */
-export const 주인: 쓰는이 = { ownerKey: "", role: "admin" };
+/** 서버가 스스로 하는 일(매일 작업·정리)과 마스터 토큰 접속은 이 자리에서 돈다. */
+export const 주인: 쓰는이 = { ownerKey: "", role: "admin", master: true };
+
+/** 판매용 접속키(admin) — 주인과 같은 자리(글·카테고리 공유)지만 관리자 전용 기능은 못 쓴다. */
+export const 판매키자리: 쓰는이 = { ownerKey: "", role: "admin", master: false };
 
 const 자리 = new AsyncLocalStorage<쓰는이>();
 
@@ -96,6 +105,14 @@ export function 상한안내(만든수: number): string {
  */
 export function 주인자리인가(): boolean {
   return !체험인가();
+}
+
+/**
+ * **관리자 접속(마스터 토큰)인가.** 판매용 접속키·체험 키는 거짓.
+ * 토큰을 안 건 서버(내 PC 시험용, 요청 훅이 없음)는 참 — 그 PC 주인만 쓰기 때문이다.
+ */
+export function 관리자인가(): boolean {
+  return 지금().master === true;
 }
 
 /** 막을 때 돌려줄 말. */

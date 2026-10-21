@@ -680,18 +680,23 @@
     } catch (탈) { alert(탈.message); }
   });
 
-  // 카테고리 폼 ⑧ 연결 게임 — 게임 목록 채우기 (주인만 서버가 답한다)
+  // 관리자 접속인지 서버에 묻는다 — 판매용·체험 키는 404 라 메뉴·칸이 끝까지 안 보인다.
+  // 같은 답으로 카테고리 폼 ⑧ 연결 게임 목록도 채운다.
   async function 연결게임칸() {
     const 칸 = document.getElementById("cf-game");
-    if (!칸) return;
     try {
-      const { items } = await api("/api/game/profiles");
+      const r = await fetch("/api/game/profiles", { headers: getDashboardToken() ? { "x-dashboard-token": getDashboardToken() } : {} });
+      if (!r.ok) { document.body.classList.remove("game-admin"); return; }
+      const { items } = await r.json();
+      document.body.classList.add("game-admin");
+      if (!칸) return;
       const 지금 = 칸.value;
       칸.innerHTML = `<option value="">없음 — 무료 이미지 사용</option>${items.map((p) => `<option value="${esc(p.id)}">${esc(p.이름)}</option>`).join("")}`;
       칸.value = 지금;
     } catch { /* 체험 자리 — 칸이 감춰져 있다 */ }
   }
   setTimeout(연결게임칸, 1500);
+  setInterval(연결게임칸, 60_000);   // 다른 키로 다시 들어왔을 때도 맞게
 
   window.게임탭 = { 열기, 고르기열기 };
 })();

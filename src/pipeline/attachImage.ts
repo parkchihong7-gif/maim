@@ -4,6 +4,7 @@ import type { Post } from "../db/repositories/posts.js";
 import { addPostImages, getImagePaths, getPost } from "../db/repositories/posts.js";
 import { getCategory } from "../db/repositories/categories.js";
 import { pickGameShots } from "../game/캡처고르기.js";
+import { 관리자인가 } from "../tenancy.js";
 import { searchWithFallback } from "../images/searchImages.js";
 import { selectBestImages } from "../images/selectImage.js";
 import { processImage } from "../images/processImage.js";
@@ -42,8 +43,9 @@ export function 사진고르기시간(지난ms: number): number {
 export async function attachImage(post: Post, options: AttachImageOptions = {}): Promise<string[]> {
   // 🕹️ 게임을 연결한 카테고리는 무료 이미지를 찾지 않고 내 게임 캡처만 쓴다(GAME_PLAN 15-8).
   // 모자라면 빈 자리로 둔다 — 카드에 «캡처 부족» 이 뜬다.
+  // 판매용·체험 접속키로 만든 글은 예전처럼 무료 이미지 — 게임 캡처는 관리자 접속에서만 쓴다.
   const 카테고리 = getCategory(post.category_id);
-  if (카테고리?.game_id) {
+  if (카테고리?.game_id && 관리자인가()) {
     await pickGameShots(post, 카테고리.game_id, { count: options.count ?? 3, append: options.append, selectTimeoutMs: options.selectTimeoutMs });
     return getImagePaths(getPost(post.id)!);
   }

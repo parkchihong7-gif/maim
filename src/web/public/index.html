@@ -52,7 +52,7 @@
         <button class="sidebar-nav-item" data-action="switch-view" data-view="history">📜 <span>발행 이력</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="keywords" data-owner-only>🔎 <span>네이버 키워드</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="events" data-owner-only data-game-only>🎮 <span>출시 달력</span><span class="nav-count" id="nav-events-count" hidden></span></button>
-        <button class="sidebar-nav-item" data-action="switch-view" data-view="game" data-owner-only data-game-only>🕹️ <span>게임 플레이</span><span class="nav-count" id="nav-game-count" hidden></span></button>
+        <button class="sidebar-nav-item" data-action="switch-view" data-view="game" data-game-admin data-game-only>🕹️ <span>게임 플레이</span><span class="nav-count" id="nav-game-count" hidden></span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="style">🎨 <span>내 블로그 분석</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="workshop" data-owner-only>✍️ <span>글 작업실</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="settings">⚙️ <span id="nav-settings-label">관리자 설정</span></button>
@@ -286,8 +286,8 @@
                   <p class="cf-tip">모든 글에 늘 적용됩니다(고르는 칸 아님).</p></div></div>
               </details>
 
-              <div class="cf-row g-cf-row" data-owner-only data-game-only>
-                <label class="cf-label" for="cf-game">⑧ 연결 게임 <span class="muted">(주인만 · 게임 공략이 있는 주제)</span></label>
+              <div class="cf-row g-cf-row" data-game-admin data-game-only>
+                <label class="cf-label" for="cf-game">⑧ 연결 게임 <span class="muted">(관리자 접속만 · 게임 공략이 있는 주제)</span></label>
                 <select name="gameId" id="cf-game"><option value="">없음 — 무료 이미지 사용</option></select>
                 <p class="cf-tip">게임을 연결하면 이 카테고리 글은 <b>무료 이미지를 찾지 않고</b> 🕹️ 내 게임 캡처에서 3장을 고릅니다. 모자라면 빈 자리로 둡니다.</p>
               </div>
@@ -609,7 +609,7 @@
       <!-- ============ 🕹️ 게임 플레이 (주인 + 게임 블로그만) — 그리는 것은 game.js ============
            집 PC 가 게임을 켜고 미션대로 진행하며 사진을 모은다. 글은 퀘스트마다, 발행은 사람이.
            설계: GAME_PLAN.md 15번 · 시안 docs/game/시안/게임플레이_시안.html -->
-      <section data-view-panel="game" data-owner-only hidden>
+      <section data-view-panel="game" data-game-admin hidden>
         <div class="page-header">
           <div>
             <h1>🕹️ 게임 플레이</h1>

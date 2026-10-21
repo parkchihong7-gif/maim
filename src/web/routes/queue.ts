@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { getDb } from "../../db/index.js";
-import { 지금주인 } from "../../tenancy.js";
+import { 지금주인, 관리자인가 } from "../../tenancy.js";
 
 /**
  * 아직 안 쓰신 초안 목록.
@@ -13,12 +13,12 @@ export async function queueRoutes(app: FastifyInstance) {
   app.get("/api/queue", async () => {
     const items = getDb()
       .prepare(
-        `SELECT p.*, c.name as category_name, c.game_id as category_game_id FROM posts p
+        `SELECT p.*, c.name as category_name, CASE WHEN ? THEN c.game_id END as category_game_id FROM posts p
          JOIN categories c ON c.id = p.category_id
          WHERE p.owner_key = ? AND p.status IN ('draft', 'ready')
          ORDER BY p.created_at DESC`,
       )
-      .all(지금주인());
+      .all(관리자인가() ? 1 : 0, 지금주인());
     return { items };
   });
 }

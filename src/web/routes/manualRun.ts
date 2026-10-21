@@ -11,7 +11,7 @@ import { 사진고르기시간 } from "../../pipeline/attachImage.js";
 import { attachImage } from "../../pipeline/attachImage.js";
 import { runDailyJob } from "../../scheduler/dailyJob.js";
 import { 오류적기, 최근오류 } from "../../db/repositories/errorLog.js";
-import { 주인자리인가 } from "../../tenancy.js";
+import { 주인자리인가, 관리자인가 } from "../../tenancy.js";
 import { 쓸수있나, 지금상태, type AI상태 } from "../../ai/run.js";
 import { 이미지키들 } from "../../db/repositories/settings.js";
 
@@ -56,7 +56,7 @@ export async function 주문해서만들기(category: Category, 주문: 글주�
   const 상태 = await 쓸수있나();
   if (상태.ok === false) { reply.code(409); return 막힌답(상태, true); }
   // 🕹️ 게임 연결 카테고리는 무료 이미지를 안 쓰니 키가 없어도 된다(15-8).
-  if (이미지키들().count === 0 && !category.game_id) { reply.code(409); return 이미지없는답(true); }
+  if (이미지키들().count === 0 && !(category.game_id && 관리자인가())) { reply.code(409); return 이미지없는답(true); }
   const [directive] = assignDirectives(1);
   const 기록: 생성기록 = 빈기록();
   const 시작 = Date.now();
@@ -119,7 +119,7 @@ export async function manualRunRoutes(app: FastifyInstance) {
       return { error: "카테고리를 찾을 수 없습니다." };
     }
     // 🕹️ 게임 연결 카테고리는 무료 이미지를 안 쓰니 키가 없어도 된다(15-8).
-    if (이미지키들().count === 0 && !category.game_id) { reply.code(409); return 이미지없는답(주인자리인가()); }
+    if (이미지키들().count === 0 && !(category.game_id && 관리자인가())) { reply.code(409); return 이미지없는답(주인자리인가()); }
 
     const [directive] = assignDirectives(1);
     // 무엇에 얼마나 걸렸나 — 상태창에 «글 3분 · 사진 40초» 로 보여 준다.

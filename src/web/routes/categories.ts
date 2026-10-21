@@ -13,7 +13,7 @@ import {
 } from "../../scheduler/예약.js";
 import { 다시걸기 } from "../../scheduler/cron.js";
 import { config } from "../../config.js";
-import { 주인자리인가, 체험은못함 } from "../../tenancy.js";
+import { 주인자리인가, 관리자인가, 체험은못함 } from "../../tenancy.js";
 import { 시간재보기 } from "../../scheduler/시간예상.js";
 import { 최소분량 } from "../../db/repositories/settings.js";
 
@@ -143,7 +143,7 @@ export async function categoriesRoutes(app: FastifyInstance) {
     }
     const category = createCategory(body);
     글방식적기(category.id, 글방식다듬기(body as Record<string, unknown>));
-    if (주인자리인가() && "gameId" in (body as object)) 연결게임적기(category.id, (body as { gameId?: string | null }).gameId ?? null);
+    if (관리자인가() && "gameId" in (body as object)) 연결게임적기(category.id, (body as { gameId?: string | null }).gameId ?? null);
     reply.code(201);
     return category;
   });
@@ -166,8 +166,8 @@ export async function categoriesRoutes(app: FastifyInstance) {
       }>,
     );
     글방식적기(id, 글방식다듬기((req.body ?? {}) as Record<string, unknown>));
-    // 🕹️ 연결 게임은 주인만 (게임 기능은 주인 전용)
-    if (주인자리인가() && req.body && "gameId" in (req.body as object)) 연결게임적기(id, (req.body as { gameId?: string | null }).gameId ?? null);
+    // 🕹️ 연결 게임은 관리자 접속만 (판매·체험 키는 못 바꾼다)
+    if (관리자인가() && req.body && "gameId" in (req.body as object)) 연결게임적기(id, (req.body as { gameId?: string | null }).gameId ?? null);
     return { ok: true };
   });
 

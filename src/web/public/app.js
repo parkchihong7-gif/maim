@@ -1125,7 +1125,7 @@ document.getElementById("category-form").addEventListener("submit", async (e) =>
     toneStrength: form.toneStrength.value === "" ? null : Number(form.toneStrength.value),
     myNote: form.myNote.value.trim() || null,
     // ⑧ 연결 게임 — 주인 화면에만 칸이 있다(체험 자리에는 보내지 않는다)
-    ...(form.gameId && !document.body.classList.contains("is-trial") ? { gameId: form.gameId.value || null } : {}),
+    ...(form.gameId && document.body.classList.contains("game-admin") ? { gameId: form.gameId.value || null } : {}),
   };
   if (!값.name || !값.promptHint) { alert("이름과 카테고리 설명은 비워 둘 수 없습니다."); return; }
   try {

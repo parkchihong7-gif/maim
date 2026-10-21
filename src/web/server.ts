@@ -23,7 +23,7 @@ import { workshopRoutes } from "./routes/workshop.js";
 import { gameRoutes } from "./routes/game.js";
 import { 네이버환경키들 } from "../naver/키.js";
 import { findSession } from "../db/repositories/keyserverSessions.js";
-import { 자리에서, 주인, 체험역할, type 쓰는이 } from "../tenancy.js";
+import { 자리에서, 주인, 판매키자리, 체험역할, type 쓰는이 } from "../tenancy.js";
 /**
  * 요청이 들고 온 접속 토큰. **세 가지 모양을 다 받는다.**
  *
@@ -213,8 +213,9 @@ export async function buildServer() {
       // 쓴다. 자기 서버에 설치해 쓰는 사람이라 나눌 상대가 없다.
       // 체험이라고 **똑똑히 적힌** 것만 체험 자리로 보낸다. 역할을 모르면
       // 주인이다 — tenancy.ts 의 체험인가() 설명을 보라.
+      // 판매용 키는 주인과 같은 자리지만 «관리자» 는 아니다(🕹️ 게임 플레이 등 관리자 전용 기능 막힘).
       const 누구: 쓰는이 = 세션.role !== 체험역할
-        ? 주인
+        ? 판매키자리
         : { ownerKey: 세션.key1, role: 세션.role };
       자리에서(누구, done);
     });

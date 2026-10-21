@@ -14,7 +14,7 @@
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import sharp from "sharp";
-import { 주인자리인가 } from "../../tenancy.js";
+import { 관리자인가 } from "../../tenancy.js";
 import { getPost } from "../../db/repositories/posts.js";
 import { getCategory } from "../../db/repositories/categories.js";
 import {
@@ -116,13 +116,13 @@ export async function gameRoutes(app: FastifyInstance) {
         return reply;
       }
       if (!에이전트토큰맞나(req)) { reply.code(401).send({ error: "집 PC 토큰이 맞지 않습니다(MAIM_GAME_AGENT_TOKEN)." }); return reply; }
-    } else if (!주인자리인가()) {
+    } else if (!관리자인가() || !지금저장통()) {
+      // 🕹️ 게임 플레이는 **관리자 접속(마스터 토큰)만**. 판매용·체험 접속키에는 메뉴도 API 도 없다.
+      // 게임 사진 저장통(GAME_SHOT_BUCKET)이 없는 서버(= 판매로 설치한 서버)에서는 기능 자체가 꺼져 있다.
       reply.code(404).send({ error: "없는 주소입니다." });
       return reply;
     }
-    // 저장통이 없으면 사진을 다루는 길은 막는다. 상태·프로필·설정·하트비트는 열어 둔다.
-    const 열어둠 = /^\/api\/game\/(status|profiles|settings|agent\/heartbeat|agent\/profile|agent\/event)/.test(url);
-    if (!지금저장통() && !열어둠) { reply.code(409).send({ needsGameBucket: true, error: 저장통안내 }); return reply; }
+    if (!지금저장통()) { reply.code(409).send({ needsGameBucket: true, error: 저장통안내 }); return reply; }
   });
 
   // ════════════ 집 PC ════════════
