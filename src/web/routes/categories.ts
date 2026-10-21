@@ -3,7 +3,7 @@ import {
   listAllCategories,
   createCategory,
   updateCategory,
-  deleteCategory, 메모적기, 글방식적기 } from "../../db/repositories/categories.js";
+  deleteCategory, 메모적기, 글방식적기, 연결게임적기 } from "../../db/repositories/categories.js";
 import { 글방식다듬기 } from "../../claude/글방식.js";
 import {
   오늘목록, 오늘몇편, 지금차례, 차례정하기, 차례이름, 하루최대, 지금상한, 상한정하기, 카테고리상한,
@@ -143,6 +143,7 @@ export async function categoriesRoutes(app: FastifyInstance) {
     }
     const category = createCategory(body);
     글방식적기(category.id, 글방식다듬기(body as Record<string, unknown>));
+    if (주인자리인가() && "gameId" in (body as object)) 연결게임적기(category.id, (body as { gameId?: string | null }).gameId ?? null);
     reply.code(201);
     return category;
   });
@@ -165,6 +166,8 @@ export async function categoriesRoutes(app: FastifyInstance) {
       }>,
     );
     글방식적기(id, 글방식다듬기((req.body ?? {}) as Record<string, unknown>));
+    // 🕹️ 연결 게임은 주인만 (게임 기능은 주인 전용)
+    if (주인자리인가() && req.body && "gameId" in (req.body as object)) 연결게임적기(id, (req.body as { gameId?: string | null }).gameId ?? null);
     return { ok: true };
   });
 

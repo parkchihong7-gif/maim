@@ -20,6 +20,7 @@ import { tenantsRoutes } from "./routes/tenants.js";
 import { keywordsRoutes } from "./routes/keywords.js";
 import { styleRoutes } from "./routes/style.js";
 import { workshopRoutes } from "./routes/workshop.js";
+import { gameRoutes } from "./routes/game.js";
 import { 네이버환경키들 } from "../naver/키.js";
 import { findSession } from "../db/repositories/keyserverSessions.js";
 import { 자리에서, 주인, 체험역할, type 쓰는이 } from "../tenancy.js";
@@ -193,6 +194,9 @@ export async function buildServer() {
       // 대시보드 토큰입니다" 라는 엉뚱한 말이 대신 간다. 그 길은 세션값
       // 하나를 받아 살았는지만 답한다 — 막지 않아도 새는 것이 없다.
       if (req.url.startsWith("/api/auth/heartbeat")) { done(); return; }
+      // 🕹️ 집 PC 게임 프로그램은 대시보드 토큰 대신 자기 토큰(GAME_AGENT_TOKEN)을 든다.
+      // 그 검사는 routes/game.ts 가 한다. 집 PC 에 주인 토큰을 두지 않으려는 것이다.
+      if (req.url.startsWith("/api/game/agent/")) { 자리에서(주인, done); return; }
 
       const provided = 들고온토큰(req);
 
@@ -229,6 +233,7 @@ export async function buildServer() {
   await app.register(keywordsRoutes);
   await app.register(styleRoutes);
   await app.register(workshopRoutes);
+  await app.register(gameRoutes);
 
   await app.register(fastifyStatic, {
     root: path.join(import.meta.dirname, "public"),

@@ -165,6 +165,11 @@ function runMigrations(database: Database.Database) {
   // 이 글에 고른 변주(도입·소제목·목록·마무리 …). 다음 글이 겹치지 않게 고른다 — pipeline/변주.ts
   칸붙이기(database, "posts", "variation_json", "TEXT");
 
+  // ── 🕹️ 게임 플레이 (017) — 게임 공략 글과 카테고리 연결 게임 ──
+  칸붙이기(database, "posts", "source", "TEXT");                // 'game' = 퀘스트 공략 글
+  칸붙이기(database, "posts", "game_quest_id", "INTEGER");
+  칸붙이기(database, "categories", "game_id", "TEXT");          // 연결 게임 — 있으면 무료 이미지 대신 내 캡처
+
   database.exec(`
     CREATE INDEX IF NOT EXISTS idx_categories_owner ON categories (owner_key);
     CREATE INDEX IF NOT EXISTS idx_posts_owner ON posts (owner_key);

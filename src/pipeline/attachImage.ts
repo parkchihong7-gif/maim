@@ -1,7 +1,9 @@
 import path from "node:path";
 import fs from "node:fs";
 import type { Post } from "../db/repositories/posts.js";
-import { addPostImages, getImagePaths } from "../db/repositories/posts.js";
+import { addPostImages, getImagePaths, getPost } from "../db/repositories/posts.js";
+import { getCategory } from "../db/repositories/categories.js";
+import { pickGameShots } from "../game/캡처고르기.js";
 import { searchWithFallback } from "../images/searchImages.js";
 import { selectBestImages } from "../images/selectImage.js";
 import { processImage } from "../images/processImage.js";
@@ -38,6 +40,13 @@ export function 사진고르기시간(지난ms: number): number {
  * 생성)면 요청한 개수만큼 새로 만들어 통째로 교체한다.
  */
 export async function attachImage(post: Post, options: AttachImageOptions = {}): Promise<string[]> {
+  // 🕹️ 게임을 연결한 카테고리는 무료 이미지를 찾지 않고 내 게임 캡처만 쓴다(GAME_PLAN 15-8).
+  // 모자라면 빈 자리로 둔다 — 카드에 «캡처 부족» 이 뜬다.
+  const 카테고리 = getCategory(post.category_id);
+  if (카테고리?.game_id) {
+    await pickGameShots(post, 카테고리.game_id, { count: options.count ?? 3, append: options.append, selectTimeoutMs: options.selectTimeoutMs });
+    return getImagePaths(getPost(post.id)!);
+  }
   if (!post.image_query) {
     throw new Error(`포스팅 ${post.id}에 image_query가 없습니다.`);
   }

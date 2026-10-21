@@ -43,6 +43,8 @@ export interface Category {
   length_pref?: string | null;
   tone_strength?: number | null;
   my_note?: string | null;
+  /** 🕹️ 연결 게임 — 있으면 무료 이미지를 찾지 않고 내 게임 캡처만 쓴다 (GAME_PLAN 15-8, 주인만) */
+  game_id?: string | null;
 }
 
 /** 참고 주소를 다듬는다 — http(s) 만, 줄마다 하나, 10개까지. */
@@ -176,4 +178,10 @@ export function 글방식적기(id: number, 값: Partial<Record<"write_mode" | "
   getDb().prepare(
     `UPDATE categories SET ${칸들.map((k) => `${k} = @${k}`).join(", ")} WHERE id = @id AND owner_key = @owner`,
   ).run({ ...값, id, owner: 지금주인() });
+}
+
+/** 🕹️ 연결 게임 적기 — 빈 값이면 연결을 끊는다. 주인 자리만(라우트에서 막는다). */
+export function 연결게임적기(id: number, gameId: string | null): void {
+  getDb().prepare("UPDATE categories SET game_id = ? WHERE id = ? AND owner_key = ?")
+    .run(gameId && /^[a-z0-9_-]{1,30}$/i.test(gameId) ? gameId : null, id, 지금주인());
 }

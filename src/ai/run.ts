@@ -347,7 +347,9 @@ export async function runAI(options: RunOptions): Promise<string> {
   Object.assign(환경, 것.headlessEnv ?? {});
 
   const stdout = await new Promise<string>((resolve, reject) => {
-    const 아이 = spawn(파일, 인자, {
+    // 시험용 가짜 AI(tools/fake-claude.mjs)는 node 로 띄운다. 윈도(회사 PC 시험)는 .mjs 를 바로 못 띄운다.
+    const 노드로 = /\.(mjs|js)$/i.test(파일);
+    const 아이 = spawn(노드로 ? process.execPath : 파일, 노드로 ? [파일, ...인자] : 인자, {
       stdio: ["ignore", "pipe", "pipe"],
       env: 환경,
       cwd: 일터(것),

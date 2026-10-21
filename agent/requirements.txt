@@ -1,9 +1,12 @@
-mss>=9.0
 pillow>=10.0
 imagehash>=4.3
-pywin32>=306
-keyboard>=0.13
 requests>=2.31
 pyyaml>=6.0
+# 아래는 진짜 게임(윈도 집 PC)에서만 쓴다. 가상 게임 시험은 위 넷이면 된다.
+mss>=9.0; sys_platform == "win32"
+pywin32>=306; sys_platform == "win32"
+keyboard>=0.13; sys_platform == "win32"
 # 감독 모드에서만 쓴다. 기록 모드는 이 모듈을 불러오지 않는다.
-pydirectinput>=1.0.4
+pydirectinput>=1.0.4; sys_platform == "win32"
+# 시험
+pytest>=8.0

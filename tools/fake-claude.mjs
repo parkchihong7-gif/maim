@@ -10,6 +10,22 @@ const 잠 = Number(process.env.FAKE_SLEEP||0); if (잠) Atomics.wait(new Int32Ar
       { title:"별빛 연대기", date:날(5), kind:"release", platform:"모바일·PC", source:"(공식 카페, 사전예약 공지)", note:"수집형 RPG, 사전예약 진행 중" },
       { title:"아이언 프론티어", date:날(12), kind:"release", platform:"PC", source:"(게임 매체)", note:"오픈월드 액션" },
       { title:"이미 지난 게임", date:날(-3), kind:"release", platform:"모바일", source:"", note:"" } ] }) })); process.exit(0); } }
+// 🕹️ 게임 플레이 — 판단·목록 읽기·참고 글·공략 글·캡처 고르기. 진짜 사진은 못 보니 가상 게임이 보낸 «힌트» 를 그대로 돌려준다.
+{ const a=process.argv.slice(2); const q=a[a.indexOf("-p")+1]||""; const 답=(o)=>{ process.stdout.write(JSON.stringify({ is_error:false, result: JSON.stringify(o) })); process.exit(0); };
+  const 힌트=(말)=>{ const m=q.match(new RegExp(말+"\\(시험용\\): (.+)")); try { return m?JSON.parse(m[1]):null; } catch { return null; } };
+  if (q.includes("[게임 화면 판단]")) { const h=힌트("가상 게임 장면 힌트")||{}; const 장면=h.장면||"기타";
+    const 남길=["퀘스트받음","퀘스트완료","보상","지도","도착","대화","전투","보스등장","보스처치","포획","사망","경고","팝업"].includes(장면)||(장면==="이동중"&&!!h.중간);
+    답({ 장면, 퀘스트: h.퀘스트||null, 남김: h.남김??남길, 설명: h.설명||`${장면} 장면`, 행동: q.includes("기록 모드")?"대기":(h.행동||"대기"), 이유: h.이유||"가상 게임 힌트", 보이는글: h.보이는글||"" }); }
+  if (q.includes("[게임 목록 읽기]")) { const h=힌트("가상 게임 목록 힌트"); const 한줄=q.match(/퀘스트 «(.+?)» 한 줄만/);
+    if (한줄) 답({ 목록:[{ 이름: 한줄[1].replace(/[■…]+.*$/,"").trim()||"확인한 퀘스트", 종류:"메인", 상태:"진행가능", 조건:"", 확신:0.95 }] });
+    답({ 목록: Array.isArray(h)?h:[{이름:"시장 관리인의 부탁",종류:"메인",상태:"진행가능",조건:"",확신:0.9},{이름:"붉은 ■■의 …",종류:"메인",상태:"진행가능",조건:"",확신:0.4},{이름:"도깨비 순찰대 합류",종류:"서브",상태:"조건미달",조건:"레벨 30 필요",확신:0.85}] }); }
+  if (q.includes("[참고 글 읽기]")) 답({ 메모:"(인벤) 퀘스트는 장터 상인에게 받는다 [1]. 보상은 경험치와 은전 [1].", 읽음:[1], 못읽음:[], 제목:{"1":"가상 공략 글"} });
+  if (q.includes("[참고 글 찾기]")) 답({ 후보:[{url:"https://www.inven.co.kr/board/example/1",kind:"인벤",title:"가상 인벤 공략"},{url:"https://cafe.naver.com/example/2",kind:"커뮤니티",title:"가상 카페 글"},{url:"https://www.youtube.com/watch?v=example",kind:"유튜브",title:"가상 영상 공략"}] });
+  if (q.includes("[게임 캡처 고르기]")) 답({ selected_indices:[1,2,3] });
+  if (q.includes("[게임 공략 글 쓰기]")) { const 게임=(q.match(/게임: (.+)/)||[])[1]||"게임"; const 퀘=((q.match(/퀘스트: (.+?) \(/)||[])[1])||"퀘스트"; const n=(q.match(/\[사진 \d+\] 장면=/g)||[]).length;
+    const 사진줄=Array.from({length:n},(_,i)=>`\n[사진 ${i+1}]\n이 장면에서는 화면 표시를 따라 이동하면 돼요. 길을 잃지 않게 지도를 먼저 확인했어요.\n`).join("");
+    답({ title:`${게임} ${퀘} 공략 길 헤매지 않는 순서 정리`, content:`📌 ${퀘} 한눈에 보기\n${퀘}는 ${게임} 초반에 받는 퀘스트예요. 제가 직접 진행하며 찍은 화면으로 순서대로 정리했어요.\n`+사진줄+"\n✅ 마무리\n보상은 화면에 보이는 대로 받았어요. 수치는 패치로 바뀌었을 수 있어요.\n".repeat(6),
+      image_query:`${게임} ${퀘}`, tags:[`#${게임}`,"#공략",`#${퀘.replace(/\s/g,"")}`,"#퀘스트","#게임"], title_variants:[`${게임} ${퀘} 공략 어디서 받나요`,`${게임} ${퀘} 공략 5단계로 끝`,`${게임} ${퀘} 공략 처음이라면 이 순서로`], keyword:`${게임} ${퀘} 공략` }); } }
 { const a=process.argv.slice(2); const q=a[a.indexOf("-p")+1]||"";
   if (q.includes("자료만 빠르게")) { process.stdout.write(JSON.stringify({ is_error:false, num_turns:4, result: JSON.stringify({ blog_brief: q.includes("■ blog_brief") ? "(블로그) 생활 정보. ".repeat(10) : "", brief: q.includes("■ brief") ? "(KOSIS) 물가 2.1% 상승. ".repeat(8) : "", news: q.includes("■ news") ? "(2026-09-30, 연합뉴스) 물가 둔화" : "" }) })); process.exit(0); } }
 { const a=process.argv.slice(2); const q=a[a.indexOf("-p")+1]||"";

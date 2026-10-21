@@ -55,7 +55,8 @@ function 막힌답(상태: AI상태, 주인: boolean) {
 export async function 주문해서만들기(category: Category, 주문: 글주문, reply: FastifyReply) {
   const 상태 = await 쓸수있나();
   if (상태.ok === false) { reply.code(409); return 막힌답(상태, true); }
-  if (이미지키들().count === 0) { reply.code(409); return 이미지없는답(true); }
+  // 🕹️ 게임 연결 카테고리는 무료 이미지를 안 쓰니 키가 없어도 된다(15-8).
+  if (이미지키들().count === 0 && !category.game_id) { reply.code(409); return 이미지없는답(true); }
   const [directive] = assignDirectives(1);
   const 기록: 생성기록 = 빈기록();
   const 시작 = Date.now();
@@ -111,14 +112,14 @@ export async function manualRunRoutes(app: FastifyInstance) {
 
     const 상태 = await 쓸수있나();
     if (상태.ok === false) { reply.code(409); return 막힌답(상태, 주인자리인가()); }
-    if (이미지키들().count === 0) { reply.code(409); return 이미지없는답(주인자리인가()); }
-
     const { categoryId } = req.body as { categoryId: number };
     const category = getCategory(categoryId);
     if (!category) {
       reply.code(404);
       return { error: "카테고리를 찾을 수 없습니다." };
     }
+    // 🕹️ 게임 연결 카테고리는 무료 이미지를 안 쓰니 키가 없어도 된다(15-8).
+    if (이미지키들().count === 0 && !category.game_id) { reply.code(409); return 이미지없는답(주인자리인가()); }
 
     const [directive] = assignDirectives(1);
     // 무엇에 얼마나 걸렸나 — 상태창에 «글 3분 · 사진 40초» 로 보여 준다.

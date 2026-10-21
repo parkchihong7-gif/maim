@@ -2,6 +2,7 @@ import cron from "node-cron";
 import { runDailyJob } from "./dailyJob.js";
 import { config } from "../config.js";
 import { 지금시각, 크론식 } from "./예약.js";
+import { 게임사진치우기걸기 } from "./게임사진치우기.js";
 
 /**
  * 매일 한 번 그날의 초안을 준비한다.
@@ -19,6 +20,7 @@ let 일감: cron.ScheduledTask | null = null;
 
 export function startScheduler(): void {
   걸기();
+  게임사진치우기걸기();
 }
 
 /** 시각 설정이 바뀌면 다시 건다. 안 그러면 다음에 서버를 껐다 켤 때까지 옛 시각이다. */
