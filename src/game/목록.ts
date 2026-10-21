@@ -30,7 +30,8 @@ function 잘렸나(이름: string): boolean {
 }
 
 export function 목록읽기(원문: string): 목록줄[] {
-  const 값 = parseJsonLoose(원문) as { 목록?: unknown[] } | null;
+  let 값: { 목록?: unknown[] } | null = null;
+  try { 값 = parseJsonLoose(원문) as { 목록?: unknown[] } | null; } catch { /* 못 읽으면 빈 목록 */ }
   const 줄들 = Array.isArray(값?.목록) ? 값!.목록 : [];
   return 줄들.flatMap((r) => {
     const o = r as Record<string, unknown>;

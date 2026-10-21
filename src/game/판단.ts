@@ -78,7 +78,8 @@ ${상황.빠진장면?.length ? `아직 못 찍은 장면: ${상황.빠진장면
 
 /** AI 답 → 판단결과. 모양이 틀리면 대기답. */
 export function 판단읽기(원문: string): 판단결과 {
-  const 값 = parseJsonLoose(원문) as Record<string, unknown> | null;
+  let 값: Record<string, unknown> | null = null;
+  try { 값 = parseJsonLoose(원문) as Record<string, unknown> | null; } catch { /* JSON 이 아니면 대기 */ }
   if (!값 || typeof 값 !== "object") return { ...대기답 };
   const 장면 = String(값.장면 ?? "");
   if (!(장면들 as readonly string[]).includes(장면)) return { ...대기답, 이유: `모르는 장면 «${장면.slice(0, 20)}» — 기다립니다.` };

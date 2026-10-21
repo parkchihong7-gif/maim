@@ -453,7 +453,7 @@ function 게임모드맞추기() {
     || (categoriesCache || []).some((c) => !손안댄기본(c) && (게임말(c.name) || 게임말(c.prompt_hint) || 게임말(c.topic_keyword)));
   const 바뀜 = document.body.classList.contains("game-mode") !== 켜짐;
   document.body.classList.toggle("game-mode", 켜짐);
-  if (!켜짐 && currentView === "events") switchView("home");
+  if (!켜짐 && (currentView === "events" || currentView === "game")) switchView("home");
   if (바뀜 && document.getElementById("guide-matrix")) { try { 사용법그리기(); } catch { /* 사용법 화면이 아직 없으면 넘어간다 */ } }
 }
 function 게임주제읽기(s) {
@@ -662,6 +662,9 @@ async function refreshQueue() {
             ${anyAlt ? `<p class="muted post-image-hint">💡 이미지를 네이버 에디터에 붙여넣은 뒤, 위 파란 박스 안의 문구를 복사해 에디터의 "대체텍스트" 입력란에 붙여넣으면 검색엔진이 이미지 내용을 인식하는 데 도움이 됩니다.</p>` : ""}
           </div>`
         : `<div class="post-images-section"><p class="muted">이미지 없음</p></div>`;
+    // 🕹️ 게임 연결 카테고리는 캡처가 모자라도 무료 이미지로 채우지 않는다 — 빈 자리를 알려 준다(15-8).
+    const 캡처부족 = p.category_game_id && imagePaths.length < 3
+      ? `<p class="g-shortage">📷 캡처 부족 (${imagePaths.length}/3) — [🕹️ 내 게임 캡처에서 고르기] 로 직접 고르거나 집 PC에서 더 찍어 주세요.</p>` : "";
 
     const checklistHtml = `<div class="post-quality-checklist">${buildQualityChecklist(p)
       .map((item) => `<span class="badge ${item.ok ? "badge-active" : "badge-failed"}">${item.ok ? "✅" : "⚠"} ${escapeHtml(item.label)}</span>`)
@@ -695,6 +698,7 @@ async function refreshQueue() {
 
     card.innerHTML = `
       <div class="post-card-header">
+        ${p.source === "game" ? `<span class="badge badge-violet">🕹️ 게임 공략</span>` : ""}
         <span class="badge post-cat">${escapeHtml(p.category_name)}</span>
         <strong class="post-title-toggle" data-action="toggle-content" data-id="${p.id}"
           title="누르면 본문을 펼치고 접습니다">${escapeHtml(p.title ?? "(제목 없음)")} <span class="muted title-len">${[...(p.title ?? "")].length}자</span></strong>
@@ -703,7 +707,10 @@ async function refreshQueue() {
       ${titleVariantsHtml}
       <div class="post-card-actions">
         <button class="btn-secondary" data-action="copy" data-id="${p.id}" title="제목 + 본문 + 태그를 한꺼번에">전체 복사하기</button>
-        <button class="btn-secondary" data-action="regenerate-image" data-id="${p.id}">이미지 재생성</button>
+        ${p.category_game_id
+          ? `<button class="btn-secondary" data-action="g-shots-auto" data-id="${p.id}" title="무료 이미지는 찾지 않습니다">캡처 다시 고르기(AI)</button>
+             <button class="btn-secondary" data-action="g-shots-pick" data-id="${p.id}" data-game="${escapeHtml(p.category_game_id)}">🕹️ 내 게임 캡처에서 고르기</button>`
+          : `<button class="btn-secondary" data-action="regenerate-image" data-id="${p.id}">이미지 재생성</button>`}
         <button class="btn-secondary" data-action="mobile-preview" data-id="${p.id}" title="휴대폰 네이버 앱에서 대략 어떻게 보일지">📱 미리보기</button>
         <button class="btn-secondary" data-action="review-open" data-id="${p.id}" title="AI 가 사실·숫자·경험·과장을 표시 → 고쳐서 최종본으로">🔎 최종 검수</button>
         ${p.final_content ? `<span class="badge badge-final" title="[전체 복사하기]는 최종본을 복사합니다">✔ 최종본 ${escapeHtml(짧은날(p.final_at))}</span>` : ""}
@@ -713,6 +720,7 @@ async function refreshQueue() {
       ${checklistHtml}
       <p class="post-preview${isExpanded ? "" : " collapsed"}">${escapeHtml(p.content ?? "")}</p>
       ${tagsHtml}
+      ${캡처부족}
       ${imagesHtml}`;
     container.appendChild(card);
   }
@@ -1093,6 +1101,7 @@ async function switchView(view) {
   if (view === "style") refreshStyle().catch((err) => alert(err.message));
   if (view === "workshop") refreshWorkshop().catch((err) => alert(err.message));
   if (view === "guide") 사용법그리기();
+  if (view === "game") window.게임탭?.열기();
 }
 
 document.getElementById("category-form").addEventListener("submit", async (e) => {
@@ -1115,6 +1124,8 @@ document.getElementById("category-form").addEventListener("submit", async (e) =>
     lengthPref: form.lengthPref.value || null,
     toneStrength: form.toneStrength.value === "" ? null : Number(form.toneStrength.value),
     myNote: form.myNote.value.trim() || null,
+    // ⑧ 연결 게임 — 주인 화면에만 칸이 있다(체험 자리에는 보내지 않는다)
+    ...(form.gameId && !document.body.classList.contains("is-trial") ? { gameId: form.gameId.value || null } : {}),
   };
   if (!값.name || !값.promptHint) { alert("이름과 카테고리 설명은 비워 둘 수 없습니다."); return; }
   try {
@@ -1165,6 +1176,7 @@ function 카테고리폼채우기(c) {
   form.lengthPref.value = c.length_pref || "";
   form.toneStrength.value = c.tone_strength === null || c.tone_strength === undefined ? "" : String(c.tone_strength);
   form.myNote.value = c.my_note || "";
+  if (form.gameId) form.gameId.value = c.game_id || "";
   글방식표시();
   document.getElementById("cf-style").open = !!(c.write_mode || c.structure || c.length_pref || c.tone_strength !== null && c.tone_strength !== undefined || c.my_note);
   document.getElementById("category-form-title").textContent = `카테고리 수정 — ${c.name}`;

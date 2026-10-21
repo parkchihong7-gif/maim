@@ -23,6 +23,12 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+# 윈도 명령 창(cp949)에서 이모지·한글 로그가 깨지거나 멈추지 않게.
+for _흐름 in (sys.stdout, sys.stderr):
+    try:
+        _흐름.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 import 설정 as 설정모듈  # noqa: E402
 from 변화 import 변화감지  # noqa: E402
