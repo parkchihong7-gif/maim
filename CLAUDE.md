@@ -1,3 +1,10 @@
+> ⚠️ **이 브랜치(`claude/great-brown-j376u0`)는 더 안 쓴다.** 실제 배포되는 브랜치는
+> **`claude/game-play-ontn8y`** 다(GitHub 저장소의 "기본 브랜치" 설정이 아직 여기로 잘못
+> 남아 있어서 새 세션이 여기서 시작될 수 있다 — 10-22에 발견). 지금 바로:
+> `git fetch origin claude/game-play-ontn8y && git checkout game-play-ontn8y`
+> 이 파일 아래 내용은 전부 낡았다 — `game-play-ontn8y`의 CLAUDE.md(0번 항목)를 읽을 것.
+> (SessionStart 훅도 이 전환을 자동으로 시도하지만, 커밋 안 된 변경이 있으면 건너뛴다.)
+
 # 3번 네이버 블로그 초안 생성기 (maim) — 작업 안내서
 
 > 새 세션은 이 파일을 먼저 읽는다. 블로그 포스팅 대시보드의 **본체 코드는 이 저장소(maim)에만 있다.**
