@@ -404,7 +404,7 @@ function renderCategories(categories) {
             <button class="link-btn" data-action="edit-category" data-id="${c.id}">✏️ 수정</button>
             <button class="link-btn danger" data-action="delete-category" data-id="${c.id}">🗑 삭제</button>
             <button class="link-btn" data-action="toggle-daily-pinned" data-id="${c.id}"
-              title="${c.daily_pinned ? "해제하면 다시 순차·랜덤·덜 쓴 것 먼저 차례를 따릅니다" : "켜면 하루 건수 안에서 이 카테고리가 항상 먼저 들어갑니다(절대 안 잘림)"}">${c.daily_pinned ? "📌 매일 포스팅 해제" : "📌 매일 포스팅으로"}</button>
+              title="${c.daily_pinned ? "해제하면 다시 순차·랜덤·덜 쓴 것 먼저 차례를 따릅니다" : "켜면 하루 건수 안에서 이 카테고리가 항상 먼저 들어갑니다(절대 안 잘림)"}">${c.daily_pinned ? "📌 매일 해제" : "📌 매일"}</button>
             ${c.research_brief ? `<button class="link-btn" data-action="brief-reset" data-id="${c.id}" title="주소의 내용이 크게 바뀌었을 때 — 다음 글이 주소를 처음부터 다시 읽습니다">🔄 다시 읽기</button>` : ""}
           </div>
         </td>
@@ -424,7 +424,7 @@ function renderCategories(categories) {
 /**
  * [주제] 칸은 이제 이름 하나에 맞춰 좁히지 않는다 — 주제 키워드 칸을 140px로
  * 줄이면서(수정사항-5, style.css) 남는 폭을 전부 [주제] 칸이 가져가, 이름 +
- * 꼬리표 + [✏️ 수정][🗑 삭제][📌 매일 포스팅으로] 줄이 한 줄로 가로 배치되게
+ * 꼬리표 + [✏️ 수정][🗑 삭제][📌 매일] 줄이 한 줄로 가로 배치되게
  * 하기 위해서다. 그래서 이 함수는 이제 인라인 스타일을 지워 CSS(width:auto)가
  * 그대로 적용되게만 한다 — 혹시 전에 세션에서 저장된 인라인 폭이 남아있을 수
  * 있어서다.
