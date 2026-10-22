@@ -3762,8 +3762,11 @@ async function refreshWorkshop() {
   if (전 && wk자료.categories.some((c) => String(c.id) === 전)) 칸.value = 전;
   작업실보관함그리기();
   document.getElementById("wk-list").innerHTML = wk자료.works.length
-    ? `<b>최근 작업</b>${wk자료.works.map((w) => `<button class="wk-item${wk지금 && wk지금.id === w.id ? " on" : ""}" data-action="wk-open" data-id="${w.id}">
-        <span>${escapeHtml(w.keyword)}</span><small>${escapeHtml(w.categoryName)} · ${w.step}/5 ${escapeHtml(wk단계이름[w.step - 1])}${w.postId ? " ✔" : ""}</small></button>`).join("")}`
+    ? `<b>최근 작업</b>${wk자료.works.map((w) => `<div class="wk-item-row">
+        <button class="wk-item${wk지금 && wk지금.id === w.id ? " on" : ""}" data-action="wk-open" data-id="${w.id}">
+          <span>${escapeHtml(w.keyword)}</span><small>${escapeHtml(w.categoryName)} · ${w.step}/5 ${escapeHtml(wk단계이름[w.step - 1])}${w.postId ? " ✔" : ""}</small></button>
+        <button class="wk-del" data-action="wk-delete" data-id="${w.id}" title="이 작업을 지웁니다 — 포스팅으로 이미 저장된 글은 지워지지 않습니다">🗑</button>
+      </div>`).join("")}`
     : "";
 }
 
@@ -3892,6 +3895,13 @@ document.addEventListener("click", async (e) => {
   const w = wk지금;
   try {
     if (할일 === "wk-pick") { document.getElementById("wk-kw").value = btn.dataset.kw; document.getElementById("wk-dirs").innerHTML = ""; wk방향 = []; }
+    else if (할일 === "wk-delete") {
+      const id = Number(btn.dataset.id);
+      if (!confirm("이 작업을 지울까요?\n포스팅으로 이미 저장된 글은 지워지지 않고, 작업 목록에서만 없어집니다.")) return;
+      await api(`/api/workshop/${id}`, { method: "DELETE" });
+      if (wk지금 && wk지금.id === id) 작업그리기(null);
+      await refreshWorkshop();
+    }
     else if (할일 === "wk-dirs") {
       const kw = document.getElementById("wk-kw").value.trim();
       if (!kw) { alert("키워드를 먼저 넣어 주세요."); return; }

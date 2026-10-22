@@ -1990,6 +1990,9 @@ body:not(.is-trial) [data-trial-only]{display:none !important}
 .wk-item{display:flex;flex-direction:column;align-items:flex-start;border:1px solid #e5e7eb;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px;max-width:100%}
 .wk-item small{color:#6b7280;font-size:12px}
 .wk-item.on{border-color:#2563eb;box-shadow:0 0 0 2px #dbeafe}
+.wk-item-row{display:flex;align-items:stretch;gap:4px}
+.wk-del{border:1px solid #e5e7eb;background:#fff;color:#c0392b;border-radius:8px;padding:0 9px;cursor:pointer;font-size:13px;line-height:1}
+.wk-del:hover{background:#fdecec;border-color:#f3b9b9}
 .wk-steps{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px}
 .wk-step{font-size:13px;padding:5px 10px;border-radius:999px;background:#f3f4f6;color:#6b7280}
 .wk-step.done{background:#e8f6ee;color:#17663a}.wk-step.on{background:#2563eb;color:#fff}
