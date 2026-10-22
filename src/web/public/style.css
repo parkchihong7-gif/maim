@@ -1822,9 +1822,17 @@ body:not(.is-trial) [data-trial-only]{display:none !important}
 #category-table .gen-status .gs-done .link-btn,#category-table .gen-status .gs-warn .link-btn{padding:0;white-space:nowrap}
 #category-table .gen-status .gs-time{font-size:11.5px;color:#6b7280}
 /* ── 수정사항-4: 주제 칸은 가장 긴 이름에 맞춰 app.js(주제칸맞추기)가 정한다. 기본값만 둔다 ── */
-#category-table col.c-topic{width:150px}
 #category-table td.cat-topic > strong{overflow-wrap:anywhere}
 @media (max-width:700px){ #category-table td.cat-topic > strong{white-space:normal} }
+
+/* ── 수정사항-5: 주제 키워드는 매일 쓰는 칸이 아니라 좁게(140px), 그만큼을 주제 칸이
+   가져가 이름 + 꼬리표 + [✏️ 수정][🗑 삭제][📌 매일 포스팅으로] 줄이 한 줄로 가로 배치
+   되게 한다. 주제 칸을 가장 긴 이름 너비로 딱 맞춰 좁히던 app.js(주제칸맞추기)는
+   그 목적(이름만 겨우 들어갈 좁은 칸)과 반대 방향이라 꺼두고, 남는 폭을 전부
+   가져가도록 CSS에 맡긴다(table-layout:fixed에서 너비를 안 정한 칸 하나가
+   나머지 폭을 전부 가져가는 것과 같은 방식 — 예전에 주제 키워드 칸이 하던 역할). ── */
+#category-table col.c-kw{width:140px}
+#category-table col.c-topic{width:auto}
 
 /* 5) 네이버 키워드 연결 */
 .naver-optional{font-size:13px;font-weight:400}
