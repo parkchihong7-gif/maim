@@ -1652,6 +1652,7 @@ body:not(.is-trial) [data-trial-only]{display:none !important}
 .cat-tag.exclude{color:#98262a;border-color:#fbd2d3;background:#fff2f2}
 .cat-tag.url{color:#0b6670;border-color:#c9eef1;background:#effafb}
 .cat-tag.keep{color:#8a4b05;border-color:#fde2c3;background:#fff6ec}
+.cat-tag.pinned{color:#1d4ed8;border-color:#c7d9fc;background:#eff4ff;font-weight:600}
 
 /* ── 블로그 정보: 세부 주제 칩·주소 줄·회사 정보 ── */
 .topic-chips{display:flex;flex-direction:column;gap:8px;margin-top:6px}

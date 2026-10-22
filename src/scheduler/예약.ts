@@ -137,7 +137,14 @@ function 섞기<T>(arr: T[]): T[] {
   return 벌;
 }
 
-/** 이 차례로 늘어놓았을 때 카테고리가 오는 순서. */
+/**
+ * 이 차례로 늘어놓았을 때 카테고리가 오는 순서.
+ *
+ * **«매일 포스팅» 으로 켜 둔 카테고리는 차례(순차/랜덤/덜 쓴 것 먼저)와 상관없이
+ * 항상 맨 앞에 온다.** 하루 상한에 걸려 뒤가 잘릴 때, 이 카테고리들만은 절대
+ * 안 잘리게 하려는 것 — 예) «테슬라 소식» 처럼 매일 빠짐없이 올려야 하는 카테고리.
+ * 랜덤 차례를 섞을 때도 고정된 것은 섞지 않고, 나머지만 섞는다.
+ */
 export function 줄세우기(방식: 차례 = 지금차례()): Category[] {
   const db = getDb();
   const 주인 = 지금주인();
@@ -147,11 +154,13 @@ export function 줄세우기(방식: 차례 = 지금차례()): Category[] {
     // 그냥 ASC 로 두면 SQLite 가 NULL 을 제일 작게 봐서 앞에 오긴 하는데,
     // 그 뜻이 코드에 안 드러난다. 명시해 둔다.
     : "last_used_at IS NOT NULL, last_used_at ASC, id ASC";
-  const 줄 = db.prepare(
+  const 전체 = db.prepare(
     `SELECT * FROM categories WHERE owner_key = ? AND active = 1
-     ORDER BY ${정렬}`,
+     ORDER BY daily_pinned DESC, ${정렬}`,
   ).all(주인) as Category[];
-  return 방식 === "random" ? 섞기(줄) : 줄;
+  const 고정 = 전체.filter((c) => c.daily_pinned);
+  const 나머지 = 전체.filter((c) => !c.daily_pinned);
+  return [...고정, ...(방식 === "random" ? 섞기(나머지) : 나머지)];
 }
 
 export interface 오늘할일 {

@@ -45,6 +45,8 @@ export interface Category {
   my_note?: string | null;
   /** 🕹️ 연결 게임 — 있으면 무료 이미지를 찾지 않고 내 게임 캡처만 쓴다 (GAME_PLAN 15-8, 주인만) */
   game_id?: string | null;
+  /** 1 이면 하루 건수(상한) 안에서 이 카테고리가 항상 먼저 들어간다. 예약.ts 참고 */
+  daily_pinned: 0 | 1;
 }
 
 /** 참고 주소를 다듬는다 — http(s) 만, 줄마다 하나, 10개까지. */
@@ -92,16 +94,17 @@ export function createCategory(input: {
   referenceUrls?: string | null;
   mainUrl?: string | null;
   keywordKeep?: boolean;
+  dailyPinned?: boolean;
 }): Category {
   const result = getDb()
     .prepare(
       "INSERT INTO categories (name, requires_search, prompt_hint, active, topic_keyword, daily_count, owner_key,"
-      + " must_keywords, exclude_keywords, reference_urls, keyword_keep, main_url) VALUES (?, ?, ?, 1, ?, 1, ?, ?, ?, ?, ?, ?)",
+      + " must_keywords, exclude_keywords, reference_urls, keyword_keep, main_url, daily_pinned) VALUES (?, ?, ?, 1, ?, 1, ?, ?, ?, ?, ?, ?, ?)",
     )
     .run(input.name, input.requiresSearch ? 1 : 0, input.promptHint, input.topicKeyword || null,
          지금주인(),
          말다듬기(input.mustKeywords), 말다듬기(input.excludeKeywords), 주소다듬기(input.referenceUrls),
-         input.keywordKeep ? 1 : 0, 대표주소다듬기(input.mainUrl));
+         input.keywordKeep ? 1 : 0, 대표주소다듬기(input.mainUrl), input.dailyPinned ? 1 : 0);
   return getCategory(Number(result.lastInsertRowid))!;
 }
 
@@ -118,6 +121,7 @@ export function updateCategory(
     referenceUrls: string | null;
     mainUrl: string | null;
     keywordKeep: boolean;
+    dailyPinned: boolean;
   }>,
 ): void {
   const current = getCategory(id);
@@ -125,7 +129,8 @@ export function updateCategory(
   getDb()
     .prepare(
       "UPDATE categories SET name = ?, requires_search = ?, prompt_hint = ?, active = ?, topic_keyword = ?,"
-      + " must_keywords = ?, exclude_keywords = ?, reference_urls = ?, keyword_keep = ?, main_url = ? WHERE id = ? AND owner_key = ?",
+      + " must_keywords = ?, exclude_keywords = ?, reference_urls = ?, keyword_keep = ?, main_url = ?, daily_pinned = ?"
+      + " WHERE id = ? AND owner_key = ?",
     )
     .run(
       input.name ?? current.name,
@@ -138,6 +143,7 @@ export function updateCategory(
       input.referenceUrls !== undefined ? 주소다듬기(input.referenceUrls) : current.reference_urls,
       input.keywordKeep !== undefined ? (input.keywordKeep ? 1 : 0) : (current.keyword_keep ?? 0),
       input.mainUrl !== undefined ? 대표주소다듬기(input.mainUrl) : (current.main_url ?? null),
+      input.dailyPinned !== undefined ? (input.dailyPinned ? 1 : 0) : (current.daily_pinned ?? 0),
       id,
       지금주인(),
     );

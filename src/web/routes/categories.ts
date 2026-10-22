@@ -136,6 +136,7 @@ export async function categoriesRoutes(app: FastifyInstance) {
       referenceUrls?: string | null;
       mainUrl?: string | null;
       keywordKeep?: boolean;
+      dailyPinned?: boolean;
     };
     if (!String(body?.name ?? "").trim() || !String(body?.promptHint ?? "").trim()) {
       reply.code(400);
@@ -163,6 +164,7 @@ export async function categoriesRoutes(app: FastifyInstance) {
         referenceUrls: string | null;
         mainUrl: string | null;
         keywordKeep: boolean;
+        dailyPinned: boolean;
       }>,
     );
     글방식적기(id, 글방식다듬기((req.body ?? {}) as Record<string, unknown>));

@@ -359,6 +359,7 @@ document.addEventListener("click", (e) => {
 function 카테고리꼬리표(c) {
   const 셈 = (글, 가르개) => (글 || "").split(가르개).map((x) => x.trim()).filter(Boolean).length;
   const 조각 = [];
+  if (c.daily_pinned) 조각.push(`<span class="cat-tag pinned" title="순차·랜덤·덜 쓴 것 먼저와 상관없이, 하루 건수 안에서 항상 먼저 들어갑니다">📌 매일</span>`);
   const 함께 = 셈(c.must_keywords, ","), 빼기 = 셈(c.exclude_keywords, ",");
   const 주소 = 셈(c.reference_urls, /\s+/) + (c.main_url ? 1 : 0);
   if (함께) 조각.push(`<span class="cat-tag must" title="${escapeHtml(c.must_keywords)}">+함께 ${함께}</span>`);
@@ -402,6 +403,8 @@ function renderCategories(categories) {
           <div class="cat-tools">
             <button class="link-btn" data-action="edit-category" data-id="${c.id}">✏️ 수정</button>
             <button class="link-btn danger" data-action="delete-category" data-id="${c.id}">🗑 삭제</button>
+            <button class="link-btn" data-action="toggle-daily-pinned" data-id="${c.id}"
+              title="${c.daily_pinned ? "해제하면 다시 순차·랜덤·덜 쓴 것 먼저 차례를 따릅니다" : "켜면 하루 건수 안에서 이 카테고리가 항상 먼저 들어갑니다(절대 안 잘림)"}">${c.daily_pinned ? "📌 매일 포스팅 해제" : "📌 매일 포스팅으로"}</button>
             ${c.research_brief ? `<button class="link-btn" data-action="brief-reset" data-id="${c.id}" title="주소의 내용이 크게 바뀌었을 때 — 다음 글이 주소를 처음부터 다시 읽습니다">🔄 다시 읽기</button>` : ""}
           </div>
         </td>
@@ -1114,6 +1117,7 @@ document.getElementById("category-form").addEventListener("submit", async (e) =>
     promptHint: form.promptHint.value.trim(),
     topicKeyword: form.topicKeyword.value.trim() || null,
     keywordKeep: form.keywordKeep.checked,
+    dailyPinned: form.dailyPinned.checked,
     mustKeywords: form.mustKeywords.value.trim() || null,
     excludeKeywords: form.excludeKeywords.value.trim() || null,
     mainUrl: form.mainUrl.value.trim() || null,
@@ -1166,6 +1170,7 @@ function 카테고리폼채우기(c) {
   form.promptHint.value = c.prompt_hint || "";
   form.topicKeyword.value = c.topic_keyword || "";
   form.keywordKeep.checked = !!c.keyword_keep;
+  form.dailyPinned.checked = !!c.daily_pinned;
   form.mustKeywords.value = c.must_keywords || "";
   form.excludeKeywords.value = c.exclude_keywords || "";
   form.mainUrl.value = c.main_url || "";
@@ -1318,6 +1323,13 @@ document.addEventListener("click", async (e) => {
       await api(`/api/categories/${id}`, { method: "PUT", body: JSON.stringify({ active: !c.active }) });
       await refreshCategories();
       // 켜고 끄면 «내일 몇 편» 이 달라진다.
+      await refreshSchedule();
+    } else if (action === "toggle-daily-pinned") {
+      const c = categoriesCache.find((x) => x.id === Number(id));
+      if (!c) return;
+      await api(`/api/categories/${id}`, { method: "PUT", body: JSON.stringify({ dailyPinned: !c.daily_pinned }) });
+      await refreshCategories();
+      // 고정된 카테고리가 늘거나 줄면 «내일 몇 편, 무엇이» 가 달라진다.
       await refreshSchedule();
     } else if (action === "brief-reset") {
       if (!confirm("자료 메모를 지울까요?\n다음 글을 쓸 때 대표·참고 주소를 처음부터 다시 읽습니다 (그 한 편은 5~10분 걸릴 수 있어요).")) return;
