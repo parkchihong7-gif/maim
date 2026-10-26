@@ -18,6 +18,7 @@ import { 보관함키워드고르기 } from "../naver/보관함사용.js";
 import { 적용할스타일블록 } from "./내스타일.js";
 import { 변주고르기, 변주블록, 변주요약, 최근모양보기 } from "./변주.js";
 import { 변주적기 } from "../db/repositories/posts.js";
+import { 끝맺음고르기, 끝맺음블록, 끝맺음기록적기, type 제목패턴선택 } from "../claude/제목다양화.js";
 import { 키워드썼음, 급상승살아있나 } from "../db/repositories/keywordPool.js";
 import { 분량고르기 } from "../claude/글방식.js";
 import { 레인정하기, 전략블록, type 글주문, type 레인 } from "./글전략.js";
@@ -162,6 +163,14 @@ export async function generatePost(category: Category, directive: PostDirective,
     변주글 = 변주블록(변주, 모양);
     기록.변주 = 변주요약(변주);
   } catch (err) { console.warn(`[변주] 건너뜀: ${(err as Error).message}`); }
+  // 제목 끝맺음 다양화 — title + title_variants 3개의 끝 모양을 최근 글과 겹치지 않게 코드가 미리 정한다.
+  // 글쓰기 자체는 예전처럼 간다 — 탈이 나도 건너뛴다.
+  let 끝맺음선택: 제목패턴선택 | null = null;
+  let 끝맺음글 = "";
+  try {
+    끝맺음선택 = 끝맺음고르기();
+    끝맺음글 = 끝맺음블록(끝맺음선택);
+  } catch (err) { console.warn(`[제목다양화] 건너뜀: ${(err as Error).message}`); }
   // 레인과 그 쓰기 규칙(F) — 🔥 이슈는 답부터·날짜 밝히기, 📘 정보형은 결론부터·숫자 제목.
   const 레인값 = 레인정하기(주문, 보관 ? { surge: 급상승살아있나(보관.kw) ? 보관.kw.surge_pct : null, info: 의도보기(보관.kw.keyword) === "info" } : null,
     category.requires_search === 1);
@@ -171,7 +180,7 @@ export async function generatePost(category: Category, directive: PostDirective,
   if (내스타일) 기록.스타일버전 = 내스타일.ver;
   const prompt = buildPostPrompt(category, directive, today, recentTitles, blogProfileBlock,
     { 블로그메모, 카테고리메모, 최근소식, 조사실패: 조사실패 && (소식찾기 || 블로그읽기 || 카테고리읽기),
-      키워드자료: 보관?.자료, 내스타일: 내스타일?.블록, 변주: 변주글, 전략 });
+      키워드자료: 보관?.자료, 내스타일: 내스타일?.블록, 변주: 변주글, 전략, 제목끝맺음: 끝맺음글 });
   const 글시작 = Date.now();
   const 다시 = 기록.다시;
 
@@ -264,7 +273,10 @@ export async function generatePost(category: Category, directive: PostDirective,
     titleVariants: 제목.title_variants,
   });
 
-  if (변주) { try { 변주적기(post.id, 변주); } catch { /* 기록 못 해도 글은 그대로 */ } }
+  if (변주 || 끝맺음선택) {
+    try { if (끝맺음선택) 끝맺음기록적기(post.id, 끝맺음선택, 변주); else 변주적기(post.id, 변주); }
+    catch { /* 기록 못 해도 글은 그대로 */ }
+  }
   try {
     글전략적기(post.id, {
       lane: 레인값, kw: (category.topic_keyword ?? "").trim() || parsed.post.keyword || "",

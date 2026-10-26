@@ -25,6 +25,8 @@ export interface 글옵션 {
   변주?: string;
   /** 레인(🔥 이슈·📘 정보형)·각도·🎮 일정 규칙 (src/pipeline/글전략.ts). 없으면 예전과 같다 */
   전략?: string;
+  /** 제목 끝맺음 다양화 블록 (src/claude/제목다양화.ts) — title+title_variants 넷의 끝 모양을 서로 다르게 */
+  제목끝맺음?: string;
 }
 
 export function buildPostPrompt(
@@ -129,7 +131,7 @@ ${옵션.변주 ? `${옵션.변주}\n` : ""}
 ${buildTitleRuleBlock()}
 ${buildSeoRuleBlock(directive)}
 ${titleVariantsInstruction}
-
+${옵션.제목끝맺음 ? `${옵션.제목끝맺음}\n` : ""}
 최종 답변은 마크다운 코드블록이나 다른 설명 없이 오직 순수 JSON 데이터 형식으로만 출력하라:
 {"keyword": "앞머리 세부 키워드 조합(3~4낱말)", "title": "앞머리 키워드 + 후킹 문구 (${목표최소}~${목표최대}자)", "content": "...", "image_query": "...", "tags": ["#태그1", "#태그2"], "title_variants": ["조건·기준형 후킹 제목", "방법·절차형 후킹 제목", "후기·비교형 후킹 제목"]}
 `.trim();
