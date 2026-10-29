@@ -124,6 +124,13 @@ export function markPublished(id: number): void {
     .run(id, 지금주인());
 }
 
+/** 잘못 눌러 «발행 완료로 표시» 한 것을 되돌린다 — 초안 준비 완료(ready) 상태로 복원. */
+export function unmarkPublished(id: number): void {
+  getDb()
+    .prepare("UPDATE posts SET status = 'ready', published_at = NULL WHERE id = ? AND owner_key = ?")
+    .run(id, 지금주인());
+}
+
 export function markFailed(id: number, errorMessage: string): void {
   getDb()
     .prepare("UPDATE posts SET status = 'failed', error_message = ? WHERE id = ? AND owner_key = ?")

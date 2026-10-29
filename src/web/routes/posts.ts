@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import fs from "node:fs";
 import path from "node:path";
-import { getPost, getImagePaths, markPublished, 검수적기, 최종본적기, 오늘검수수, 검수기록 } from "../../db/repositories/posts.js";
+import { getPost, getImagePaths, markPublished, unmarkPublished, 검수적기, 최종본적기, 오늘검수수, 검수기록 } from "../../db/repositories/posts.js";
 import { 검수하기, 체험_검수하루, 검수항목 } from "../../pipeline/최종검수.js";
 import { 체험인가 } from "../../tenancy.js";
 import { 개인설정들, resolvePostingDirectionInstruction } from "../../db/repositories/settings.js";
@@ -68,6 +68,23 @@ export async function postsRoutes(app: FastifyInstance) {
       return { error: "포스팅을 찾을 수 없습니다." };
     }
     markPublished(id);
+    return getPost(id);
+  });
+
+  // 잘못 눌러 «발행 완료로 표시» 했을 때 되돌린다 — 실제 네이버 글은 건드리지 않고,
+  // 이 표시만 초안 준비 완료(ready) 상태로 복원한다.
+  app.post("/api/posts/:id/unpublish", async (req, reply) => {
+    const id = Number((req.params as { id: string }).id);
+    const post = getPost(id);
+    if (!post) {
+      reply.code(404);
+      return { error: "포스팅을 찾을 수 없습니다." };
+    }
+    if (post.status !== "published") {
+      reply.code(400);
+      return { error: "발행 완료로 표시된 글이 아닙니다." };
+    }
+    unmarkPublished(id);
     return getPost(id);
   });
 

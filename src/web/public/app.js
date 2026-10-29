@@ -745,6 +745,9 @@ async function refreshHistory() {
           ? `<span class="muted small">✔ ${escapeHtml(f.name)}</span>`
           : `<button class="btn-secondary kw-mini" data-action="follow-up" data-id="${p.id}" data-kind="${f.kind}">${escapeHtml(f.name)}</button>`).join(" ")
       : "";
+    const 복원 = p.status === "published"
+      ? `<button class="btn-secondary kw-mini" data-action="unpublish" data-id="${p.id}" title="실제 네이버에는 발행하지 않았는데 잘못 눌러 «발행 완료» 로 표시됐을 때, 초안으로 되돌립니다">↩ 복원</button>`
+      : "";
     tr.innerHTML = `
       <td>${p.id}</td>
       <td>${escapeHtml(p.category_name)}</td>
@@ -753,6 +756,7 @@ async function refreshHistory() {
       <td>${p.published_at ?? "-"}</td>
       <td>${유입}</td>
       <td class="followups">${후속}</td>
+      <td>${복원}</td>
       <td>${escapeHtml(p.error_message ?? "")}</td>`;
     tbody.appendChild(tr);
   }
@@ -1284,6 +1288,12 @@ document.addEventListener("click", async (e) => {
       await refreshQueue();
     } else if (action === "mark-published") {
       await api(`/api/posts/${id}/mark-published`, { method: "POST" });
+      await refreshQueue();
+      await refreshHistory();
+    } else if (action === "unpublish") {
+      if (!confirm("«발행 완료» 표시를 되돌려 초안으로 복원할까요?\n(실제 네이버 글은 건드리지 않습니다)")) return;
+      const updated = await api(`/api/posts/${id}/unpublish`, { method: "POST" });
+      if (updated.error) throw new Error(updated.error);
       await refreshQueue();
       await refreshHistory();
     } else if (action === "delete-category") {

@@ -62,7 +62,7 @@ for (let i = 0; i < 50; i++) {
 console.log("   ✅ 50번 모두 4개가 서로 다르고 꼴 목록 안에 있다");
 
 console.log("\n② 최근에 몰린 꼴은 피한다");
-const 최근몰림 = Array(30).fill("count").concat(Array(10).fill("method")) as T.끝맺음꼴[];
+const 최근몰림 = (Array(30).fill("count").concat(Array(10).fill("method"))) as ("count" | "method")[];
 const 피한선택 = T.끝맺음고르기(최근몰림);
 참("«count»·«method» 가 몰려 있으면 넷 중에 끼지 않는다", !피한선택.main.includes("count" as any) && ![피한선택.main, ...피한선택.variants].includes("count" as any) && ![피한선택.main, ...피한선택.variants].includes("method" as any));
 
