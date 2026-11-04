@@ -49,7 +49,7 @@ export function buildStyleRulesBlock(directive: PostDirective): string {
    - keyword 필드에는 title 의 앞머리 세부 키워드 조합만 똑같이 적어라.
    - content 필드는 title을 반복하지 말고 바로 본문을 시작하라.
    - image_query는 이 글의 대표 이미지를 검색할 때 쓸 짧은 "영어" 키워드 1개로 작성하라 (Unsplash/Pexels 검색용).
-   - tags는 '#' 접두사가 붙은 SEO 해시태그 10개. 첫 번째 태그는 keyword(앞머리 세부 키워드)를
-     띄어쓰기 없이 붙여 쓴 것으로 하고, 나머지는 그 세부 키워드의 변형·연관어로 채워라.
+   - tags는 '#' 접두사가 붙은 SEO 해시태그 10개. 아래 [검색 노출 규칙]의 «태그» 항목을 그대로 따르라
+     (실제 검색창에 칠 법한 짧은 합성어만 — 긴 문장·수식어는 절대 안 된다).
 `.trim();
 }

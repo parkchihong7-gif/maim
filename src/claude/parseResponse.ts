@@ -22,12 +22,17 @@ function 다듬기(날것: unknown): unknown {
   if (typeof 태그 === "string") 태그 = 태그.split(/[\s,]+/);
   if (Array.isArray(태그)) {
     const 본것 = new Set<string>();
-    글.tags = 태그
+    const 정리됨 = 태그
       .map((x) => String(x ?? "").trim())
       .filter((x) => x && x !== "#")
       .map((x) => (x.startsWith("#") ? x : `#${x}`))
       .filter((x) => (본것.has(x) ? false : (본것.add(x), true)))
       .slice(0, 15);
+    // 20자(# 제외)를 넘는 태그는 사람이 검색창에 칠 법한 말이 아니라 문장에 가깝다.
+    // 걸러 내되, 다 걸러져 3개(스키마 최소) 밑으로 떨어지면 나쁜 태그라도 그대로 둔다
+    // — 글 전체가 실패하는 것보다 낫다.
+    const 짧은것 = 정리됨.filter((x) => x.length - 1 <= 20);
+    글.tags = 짧은것.length >= 3 ? 짧은것 : 정리됨;
   }
 
   if (typeof 글.keyword !== "string") delete 글.keyword;
