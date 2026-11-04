@@ -34,10 +34,25 @@ const GENERATED_PREFIX = "generated/";
  * `cash-flow/` 는 **남의 것**이다. 통합 관리자 대시보드가 같은 버킷의 제
  * 칸을 쓴다. 가져올 이유가 없고, 더 나쁜 것은 60초마다 **도로 올린다는**
  * 것이다 — 대시보드가 글을 쓰는 중에 덮으면 그쪽 DB 도 같은 식으로 깨진다.
+ *
+ * 2026-11-04 — **최초 접속이 5분 걸리는 문제를 찾다가 추가.** `home/.claude/`
+ * 는 Claude Code CLI(이 서버가 글을 쓸 때 돌리는 바로 그 도구)의 집이다.
+ * 로그인에 필요한 건 설정·자격 증명 몇 개뿐인데, 그 도구는 부를 때마다
+ * `projects/` 에 대화 기록(JSONL)을, `shell-snapshots/` 에 세션별 bash
+ * 스냅샷을 쌓는다 — **몇 달치 자동 포스팅이 쌓이면 수천 개**가 된다. 그게
+ * 60초마다 버킷에 올라갔다가, 다음에 서버가 켜질 때 **전부 다시 받아와야**
+ * 했다. 로그인에는 하나도 안 쓰이는 파일들이 콜드 스타트를 수 분 붙잡고
+ * 있었던 것 — 아래 넷을 더 끊는다. `.codex`·`.gemini` 도 같은 식으로 로그·
+ * 세션 기록이 쌓이면 여기 추가하면 된다.
  */
 const SKIP_PREFIXES = [
-  "cash-flow/",             // 통합 관리자 대시보드 몫
-  "home/.claude/backups/",  // Claude CLI 가 쌓는 백업. 로그인에는 필요 없다
+  "cash-flow/",                    // 통합 관리자 대시보드 몫
+  "home/.claude/backups/",         // Claude CLI 가 쌓는 백업. 로그인에는 필요 없다
+  "home/.claude/projects/",        // 세션 대화 기록(JSONL) — 로그인과 무관, 끝없이 자란다
+  "home/.claude/shell-snapshots/", // 세션마다 뜨는 bash 스냅샷
+  "home/.claude/statsig/",         // 사용량 집계 캐시
+  "home/.claude/todos/",           // 세션 할 일 캐시
+  "home/.claude/ide/",             // IDE 연결용 임시 파일
 ];
 
 function 건너뛸것(name: string): boolean {
@@ -94,6 +109,40 @@ function 적어두기(rel: string, gen: unknown, localPath: string): void {
 const 로그인자리 = "home/";
 
 /**
+ * **서버가 요청을 받기 전에 반드시 있어야 하는 것 — DB 하나.** 파일 하나라 빠르다.
+ *
+ * 2026-11-04 전에는 `downloadState()` 가 DB 뿐 아니라 로그인 폴더(`home/`)까지
+ * 전부 받은 **뒤에야** `app.listen()` 을 불렀다. 로그인 폴더가 쌓인 캐시로
+ * 무거워지면(바로 위 SKIP_PREFIXES 설명 참고) 그동안 **화면이 아예 안 열렸다**
+ * — 첫 접속이 5분 걸린 바로 그 증상이다. DB 는 화면·카테고리·이력을 보는 데
+ * 당장 필요하지만, 로그인 폴더는 **AI 로 실제로 글을 쓸 때만** 필요하고
+ * `src/ai/run.ts` 의 `로그인맞추기()` 가 그 호출 바로 전에 알아서 받아 온다.
+ * 그러니 DB 만 먼저 받고 서버를 열면, 화면은 바로 뜨고 AI 쪽만 처음 한 번
+ * 살짝 늦게 붙는다.
+ */
+export async function downloadEssentialState(): Promise<void> {
+  const bucket = getBucket();
+  if (!bucket) return;
+  const root = config.paths.dataDir;
+  fs.mkdirSync(root, { recursive: true });
+  const dbRel = path.relative(root, config.paths.dbFile);
+  const file = bucket.file(dbRel);
+  try {
+    fs.mkdirSync(path.dirname(config.paths.dbFile), { recursive: true });
+    await file.download({ destination: config.paths.dbFile });
+    const [meta] = await file.getMetadata();
+    적어두기(dbRel, meta.generation, config.paths.dbFile);
+    console.log(`[gcsState] DB 를 먼저 복원했습니다 (gs://${config.gcsStateBucket}/${dbRel}).`);
+  } catch (err) {
+    if ((err as { code?: number })?.code === 404) {
+      console.log("[gcsState] 버킷에 DB 가 아직 없습니다 — 새로 시작합니다.");
+    } else {
+      console.error("[gcsState] DB 를 먼저 복원하지 못했습니다 — 빈 DB로 시작합니다:", err);
+    }
+  }
+}
+
+/**
  * Cloud Run처럼 컨테이너 로컬 디스크가 요청 사이/재시작 사이에 보존되지 않는
  * 환경을 위한 것. GCS를 실시간 FUSE 마운트로 쓰면 SQLite가 필요로 하는 파일
  * 잠금 등 POSIX 동작이 온전히 지원되지 않아 DB 접근이 깨지므로, 대신 시작 시
@@ -104,15 +153,21 @@ const 로그인자리 = "home/";
  * 대신 실제로 화면에 표시될 때 downloadFileIfMissing()으로 그 파일 하나만
  * 받는다. GCS_STATE_BUCKET이 없으면 아무 것도 하지 않는다(로컬/VPS 배포에는
  * 영향 없음).
+ *
+ * **DB 는 여기서 다시 받지 않는다** — `downloadEssentialState()` 가 서버를
+ * 열기 전에 이미 받아 두었고, 이 함수는 서버가 요청(쓰기 포함)을 받기
+ * 시작한 **뒤**에 백그라운드로 돈다. 여기서 DB 를 한 번 더 내려받으면 그
+ * 사이 들어온 쓰기를 옛 판으로 덮어 버린다.
  */
 export async function downloadState(): Promise<void> {
   const bucket = getBucket();
   if (!bucket) return;
   const root = config.paths.dataDir;
   fs.mkdirSync(root, { recursive: true });
+  const dbRel = path.relative(root, config.paths.dbFile);
   const [files] = await bucket.getFiles();
   const essential = files.filter(
-    (file) => !file.name.startsWith(GENERATED_PREFIX) && !건너뛸것(file.name),
+    (file) => file.name !== dbRel && !file.name.startsWith(GENERATED_PREFIX) && !건너뛸것(file.name),
   );
   await 나눠서(essential, AT_ONCE, async (file) => {
     const localPath = path.join(root, file.name);
@@ -122,7 +177,7 @@ export async function downloadState(): Promise<void> {
   });
   console.log(
     `[gcsState] gs://${config.gcsStateBucket}에서 ${essential.length}개 파일을 복원했습니다 ` +
-      `(생성 이미지 ${files.length - essential.length}개는 필요할 때 낱개로 내려받습니다).`,
+      `(생성 이미지·DB 제외 ${files.length - essential.length}개는 건너뛰거나 이미 받았습니다).`,
   );
 }
 
@@ -145,11 +200,19 @@ export async function downloadFileIfMissing(relPath: string): Promise<boolean> {
   }
 }
 
+/**
+ * 건너뛸 자리(SKIP_PREFIXES)는 **들어가 보지도 않는다.** 그 아래 수천 개가
+ * 쌓여 있어도, 60초마다 도는 업로드 훑기가 매번 그걸 다 읽을 필요는 없다
+ * — 어차피 올리지 않을 걸 알고 있으니 폴더째 건너뛴다.
+ */
 function listLocalFiles(dir: string, root: string, out: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) listLocalFiles(full, root, out);
-    else out.push(path.relative(root, full));
+    const rel = path.relative(root, full);
+    if (entry.isDirectory()) {
+      if (건너뛸것(`${rel}/`)) continue;
+      listLocalFiles(full, root, out);
+    } else out.push(rel);
   }
   return out;
 }
