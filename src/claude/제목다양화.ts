@@ -1,17 +1,26 @@
 /**
- * **제목 끝맺음 다양화** — 제목규칙.ts·promptBuilder.ts 의 기존 제목 최적화 규칙은 그대로 두고,
+ * **제목 패턴 다양화** — 제목규칙.ts·promptBuilder.ts 의 기존 제목 최적화 규칙은 그대로 두고,
  * 그 위에 **덧붙이는** 지시문 하나를 추가한다.
  *
- * 문제: title 은 8가지 «멈추는 이유» 중 AI 가 자유롭게 고르고, title_variants 3개는 늘 같은
- * 3가지 각도(조건·기준형/방법·절차형/후기·비교형)로 고정돼 있다. 그 결과 AI 가 매번 비슷한
- * 꼴(특히 "숫자+가지", "~하는 법")로 끝맺어, 글이 쌓이면 제목이 그 두 가지로 몰려 보인다.
+ * 문제 둘.
+ *   1) title 은 8가지 «멈추는 이유» 중 AI 가 자유롭게 고르고, title_variants 3개는 늘 같은
+ *      3가지 각도(조건·기준형/방법·절차형/후기·비교형)로 고정돼 있다. 그 결과 AI 가 매번 비슷한
+ *      꼴(특히 "숫자+가지", "~하는 법")로 끝맺어, 글이 쌓이면 제목이 그 두 가지로 몰려 보인다.
+ *   2) 넷(title + 변형 3개) 모두 늘 [앞머리 키워드 조합] + [후킹 문구] 라는 **같은 뼈대**다.
+ *      끝맺음을 아무리 바꿔도, 30편 넘게 쌓고 보면 "항상 이 틀" 이라는 게 그 자체로 패턴이다.
  *
- * 해법은 변주.ts(src/pipeline/변주.ts) 와 같다 — **AI 의 자유 선택에 맡기지 않고 코드가 끝맺음
- * 꼴을 미리 4개(title 1개 + title_variants 3개) 서로 다르게 골라, 최근 글에서 덜 쓴 것을
- * 우선한다.** AI 는 그 안에서 자연스럽게 문장만 쓴다.
+ * 해법.
+ *   1) 끝맺음 꼴 16가지 중 이번 글의 4자리(title + variants 3개)가 쓸 것을 **코드가** 고른다
+ *      (변주.ts 와 같은 결 — 최근 글에서 덜 쓴 것 우선). 다만 "덜 쓴 것 하나"로 결정론적으로
+ *      고르면(변주.ts 의 덜쓴것()) 쌓인 글이 **너무 공평하게 돌아간다는 것 자체**가 새 패턴으로
+ *      보인다 — 그래서 여기는 가중치를 준 **무작위** 뽑기를 따로 쓴다(가중뽑기).
+ *   2) title_variants 3개는 **구조(뼈대)도** 바꾼다 — 키워드 선두(기존)·후킹 선두·물음 선두 중
+ *      하나씩. **title(실제 발행되는 본 제목)은 그대로 키워드 선두를 지킨다** — 제목규칙.ts 의
+ *      제목고르기() 가 검증하는 것도 title 뿐이고, 네이버 검색 노출(C-Rank)에 쓰이는 것도
+ *      title 이므로 SEO 는 그대로 보호한다. title_variants 는 애초에 키워드 선두 검증 대상이
+ *      아니다(제목재보기() 참고) — 구조를 바꿔도 안전하다.
  */
-import { 최근글들, 변주적기 } from "../db/repositories/posts.js";
-import { 덜쓴것 } from "../pipeline/변주.js";
+import { 최근글들 } from "../db/repositories/posts.js";
 
 /** 제목 끝맺음 꼴 — 겉모습(글자 끝) 기준이라 제목규칙.ts 의 8가지 «멈추는 이유» 와는 다른 축이다. */
 export const 끝맺음꼴들 = {
@@ -27,58 +36,111 @@ export const 끝맺음꼴들 = {
   tip: { 꼴: "«~꿀팁/노하우» 로 끝맺기", 예시: "...아는 사람만 아는 꿀팁" },
   caution: { 꼴: "«~주의할 점/실수» 로 끝맺기", 예시: "...계약 전 흔한 실수" },
   cost: { 꼴: "«~가격/비용» 으로 끝맺기", 예시: "...실제 드는 비용" },
+  review: { 꼴: "«~후기/써 본 소감» 으로 끝맺기", 예시: "...한 달 써 본 후기" },
+  step: { 꼴: "«~순서/절차» 로 끝맺기", 예시: "...신청 순서" },
+  condition: { 꼴: "«~조건/자격» 으로 끝맺기", 예시: "...신청 조건" },
+  myth: { 꼴: "«~오해/진짜 이유» 로 끝맺기", 예시: "...흔한 오해" },
 } as const;
 export type 끝맺음꼴 = keyof typeof 끝맺음꼴들;
 
-export type 제목패턴선택 = { main: 끝맺음꼴; variants: [끝맺음꼴, 끝맺음꼴, 끝맺음꼴] };
+/** title_variants 3개가 쓸 구조(뼈대). title(본 제목)은 늘 keyword_lead — SEO 보호. */
+export const 제목구조들 = {
+  keyword_lead: "키워드 선두형 — [앞머리 키워드 조합]을 맨 앞에 두고 뒤에 후킹 문구를 붙인다(기존과 같음).",
+  hook_lead: "후킹 선두형 — 후킹 문구·숫자·상황을 맨 앞에 두고, 핵심 키워드는 문장 중간이나 뒤쪽에 자연스럽게 넣는다(키워드가 맨 앞일 필요 없음).",
+  question_lead: "물음 선두형 — 독자가 품을 법한 물음·상황으로 문장을 시작하고, 그 안에 핵심 키워드를 자연스럽게 녹인다.",
+} as const;
+export type 제목구조 = keyof typeof 제목구조들;
 
-/** 최근 글들이 title + title_variants 에 썼던 끝맺음 꼴. variation_json 에 titlePatterns 로 남겨 둔 것만 본다. */
-export function 최근끝맺음들(개수 = 8): 끝맺음꼴[] {
-  const 전체꼴 = new Set(Object.keys(끝맺음꼴들));
-  return 최근글들(개수)
-    .flatMap((g) => {
-      try {
-        const 기록 = JSON.parse(g.variation_json ?? "null") as { titlePatterns?: unknown } | null;
-        return Array.isArray(기록?.titlePatterns) ? (기록!.titlePatterns as unknown[]) : [];
-      } catch { return []; }
-    })
-    .filter((v): v is 끝맺음꼴 => typeof v === "string" && 전체꼴.has(v));
+export type 제목패턴선택 = {
+  main: 끝맺음꼴;
+  variants: [끝맺음꼴, 끝맺음꼴, 끝맺음꼴];
+  구조: [제목구조, 제목구조, 제목구조];
+};
+
+/**
+ * 최근 것일수록 가중치를 낮춘 **무작위** 뽑기.
+ *
+ * 변주.ts 의 덜쓴것() 은 늘 "최근에 가장 덜 쓴 것 하나" 로 결정론적으로 고른다 — 글이
+ * 쌓이면 16가지가 거의 공평하게 한 바퀴씩 돌아간다. 그 "너무 규칙적으로 도는" 느낌 자체가
+ * 30편쯤 보면 또 다른 패턴으로 읽힌다. 여기서는 최근에 쓴 것일수록 확률을 낮추기만 하고,
+ * 실제로 무엇이 나올지는 매번 무작위라 사람 손으로 고른 것처럼 들쭉날쭉하다.
+ */
+function 가중뽑기<T>(후보: readonly T[], 최근: T[]): T {
+  const 셈 = new Map<T, number>(후보.map((k) => [k, 0]));
+  최근.forEach((k, i) => { if (셈.has(k)) 셈.set(k, 셈.get(k)! + (i < 2 ? 3 : 1)); }); // 최근 두 편은 무겁게
+  const 최대 = Math.max(...셈.values());
+  const 가중 = 후보.map((k) => ({ k, w: 최대 - (셈.get(k) ?? 0) + 1 })); // 많이 쓴 것일수록 가벼워짐(0 은 안 됨)
+  const 합 = 가중.reduce((s, x) => s + x.w, 0);
+  let r = Math.random() * 합;
+  for (const { k, w } of 가중) { r -= w; if (r <= 0) return k; }
+  return 가중[가중.length - 1].k;
+}
+
+interface 최근기록 { endings: 끝맺음꼴[]; structures: 제목구조[] }
+
+/** 최근 글들이 title + title_variants 에 썼던 끝맺음 꼴·구조. variation_json 에 남겨 둔 것만 본다. */
+export function 최근제목패턴들(개수 = 8): 최근기록 {
+  const 끝맺음목록 = new Set(Object.keys(끝맺음꼴들));
+  const 구조목록 = new Set(Object.keys(제목구조들));
+  const endings: 끝맺음꼴[] = [];
+  const structures: 제목구조[] = [];
+  for (const g of 최근글들(개수)) {
+    try {
+      const 기록 = JSON.parse(g.variation_json ?? "null") as { titlePatterns?: unknown; titleStructures?: unknown } | null;
+      if (Array.isArray(기록?.titlePatterns)) {
+        for (const v of 기록!.titlePatterns) if (typeof v === "string" && 끝맺음목록.has(v)) endings.push(v as 끝맺음꼴);
+      }
+      if (Array.isArray(기록?.titleStructures)) {
+        for (const v of 기록!.titleStructures) if (typeof v === "string" && 구조목록.has(v)) structures.push(v as 제목구조);
+      }
+    } catch { /* 모양이 다르면 그냥 건너뛴다 */ }
+  }
+  return { endings, structures };
 }
 
 /**
- * 이번 글의 title + title_variants 3개가 쓸 끝맺음 꼴 4개를 고른다.
- * 최근 글에서 덜 쓴 꼴을 우선하고, 이번 글 안에서는 4개가 서로 겹치지 않게 뽑는다.
+ * 이번 글의 title + title_variants 3개가 쓸 끝맺음 꼴 4개(서로 겹치지 않게)와,
+ * title_variants 3개가 쓸 구조(겹쳐도 된다 — 한 글 안에서는 구조가 하나 반복돼도 티 안 난다)를 고른다.
  */
-export function 끝맺음고르기(최근: 끝맺음꼴[] = 최근끝맺음들()): 제목패턴선택 {
-  let 남은 = Object.keys(끝맺음꼴들) as 끝맺음꼴[];
-  const 고른것: 끝맺음꼴[] = [];
+export function 끝맺음고르기(최근: 최근기록 = 최근제목패턴들()): 제목패턴선택 {
+  let 남은끝맺음 = Object.keys(끝맺음꼴들) as 끝맺음꼴[];
+  const 고른끝맺음: 끝맺음꼴[] = [];
   for (let i = 0; i < 4; i++) {
-    const 뽑음 = 덜쓴것(남은, 최근);
-    고른것.push(뽑음);
-    남은 = 남은.filter((k) => k !== 뽑음);
+    const 뽑음 = 가중뽑기(남은끝맺음, 최근.endings);
+    고른끝맺음.push(뽑음);
+    남은끝맺음 = 남은끝맺음.filter((k) => k !== 뽑음);
   }
-  return { main: 고른것[0], variants: [고른것[1], 고른것[2], 고른것[3]] };
+  const 구조후보 = Object.keys(제목구조들) as 제목구조[];
+  const 고른구조 = [0, 1, 2].map(() => 가중뽑기(구조후보, 최근.structures)) as [제목구조, 제목구조, 제목구조];
+  return {
+    main: 고른끝맺음[0],
+    variants: [고른끝맺음[1], 고른끝맺음[2], 고른끝맺음[3]],
+    구조: 고른구조,
+  };
 }
 
 /** 프롬프트에 덧붙이는 지시문. 기존 [제목 규칙]·후킹 제목 3종 지시 **다음에** 추가로 붙인다. */
 export function 끝맺음블록(선택: 제목패턴선택): string {
-  const 적기 = (k: 끝맺음꼴) => `${끝맺음꼴들[k].꼴} (예: "${끝맺음꼴들[k].예시}")`;
+  const 끝맺기 = (k: 끝맺음꼴) => `${끝맺음꼴들[k].꼴} (예: "${끝맺음꼴들[k].예시}")`;
   return `
-[제목 끝맺음 다양화 — 위 제목 규칙·후킹 제목 3종 지시에 **더해서** 지키는 것]
-최근 글들의 제목이 "~3가지", "~하는 법" 같은 꼴로 몰려서, 쌓인 글을 보면 패턴이 바로 드러난다.
-이번 글은 title 과 title_variants 3개, 넷의 **끝맺음 꼴을 아래처럼 서로 다르게** 하라
-(앞머리 키워드 조합·전체 길이·서술형 금지 등 위 규칙은 그대로 다 지킨 채, 뒤쪽 후킹 문구가
-끝나는 모양만 아래로 바꾸면 된다. 뜻이 어색해지면 글 내용에 맞게 자연스러운 말로 바꿔도 되지만,
-넷의 끝 모양은 끝까지 서로 겹치지 않아야 한다):
-- title (본 제목): ${적기(선택.main)}
-- title_variants[0] (조건·기준형): ${적기(선택.variants[0])}
-- title_variants[1] (방법·절차형): ${적기(선택.variants[1])}
-- title_variants[2] (후기·비교형): ${적기(선택.variants[2])}
-`.trim();
-}
+[제목 패턴 다양화 — 위 제목 규칙·후킹 제목 3종 지시에 **더해서** 지키는 것]
+최근 글들의 제목이 "~3가지", "~하는 법" 처럼 늘 같은 끝맺음·같은 뼈대([키워드]+[후킹] 순서)로 몰려서,
+쌓인 글을 보면 패턴이 바로 드러난다. 이번 글은 아래 둘을 지켜 넷을 서로 다르게 하라:
 
-/** generatePost.ts 가 글을 저장할 때 variation_json 에 같이 남긴다 — 다음 글이 덜 쓴 꼴을 고르게. */
-export function 끝맺음기록적기(postId: number, 선택: 제목패턴선택, 기존변주?: unknown): void {
-  const 바탕 = (기존변주 && typeof 기존변주 === "object") ? (기존변주 as Record<string, unknown>) : {};
-  변주적기(postId, { ...바탕, titlePatterns: [선택.main, ...선택.variants] });
+1) 끝맺음 꼴 — title 과 title_variants 3개, 넷의 끝맺음 꼴을 아래처럼 서로 다르게 하라
+   (앞머리 키워드 조합·전체 길이·서술형 금지 등 위 규칙은 그대로 다 지킨 채, 뒤쪽 후킹 문구가
+   끝나는 모양만 아래로 바꾸면 된다. 뜻이 어색해지면 자연스러운 말로 바꿔도 되지만 넷의 끝
+   모양은 끝까지 서로 겹치지 않아야 한다):
+   - title (본 제목): ${끝맺기(선택.main)}
+   - title_variants[0] (조건·기준형): ${끝맺기(선택.variants[0])}
+   - title_variants[1] (방법·절차형): ${끝맺기(선택.variants[1])}
+   - title_variants[2] (후기·비교형): ${끝맺기(선택.variants[2])}
+
+2) 문장 뼈대 — title 은 반드시 [앞머리 키워드 조합]으로 시작해야 하는 지금 규칙을 그대로 지켜라.
+   **title_variants 3개만** 아래처럼 뼈대도 바꿔라(변형 제목이라 키워드로 시작할 필요가 없다 —
+   다만 핵심 키워드는 문장 어딘가에는 자연스럽게 꼭 들어가야 한다, 검색에 걸리려면 필요하다):
+   - title_variants[0]: ${제목구조들[선택.구조[0]]}
+   - title_variants[1]: ${제목구조들[선택.구조[1]]}
+   - title_variants[2]: ${제목구조들[선택.구조[2]]}
+`.trim();
 }

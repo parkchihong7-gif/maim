@@ -8,18 +8,31 @@ export interface PostingDirectionPreset {
   id: string;
   label: string;
   description: string;
+  /** 대표 문구(= instructions[0]) — 간단히 보여줄 때만 쓴다. */
   instruction: string;
+  /** 뜻은 같지만 표현이 다른 문구들. 매 글 고를 때는 이 중 하나를 쓴다(포스팅방향다양화.ts). */
+  instructions: string[];
   custom: boolean;
 }
 
 const CUSTOM_PRESETS_KEY = "custom_presets_json";
 
+/** 예전에 저장된 커스텀 프리셋은 instructions 배열이 없다(그때는 instruction 하나뿐이었다) — 읽을 때 채워 준다. */
 function readCustomPresets(): PostingDirectionPreset[] {
   const raw = getSetting(CUSTOM_PRESETS_KEY);
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((p: Partial<PostingDirectionPreset>) => {
+      const instruction = String(p.instruction ?? p.instructions?.[0] ?? "");
+      return {
+        id: String(p.id ?? ""), label: String(p.label ?? ""), description: String(p.description ?? ""),
+        instruction,
+        instructions: Array.isArray(p.instructions) && p.instructions.length > 0 ? p.instructions : [instruction],
+        custom: true,
+      };
+    });
   } catch {
     return [];
   }
@@ -29,11 +42,14 @@ function writeCustomPresets(presets: PostingDirectionPreset[]): void {
   setSetting(CUSTOM_PRESETS_KEY, JSON.stringify(presets));
 }
 
-/** 내장 6종 + 사용자가 직접 추가한 커스텀 프리셋을 합쳐서 돌려준다. */
+/** 내장 11종(10가지 + 랜덤) + 사용자가 직접 추가한 커스텀 프리셋을 합쳐서 돌려준다. */
 export function getAllPostingDirectionPresets(): PostingDirectionPreset[] {
   const builtIn: PostingDirectionPreset[] = Object.entries(POSTING_DIRECTION_PRESETS).map(([id, p]) => ({
     id,
-    ...p,
+    label: p.label,
+    description: p.description,
+    instruction: p.instructions[0] ?? "",
+    instructions: p.instructions,
     custom: false,
   }));
   return [...builtIn, ...readCustomPresets()];
@@ -46,6 +62,8 @@ export function addCustomPreset(input: { label: string; description: string; ins
     label: input.label,
     description: input.description,
     instruction: input.instruction,
+    // 사용자가 직접 적은 한 가지 문구다 — 코드가 비슷한 말로 바꿔치기하지 않는다.
+    instructions: [input.instruction],
     custom: true,
   };
   presets.push(preset);
@@ -60,11 +78,21 @@ export function deleteCustomPreset(id: string): void {
   writeCustomPresets(presets);
 }
 
-/** 저장된 프리셋 id(내장이든 커스텀이든)로 실제 AI 지시문 텍스트를 찾는다. */
+/**
+ * 저장된 프리셋 id(내장이든 커스텀이든)로 실제 AI 지시문 텍스트 하나를 찾는다.
+ * «예시 포스팅» 미리보기처럼 한 번 쓰고 마는 자리에서 쓴다 — 여러 문구 중
+ * 아무거나 하나를 무작위로 고른다. 실제 포스팅 흐름은 최근 글과 안 겹치는
+ * 것을 고르는 `src/claude/포스팅방향다양화.ts` 의 방향고르기() 를 대신 쓴다.
+ */
 export function resolvePostingDirectionInstruction(presetId: string | null): string | null {
   if (!presetId) return null;
-  const found = getAllPostingDirectionPresets().find((p) => p.id === presetId);
-  return found?.instruction || null;
+  const 전체 = getAllPostingDirectionPresets();
+  const 찾은것 = presetId === "random"
+    ? 전체[Math.floor(Math.random() * 전체.length)]
+    : 전체.find((p) => p.id === presetId);
+  if (!찾은것) return null;
+  const 후보 = 찾은것.instructions.length > 0 ? 찾은것.instructions : [찾은것.instruction];
+  return 후보[Math.floor(Math.random() * 후보.length)] || null;
 }
 
 /** 001_init.sql에서 만들어졌지만 지금까지 아무도 안 쓰던 key-value 테이블을 재활용한다. */

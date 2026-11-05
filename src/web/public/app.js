@@ -1152,6 +1152,7 @@ function 카테고리폼비우기() {
   const form = document.getElementById("category-form");
   form.reset();
   form.id.value = "";
+  document.querySelector(".cf-kw-suggest-tip").hidden = true;
   참고주소줄그리기([""]);
   글방식표시();
   document.getElementById("cf-style").open = false;
@@ -1165,6 +1166,7 @@ function 카테고리폼비우기() {
 /** [수정] — 표 안에서 고치지 않고 **같은 폼**에 채워 고친다. 칸이 많아 표 한 줄에 안 들어간다. */
 function 카테고리폼채우기(c) {
   const form = document.getElementById("category-form");
+  document.querySelector(".cf-kw-suggest-tip").hidden = true;
   form.id.value = c.id;
   form.name.value = c.name || "";
   form.promptHint.value = c.prompt_hint || "";
@@ -1299,6 +1301,39 @@ document.addEventListener("click", async (e) => {
     } else if (action === "delete-category") {
       await api(`/api/categories/${id}`, { method: "DELETE" });
       await refreshCategories();
+    } else if (action === "suggest-keywords") {
+      const form = document.getElementById("category-form");
+      const tip = document.querySelector(".cf-kw-suggest-tip");
+      const name = form.name.value.trim();
+      const promptHint = form.promptHint.value.trim();
+      if (!name || !promptHint) { alert("① 주제와 ② 카테고리 설명을 먼저 적어 주세요."); return; }
+      const original = btn.innerHTML;
+      btn.disabled = true;
+      btn.textContent = "AI가 키워드 뽑는 중...";
+      tip.hidden = true;
+      tip.classList.remove("cf-kw-suggest-error");
+      try {
+        const 제안 = await api("/api/categories/keyword-suggest", {
+          method: "POST",
+          body: JSON.stringify({
+            name, promptHint,
+            topicKeyword: form.topicKeyword.value.trim(),
+            mustKeywords: form.mustKeywords.value.trim(),
+          }),
+        });
+        if (제안.error) throw new Error(제안.error);
+        if (제안.topicKeyword) form.topicKeyword.value = 제안.topicKeyword;
+        if (제안.mustKeywords) form.mustKeywords.value = 제안.mustKeywords;
+        tip.textContent = `✅ ③④ 를 채웠습니다 — 확인하고 필요하면 고쳐 쓰신 뒤 저장하세요.`;
+        tip.hidden = false;
+      } catch (err) {
+        tip.textContent = `❌ ${err.message}`;
+        tip.classList.add("cf-kw-suggest-error");
+        tip.hidden = false;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = original;
+      }
     } else if (action === "edit-category") {
       const c = categoriesCache.find((x) => x.id === Number(id));
       if (c) 카테고리폼채우기(c);

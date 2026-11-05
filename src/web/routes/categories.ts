@@ -16,6 +16,9 @@ import { config } from "../../config.js";
 import { 주인자리인가, 관리자인가, 체험은못함 } from "../../tenancy.js";
 import { 시간재보기 } from "../../scheduler/시간예상.js";
 import { 최소분량 } from "../../db/repositories/settings.js";
+import { 쓸수있나 } from "../../ai/run.js";
+import { 키워드제안받기 } from "../../claude/카테고리키워드추출.js";
+import { 오류적기 } from "../../db/repositories/errorLog.js";
 
 /**
  * **지금 이 서버를 깨울 예약 작업을 만드는 명령**을 통째로 만들어 준다.
@@ -54,6 +57,31 @@ function 예약만들기명령(req: FastifyRequest): string {
 
 export async function categoriesRoutes(app: FastifyInstance) {
   app.get("/api/categories", async () => listAllCategories());
+
+  // ③④ 자동 채우기 — 아직 저장 안 한 카테고리라도 ①②(이름·설명)만 있으면 된다.
+  // 결과는 화면 입력칸에 채워 주기만 하고, 저장은 사람이 [추가]/[수정 저장] 을 눌러야 한다.
+  app.post("/api/categories/keyword-suggest", async (req, reply) => {
+    if (!주인자리인가()) { reply.code(403); return { error: 체험은못함 }; }
+    const body = (req.body ?? {}) as { name?: string; promptHint?: string; topicKeyword?: string; mustKeywords?: string };
+    const 이름 = String(body.name ?? "").trim();
+    const 설명 = String(body.promptHint ?? "").trim();
+    if (!이름 || !설명) {
+      reply.code(400);
+      return { error: "① 주제와 ② 카테고리 설명을 먼저 적어 주세요." };
+    }
+    const 상태 = await 쓸수있나();
+    if (상태.ok === false) {
+      reply.code(409);
+      return { error: "AI 연결이 끊겨 있어 키워드를 추출할 수 없습니다. 맨 위 상태 막대를 확인해 주세요.", needsAi: true };
+    }
+    try {
+      return await 키워드제안받기(이름, 설명, String(body.topicKeyword ?? ""), String(body.mustKeywords ?? ""));
+    } catch (err) {
+      오류적기("카테고리 키워드 추출", 이름, (err as Error).message);
+      reply.code(502);
+      return { error: `키워드를 추출하지 못했습니다 — ${(err as Error).message}` };
+    }
+  });
 
   // ── 포스팅 예약 설정 ──────────────────────────────────────────
   //

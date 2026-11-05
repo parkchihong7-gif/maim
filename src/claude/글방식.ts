@@ -83,19 +83,32 @@ export function 분량고르기(length_pref: string | null | undefined): { 최�
   return 것 ? { 최소: 것.최소, 목표: 것.목표 } : { 최소: null, 목표: null };
 }
 
+/**
+ * structure === "auto" 일 때 쓸 구성을 **코드가** 고른다.
+ *
+ * 예전에는 "10가지 중 알아서 골라라" 라고 AI 에게 맡겼다. 자유 선택은
+ * 몇 가지(특히 "결론 먼저형"처럼 무난한 것)로 쏠린다 — 포스팅 방향을
+ * "전문가 분석형" 으로 둔 분들이 특히 그랬다. 글 구성까지 늘 비슷하게
+ * 쏠리니 30편쯤 쌓이면 패턴이 바로 보였다. 변주.ts 와 같은 결로, AI 의
+ * 자유 선택 대신 코드가 매번 무작위로 하나를 미리 정해 준다.
+ */
+export function 구성고르기(structure: string | null | undefined): 구성 | null {
+  const 고정 = 구성찾기(structure);
+  if (고정) return 고정;
+  if (다듬어(structure) !== "auto") return null;
+  return 글구성들[Math.floor(Math.random() * 글구성들.length)];
+}
+
 /** 지시문 블록. 아무것도 안 골랐으면 작성 관점만 돌려준다. */
 export function 글방식블록(방식: 글방식): string {
   const 줄: string[] = [];
   const 모드 = 작성모드들[다듬어(방식.write_mode) as 작성모드];
   if (모드) 줄.push(`- 작성 모드: ${모드.이름} — ${모드.지시}`);
 
-  const 고른구성 = 구성찾기(방식.structure);
+  const 고른구성 = 구성고르기(방식.structure);
   if (고른구성) {
     줄.push(`- 글 구성: ${고른구성.번호}. ${고른구성.이름} — ${고른구성.한줄} 전개 예: ${고른구성.전개}.`
       + " 고정 목차가 아니다. 소제목·문단 수는 자료에 맞게 조정하되 이 흐름을 따르라.");
-  } else if (다듬어(방식.structure) === "auto") {
-    줄.push(`- 글 구성: 아래 10가지 중 이 주제·자료에 가장 맞는 것 하나를 골라 그 흐름으로 써라 — `
-      + 글구성들.map((g) => `${g.번호}.${g.이름}`).join(" · "));
   }
 
   const 강도 = 방식.tone_strength;

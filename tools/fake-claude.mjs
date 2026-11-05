@@ -56,6 +56,10 @@ const 잠 = Number(process.env.FAKE_SLEEP||0); if (잠) Atomics.wait(new Int32Ar
       {title:"마무리가 같다",why:"반복 표현",how:"다음 글 안내·요약 박스로 바꿔 보기"}],
     priority:["출처·기준일 한 줄 넣기","글마다 예외 조건 문단 추가","제목에 대상·상황 넣기"], confidence:0.72 }) })); process.exit(0); } }
 { const a=process.argv.slice(2); const q=a[a.indexOf("-p")+1]||"";
+  if (q.includes("[카테고리 키워드 추천]")) { const 이름=(q.match(/- 주제: "(.+)"/)||[])[1]||"카테고리";
+    process.stdout.write(JSON.stringify({ is_error:false, result: JSON.stringify({
+      topicKeyword: `${이름} 가상 세부 키워드`, mustKeywords: ["가상 연관어1", "가상 연관어2", "가상 연관어3"] }) })); process.exit(0); } }
+{ const a=process.argv.slice(2); const q=a[a.indexOf("-p")+1]||"";
   if (q.includes("[검수 요청]")) { process.stdout.write(JSON.stringify({ is_error:false, result: JSON.stringify({ summary: "사실 확인이 필요한 숫자 2곳과 단정 표현 1곳이 있어요.", items: [
     { kind:"fact", quote:"전년보다 40% 늘었다", why:"조사 자료에 없는 숫자입니다.", fix:"출처를 넣거나 숫자를 빼세요." },
     { kind:"fact", quote:"2025년 기준", why:"오늘 기준으로 낡았을 수 있습니다.", fix:"최신 연도인지 확인하세요." },

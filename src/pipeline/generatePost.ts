@@ -9,7 +9,8 @@ import { 메모적기 } from "../db/repositories/categories.js";
 import { buildBlogProfileBlock, 세부주제읽기, 주소목록읽기, 브랜드읽기 } from "../claude/blogProfile.js";
 import { runAI, 지금엔진, 시간초과인가, type 부른기록 } from "../ai/run.js";
 import { parsePostResponse } from "../claude/parseResponse.js";
-import { 개인설정들, resolvePostingDirectionInstruction } from "../db/repositories/settings.js";
+import { 개인설정들 } from "../db/repositories/settings.js";
+import { 방향고르기 } from "../claude/포스팅방향다양화.js";
 import type { PostDirective } from "./directives.js";
 import { config } from "../config.js";
 import { 최소분량 } from "../db/repositories/settings.js";
@@ -18,7 +19,7 @@ import { 보관함키워드고르기 } from "../naver/보관함사용.js";
 import { 적용할스타일블록 } from "./내스타일.js";
 import { 변주고르기, 변주블록, 변주요약, 최근모양보기 } from "./변주.js";
 import { 변주적기 } from "../db/repositories/posts.js";
-import { 끝맺음고르기, 끝맺음블록, 끝맺음기록적기, type 제목패턴선택 } from "../claude/제목다양화.js";
+import { 끝맺음고르기, 끝맺음블록, type 제목패턴선택 } from "../claude/제목다양화.js";
 import { 키워드썼음, 급상승살아있나 } from "../db/repositories/keywordPool.js";
 import { 분량고르기 } from "../claude/글방식.js";
 import { 레인정하기, 전략블록, type 글주문, type 레인 } from "./글전략.js";
@@ -138,6 +139,10 @@ export async function generatePost(category: Category, directive: PostDirective,
   기록.메모씀 = !기록.첫글 && !!(블로그메모 || 카테고리메모);
 
   // ── 2) 글쓰기 — 도구 없이 자료만 보고 ─────────────────────────
+  // 포스팅 방향 — 프리셋 하나를 고정해 두면 매 글 같은 문장이 들어가 패턴이
+  // 보였다. 변주.ts 와 같은 결로, 최근 글과 안 겹치는 문구(«랜덤»이면 프리셋
+  // 자체도)를 코드가 고른다.
+  const 방향 = 방향고르기(blogSettings.posting_direction_preset);
   const blogProfileBlock = buildBlogProfileBlock({
     주소는메모로: true,
     blogType: blogSettings.blog_type,
@@ -145,7 +150,7 @@ export async function generatePost(category: Category, directive: PostDirective,
     blogTopics: 세부주제읽기(blogSettings.blog_topics),
     links: 참고주소들,
     brand: 브랜드읽기(blogSettings.blog_brand),
-    postingDirectionInstruction: resolvePostingDirectionInstruction(blogSettings.posting_direction_preset),
+    postingDirectionInstruction: 방향.instruction,
     postingDirectionRefinement: blogSettings.posting_direction_refinement,
   });
   // 카테고리 폼 ⑦ 의 분량 — 짧게/길게를 골랐으면 목표·최소 글자수를 그것으로.
@@ -273,9 +278,16 @@ export async function generatePost(category: Category, directive: PostDirective,
     titleVariants: 제목.title_variants,
   });
 
-  if (변주 || 끝맺음선택) {
-    try { if (끝맺음선택) 끝맺음기록적기(post.id, 끝맺음선택, 변주); else 변주적기(post.id, 변주); }
-    catch { /* 기록 못 해도 글은 그대로 */ }
+  // 변주·제목 끝맺음·포스팅 방향 — 셋 다 "다음 글이 최근과 안 겹치는 것을
+  // 고르게" 같은 자리(variation_json)에 남긴다. 하나로 합쳐 한 번만 쓴다.
+  let 추가기록: Record<string, unknown> | null = 변주 ? { ...변주 } : null;
+  if (끝맺음선택) {
+    추가기록 = { ...(추가기록 ?? {}),
+      titlePatterns: [끝맺음선택.main, ...끝맺음선택.variants], titleStructures: 끝맺음선택.구조 };
+  }
+  if (방향.기록) 추가기록 = { ...(추가기록 ?? {}), direction: 방향.기록 };
+  if (추가기록) {
+    try { 변주적기(post.id, 추가기록); } catch { /* 기록 못 해도 글은 그대로 */ }
   }
   try {
     글전략적기(post.id, {

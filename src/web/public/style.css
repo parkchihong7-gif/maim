@@ -1634,6 +1634,9 @@ body:not(.is-trial) [data-trial-only]{display:none !important}
 .cf-chips button{border:1px dashed var(--cf-main);background:#fff;color:var(--cf-ink);border-radius:999px;padding:3px 10px;font-size:12.5px;cursor:pointer;line-height:1.5}
 .cf-chips button:hover{background:var(--cf-main);color:#fff;border-style:solid}
 .cf-tip{margin:6px 0 0;font-size:12.5px;color:#6b7280}
+.cf-kw-suggest{display:block;margin-top:10px;font-size:13px}
+.cf-kw-suggest span{font-weight:400;color:#6b7280;font-size:12px;margin-left:4px}
+.cf-kw-suggest-tip.cf-kw-suggest-error{color:#c0392b}
 .cf-check{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:13.5px;color:var(--cf-ink);font-weight:600}
 .cf-check span{font-weight:400;color:#6b7280}
 .cf-actions{display:flex;gap:8px}
