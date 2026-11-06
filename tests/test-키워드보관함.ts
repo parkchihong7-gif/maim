@@ -19,6 +19,7 @@ fs.writeFileSync(가짜, `#!/usr/bin/env node
 import fs from "node:fs";
 const a = process.argv.slice(2);
 const p = a[a.indexOf("-p") + 1] ?? "";
+if (p.includes("[X 등록 요약 요청]")) { process.stdout.write(JSON.stringify({ is_error: false, result: JSON.stringify({ summary: "가상 요약", hashtags: [] }) })); process.exit(0); }
 // 조사 단계 지시문은 따로 둔다 — 마지막에 남는 것이 글쓰기 지시문이어야 한다.
 if (!p.includes("자료만 빠르게")) fs.writeFileSync(${JSON.stringify(기록)}, p);
 const 본문 = "가짜 본문입니다. ".repeat(120);

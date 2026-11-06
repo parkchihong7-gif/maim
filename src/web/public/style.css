@@ -712,6 +712,15 @@ textarea:focus {
 .post-related-list { margin: 0; padding-left: 18px; font-size: 0.88rem; }
 .post-related-list li { margin: 2px 0; }
 
+/* 📣 X 등록 탭 */
+.x-register-form, .x-registered { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.x-url-input { flex: 1; min-width: 180px; }
+.x-platform-select { max-width: 120px; }
+.x-summary-box { display: flex; flex-direction: column; gap: 6px; min-width: 240px; }
+.x-summary-text { width: 100%; resize: vertical; font-size: 0.88rem; }
+.x-summary-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+#xposts-table td { vertical-align: top; }
+
 .post-images-section {
   margin-top: 14px;
   padding-top: 14px;

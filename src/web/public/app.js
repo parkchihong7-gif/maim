@@ -490,6 +490,7 @@ async function 하루치예고() {
 
 let readyPosts = [];
 let historyCache = [];
+let xPostsCache = [];
 // 펼쳐서 보고 있는 초안 id들. refreshQueue()가 15초마다 카드 전체를 다시
 // 그리는데, 이 상태를 기억해두지 않으면 내용을 읽는 중에도 다음 자동
 // 새로고침 때 매번 다시 접혀버린다.
@@ -771,6 +772,53 @@ async function refreshHistory() {
     tbody.appendChild(tr);
   }
   레인통계그리기().catch(() => {});
+}
+
+const X플랫폼이름 = { naver: "네이버 블로그", tistory: "티스토리" };
+
+/** 📣 X 등록 탭 — 준비 완료·발행 완료된 글마다 실제 주소 등록 칸 + X 요약을 그린다. */
+async function refreshXPosts() {
+  const items = await api("/api/x-posts?limit=100");
+  xPostsCache = items.items || [];
+  const tbody = document.querySelector("#xposts-table tbody");
+  tbody.innerHTML = "";
+  document.getElementById("xposts-empty").hidden = xPostsCache.length > 0;
+  for (const p of xPostsCache) {
+    const tr = document.createElement("tr");
+    tr.dataset.id = p.id;
+
+    const 등록칸 = p.x_url
+      ? `<div class="x-registered">
+          <a href="${escapeHtml(p.x_url)}" target="_blank" rel="noopener">${escapeHtml(X플랫폼이름[p.x_platform] || p.x_platform || "")} 주소 보기 ↗</a>
+          <button class="btn-secondary kw-mini" data-action="x-unregister" data-id="${p.id}">해제</button>
+        </div>`
+      : `<div class="x-register-form">
+          <select class="x-platform-select" data-id="${p.id}">
+            <option value="naver">네이버 블로그</option>
+            <option value="tistory">티스토리</option>
+          </select>
+          <input type="text" class="x-url-input" data-id="${p.id}" placeholder="실제 발행된 글 주소 (https://...)" autocomplete="off">
+          <button class="btn-secondary kw-mini" data-action="x-register" data-id="${p.id}">저장</button>
+        </div>`;
+
+    const 요약칸 = p.x_summary
+      ? `<div class="x-summary-box">
+          <textarea class="x-summary-text" data-id="${p.id}" rows="3">${escapeHtml(p.x_summary)}</textarea>
+          <div class="x-summary-actions">
+            <button class="btn-secondary kw-mini" data-action="x-summary-save" data-id="${p.id}">💾 저장</button>
+            <button class="btn-secondary kw-mini" data-action="x-summary-generate" data-id="${p.id}">🔁 다시 만들기</button>
+            <button class="btn-primary kw-mini" data-action="x-copy" data-id="${p.id}">📋 복사${p.x_url ? "(요약+주소)" : "(요약만)"}</button>
+          </div>
+        </div>`
+      : `<button class="btn-secondary kw-mini" data-action="x-summary-generate" data-id="${p.id}">🤖 요약 만들기</button>`;
+
+    tr.innerHTML = `
+      <td>${escapeHtml(p.category_name)}<br>${escapeHtml(p.title ?? "")}</td>
+      <td><span class="badge badge-${p.status}">${p.status}</span></td>
+      <td>${등록칸}</td>
+      <td>${요약칸}</td>`;
+    tbody.appendChild(tr);
+  }
 }
 
 async function 레인통계그리기() {
@@ -1113,6 +1161,7 @@ async function switchView(view) {
   if (view === "events") refreshEvents().catch((err) => alert(err.message));
   if (view === "style") refreshStyle().catch((err) => alert(err.message));
   if (view === "workshop") refreshWorkshop().catch((err) => alert(err.message));
+  if (view === "xposts") refreshXPosts().catch((err) => alert(err.message));
   if (view === "guide") 사용법그리기();
   if (view === "game") window.게임탭?.열기();
 }
@@ -1308,6 +1357,46 @@ document.addEventListener("click", async (e) => {
       if (updated.error) throw new Error(updated.error);
       await refreshQueue();
       await refreshHistory();
+    } else if (action === "x-register") {
+      const tr = btn.closest("tr");
+      const url = tr.querySelector(".x-url-input").value.trim();
+      const platform = tr.querySelector(".x-platform-select").value;
+      if (!url) { alert("실제 발행된 글 주소를 넣어 주세요."); return; }
+      await api(`/api/posts/${id}/x-register`, { method: "PUT", body: JSON.stringify({ url, platform }) });
+      await refreshXPosts();
+    } else if (action === "x-unregister") {
+      if (!confirm("등록한 주소를 지울까요?")) return;
+      await api(`/api/posts/${id}/x-register`, { method: "DELETE" });
+      await refreshXPosts();
+    } else if (action === "x-summary-generate") {
+      if (!(await AI되나())) return;
+      btn.disabled = true;
+      const 원래 = btn.textContent;
+      btn.textContent = "만드는 중...";
+      try {
+        await api(`/api/posts/${id}/x-summary`, { method: "POST" });
+        await refreshXPosts();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 원래;
+      }
+    } else if (action === "x-summary-save") {
+      const tr = btn.closest("tr");
+      const text = tr.querySelector(".x-summary-text").value.trim();
+      if (!text) { alert("요약 내용을 입력해 주세요."); return; }
+      await api(`/api/posts/${id}/x-summary`, { method: "PUT", body: JSON.stringify({ text }) });
+      await refreshXPosts();
+    } else if (action === "x-copy") {
+      const post = xPostsCache.find((p) => p.id === Number(id));
+      if (post) {
+        const tr = btn.closest("tr");
+        const 지금요약 = tr.querySelector(".x-summary-text")?.value.trim() || post.x_summary || "";
+        const 글 = post.x_url ? `${지금요약}\n\n${post.x_url}` : 지금요약;
+        await navigator.clipboard.writeText(글);
+        const original = btn.textContent;
+        btn.textContent = "복사됨!";
+        setTimeout(() => { btn.textContent = original; }, 1500);
+      }
     } else if (action === "delete-category") {
       await api(`/api/categories/${id}`, { method: "DELETE" });
       await refreshCategories();

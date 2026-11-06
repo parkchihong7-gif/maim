@@ -32,6 +32,7 @@
 | 📝 포스팅 | 준비된 초안 카드: `[카테고리] [제목 N자] [복사하기]` / 후킹 제목 3종 / 전체 복사 / 이미지 재생성 / 발행 완료로 표시 / 품질 체크 |
 | 📁 블로그 관리 | 카테고리 표 `주제 / 주제 키워드 / 활성(눌러 켬·끔) / 포스팅 생성 / 상태(220px)` + 새 카테고리 폼(①주제 ②설명 ③주제 키워드[계속 유지] ④함께 들어갈 말 ⑤빼야 할 말 ⑥대표 주소·참고 주소[+/×] ⑦글 쓰는 방식 ⑧연결 게임[관리자만] ⑨**📌 매일 포스팅**[차례와 상관없이 하루 상한 안에서 항상 먼저]) + 표의 [✏️ 수정][🗑 삭제] 옆 빠른 토글 + [지금 하루치 만들기] |
 | 📜 발행 이력 | 발행한 글과 이미지 출처 CSV |
+| 📣 X 등록 (주인만) | 준비 완료·발행 완료된 글마다 ① 실제 발행 주소(네이버/티스토리, 사람이 직접 넣음 — 자동 발행이라 이 프로그램은 모름) 등록·해제 ② X(트위터)용 요약은 **글이 만들어질 때 자동으로 같이 생성**돼 바로 보임(🔁 다시 만들기로 재생성, 직접 고쳐 저장도 가능) ③ [복사] 로 요약+주소를 X 에 붙여넣기. 자동으로 X 에 올리지는 않는다 |
 | 🔎 네이버 키워드 (주인만) | ① 네이버 키 5개·연결 테스트 ② [지금 모으기](5분 자동 멈춤·중지·이어서) ③ 보관함(골드·실버·브론즈, 근거 칸, 보류) ④ 포스팅에 적용 체크(기본 꺼짐). 글쓰기는 보관함을 **읽기만** 한다. 자세한 것은 `docs/네이버키워드-계획.md` 0장 |
 | ✍️ 글 작업실 (주인만) | ① 키워드·검색 방향(연관어 3) ② 상위 5편(숫자만 남김)·AI 사전 지식(질문·공통·빈틈·사실 후보 [자료 n]·목차 4·제목) ③ 내 자료 답·승인 ④ 4구간 나눠 쓰기 → 포스팅 저장 → 최종 검수. 자동 글과 따로 |
 | 🎨 내 블로그 분석 | ① 공개 글(RSS 30 + 본문 8) ② AI 스타일 10칸 + 셈한 숫자 → 고쳐서 승인(버전) ③ 진단(강점·개선·먼저 할 것) ④ 적용 체크(기본 꺼짐) 때만 글쓰기·검수에. 체험도 씀(하루 3회) |
@@ -75,7 +76,7 @@ src/web/server.ts       Fastify            src/web/routes/      auth·categories
 src/db/index.ts         SQLite + 칸붙이기  src/db/migrations/   001~018 SQL
 src/db/repositories/    categories·posts·settings·tenants·errorLog·imageDownloads·keyserverSessions
 src/pipeline/           generatePost·조사·자료메모·attachImage·directives
-src/claude/             promptBuilder·blogProfile·제목규칙·parseResponse·styleRules·검색노출규칙
+src/claude/             promptBuilder·blogProfile·제목규칙·parseResponse·styleRules·검색노출규칙·x트윗요약
 src/ai/                 engines·run      src/images/  searchImages·selectImage·processImage
 src/scheduler/          dailyJob(아침 6시)·예약·시간예상·cron·죽은자리치우기
 src/persistence/        gcsState         tools/  fake-claude.mjs(시험용 가짜 AI)·건지기.py
@@ -84,6 +85,7 @@ src/game/ · routes/game.ts · agent/   🕹️ 게임 스샷(관리자 전용, 
 주요 API: `POST /api/run/generate`(지금 생성, 응답에 `timing`) · `POST /api/run/daily` · `GET/POST/PUT/DELETE /api/categories`
 · `POST /api/categories/:id/brief-reset` · `GET /api/queue` · `POST /api/posts/:id/regenerate-image|mark-published`
 · `GET/PUT /api/settings`·`/api/settings/ai` · `GET /api/ai/status` · `POST /api/ai/check` · `GET /api/errors` · `GET/PUT /api/schedule`
+· `GET /api/x-posts` · `PUT/DELETE /api/posts/:id/x-register` · `POST/PUT /api/posts/:id/x-summary`
 
 ## 7. 환경변수 (이름만 — 값은 서버 비밀 설정에. **채팅·저장소에 값을 적지 않는다**)
 `DASHBOARD_TOKEN` `KEYSERVER_URL` `KEYSERVER_PROGRAM` `GCS_STATE_BUCKET` `DATA_DIR` `AI_ENGINE` `AI_TIMEOUT_MS` `CLAUDE_BIN`
@@ -215,6 +217,37 @@ cd ~/maim && git pull && gcloud run deploy maim --source . --region=us-central1 
      사장님이 동의하시면 관련 카테고리를 추가/고정(📌 매일)하는 걸 도울 수 있다.
   2. 매달 같은 통계 파일을 받아 두면 "희석 효과"가 아니라 진짜 추세를 비교할 수 있다 — 다음
      달치가 오면 이 보고서에 이어 붙이기.
+- 11-07: **📣 X 등록 탭 — 구글 색인 확장용.** 사장님 제안: "X(트위터)에 블로그 글 링크를 올리면
+  구글이 더 빨리 찾아온다"(11-06 보고서 3번째 대안) — X 계정에 **자동으로** 등록하는 것부터 검토해 달라는
+  요청.
+  1. **1번안(자동 등록) 검토 결과 — 접었다.** X API 는 2026-02 부터 신규 개발자에게 무료 글쓰기를
+     안 준다(건당 과금: 글 1개당 약 $0.01, 링크 포함 글은 더 비쌈). MAKE 도 결국 X 의 공식 API 를
+     그대로 빌려 쓰는 구조라 X 쪽이 유료면 MAKE 를 거쳐도 그대로 유료고, 2025년부터 MAKE 의 X 모듈
+     자체가 신규 연동이 막혔다는 보고도 다수. **"유료면 배제"** 기준에 바로 걸려 접었다 — 앞으로도
+     자동 등록을 다시 검토할 필요 없다(X 쪽 정책이 다시 바뀌지 않는 한).
+  2. 처음엔 "이미 발행한 네이버/티스토리 글 주소를 주면 거기서 제목·요약·이미지를 긁어와 등록
+     리스트를 자동으로 채우는" 안도 검토했으나, **이 작업 환경에서 두 주소 다 못 열었다**
+     (`blog.naver.com/parkchihong` 는 네이버가 자동 요청을 막음·`papersky.tistory.com` 은 DNS 조회
+     자체가 실패— 구글 검색에도 안 나와 주소가 맞는지부터 사장님 확인 필요). 사장님이 바로 간소화:
+     **"포스팅 생성 시점에 X 용 요약 포맷도 자동으로 같이 만들어 두자"** 로 결정.
+  3. 만든 것 — ① `posts` 표에 `x_url`·`x_platform`·`x_summary`·`x_registered_at` 칸 추가(마이그레이션
+     019) ② `src/claude/x트윗요약.ts` — 제목·본문만 보고 X 용 짧은 한글 요약(100자 안팎)+해시태그
+     0~2개를 AI 가 만든다(링크는 안 넣음 — 실제 주소를 아직 모르니까, 사람이 등록할 때 코드가 붙임)
+     ③ **`generatePost.ts` 에 자동으로 끼워 넣음** — 글이 만들어질 때마다(아침 자동·지금 생성·후속
+     글 전부) AI 요약을 한 번 더 불러 바로 만들어 둔다(실패해도 글 자체는 그대로, 나중에 탭에서 다시
+     만들 수 있음) ④ 새 탭 **📣 X 등록**(주인만) — 준비 완료·발행 완료된 글마다 실제 발행 주소를
+     사람이 넣는 칸(네이버/티스토리 중 고름) + 이미 만들어진 요약을 보여주고 고쳐 쓰기·다시 만들기·
+     [복사](요약+주소) 버튼. **자동으로 X 에 올리지는 않는다** — 사장님이 복사해서 직접 올리는
+     반자동 방식.
+  2.5. (2026-11-07 결정, 아직 안 바뀜) 티스토리 쪽은 "주소 등록 칸"만 있고 네이버처럼 글을 직접
+     만들어 주는 기능은 없다 — 지금은 범위 밖. 필요해지면 그때 검토.
+  시험 29개 전부 통과(`test-x등록.ts` 추가 + `generatePost()` 를 호출하는 기존 시험 8개의 가짜 AI에
+  `[X 등록 요약 요청]` 분기를 추가해 "마지막으로 부른 프롬프트를 기록해 검사하는" 방식이 깨지지
+  않게 손봤다 — 글쓰기 뒤에 요약 호출이 하나 더 생겨서 그 기록을 덮어썼기 때문). `tools/fake-claude.mjs`
+  에도 같은 분기 추가.
+  **남은 일**: 배포 후 몇 편 만들어 보고 📣 X 등록 탭에 요약이 자동으로 채워져 있는지, 실제 주소를
+  넣고 [복사]가 요약+주소를 잘 합쳐 주는지 확인. 티스토리 주소(`papersky.tistory.com`)가 맞는지도
+  사장님이 직접 열어서 확인해 주시면 좋겠다.
 - **남은 일**:
   1. 사장님이 배포 후 블로그 관리 표에서 [📌 매일 포스팅으로] 버튼이 보이는지, 눌러서 켠 카테고리가
      다음 날 아침 정말 빠짐없이 나오는지 확인.

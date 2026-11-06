@@ -16,7 +16,9 @@ const 가짜 = path.join(임시, "fake-claude.mjs");
 fs.writeFileSync(가짜, `#!/usr/bin/env node
 import fs from "node:fs";
 const a = process.argv.slice(2);
-const 조사 = (a[a.indexOf("-p") + 1] || "").includes("자료만 빠르게");
+const p = a[a.indexOf("-p") + 1] || "";
+if (p.includes("[X 등록 요약 요청]")) { process.stdout.write(JSON.stringify({ is_error: false, result: JSON.stringify({ summary: "가상 요약", hashtags: [] }) })); process.exit(0); }
+const 조사 = p.includes("자료만 빠르게");
 fs.writeFileSync(${JSON.stringify(기록)} + (조사 ? ".조사" : ""), a.join("\\u0001"));
 const 글 = { keyword: "초등 스크래치 게임 만들기", title: "초등 스크래치 게임 만들기 주말 1시간이면 첫 작품 완성하는 법",
   content: "초등 스크래치 게임 만들기. ".repeat(80), image_query: "kids coding",

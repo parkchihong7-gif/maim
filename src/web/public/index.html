@@ -50,6 +50,7 @@
         <button class="sidebar-nav-item" data-action="switch-view" data-view="categories">📁 <span>블로그 관리</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="drafts">📝 <span>포스팅</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="history">📜 <span>발행 이력</span></button>
+        <button class="sidebar-nav-item" data-action="switch-view" data-view="xposts" data-owner-only>📣 <span>X 등록</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="keywords" data-owner-only>🔎 <span>네이버 키워드</span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="events" data-owner-only data-game-only>🎮 <span>출시 달력</span><span class="nav-count" id="nav-events-count" hidden></span></button>
         <button class="sidebar-nav-item" data-action="switch-view" data-view="game" data-game-admin data-game-only>🕹️ <span>게임 스샷</span></button>
@@ -350,6 +351,33 @@
             </thead>
             <tbody></tbody>
           </table>
+        </div>
+      </section>
+
+      <!-- ============ 📣 X 등록 ============
+           구글 색인 확장용 — 네이버/티스토리에 발행한 글의 실제 주소를 사람이
+           넣으면, AI 요약(X 에 붙일 짧은 글)을 만들어 복사해 간다. 자동으로
+           X 에 올리지는 않는다(2026-11-06 검토: X API 무료 글쓰기 종료). -->
+      <section data-view-panel="xposts" data-owner-only hidden>
+        <div class="page-header">
+          <div>
+            <h1>📣 X 등록</h1>
+            <p class="muted">네이버·티스토리에 <strong>실제로 발행한 글의 주소</strong>를 넣으면, X(트위터)에 소개할
+              짧은 요약을 AI 가 만들어 줍니다. 복사해서 X 에 직접 올리세요 — 구글이 더 빨리 찾아오게 하는
+              외부 링크 하나가 늘어납니다.</p>
+          </div>
+        </div>
+        <div class="kw-safe">✔ <strong>자동으로 X 에 올리지 않습니다.</strong> X 쪽이 2026년부터 신규 글쓰기를
+          무료로 주지 않아(건당 과금), 요약만 만들어 두고 사람이 직접 복사해 올립니다. 이미지는 포스팅
+          탭에서 받은 사진을 그대로 쓰시면 됩니다.</div>
+        <div class="card">
+          <table id="xposts-table">
+            <thead>
+              <tr><th>제목</th><th>상태</th><th>발행 주소 등록</th><th>X 요약</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <p class="muted small" id="xposts-empty" hidden>아직 준비됐거나 발행한 글이 없습니다 — 📝 포스팅에서 먼저 글을 만들어 주세요.</p>
         </div>
       </section>
 

@@ -35,6 +35,12 @@ export interface Post {
   inflow_at?: string | null;
   event_id?: number | null;
   event_step?: string | null;
+  /** 📣 X(트위터) 등록 — 실제 발행된 글 주소는 사람이 나중에 넣는다(자동 등록 없음) */
+  x_url?: string | null;
+  x_platform?: string | null;
+  x_summary?: string | null;
+  x_summary_at?: string | null;
+  x_registered_at?: string | null;
 }
 
 export function insertDraftPost(input: {
@@ -173,6 +179,46 @@ export function 관련글(categoryId: number, excludeId: number, limit = 3): { i
        ORDER BY created_at DESC, id DESC LIMIT ?`,
     )
     .all(지금주인(), categoryId, excludeId, limit) as { id: number; title: string }[];
+}
+
+/**
+ * **📣 X(트위터) 등록 리스트** 에 올릴 글들 — 준비 완료(ready)·발행 완료(published)된
+ * 글만. 발행은 사람이 하므로 실제 글 주소를 이 프로그램이 미리 알 수 없다
+ * (내부링크 추천과 같은 이유, posts.ts 의 관련글() 설명 참고) — 그래서
+ * 사람이 직접 주소를 넣는 칸(x_url·x_platform)을 두고, AI 요약(x_summary)은
+ * 주소 없이도(제목·본문만으로) 먼저 만들어 둘 수 있게 한다. 자동 등록은
+ * 하지 않는다(X API 가 무료로는 글쓰기를 안 준다 — 2026-11-06 검토).
+ */
+export function X등록목록(limit = 100): Post[] {
+  return getDb()
+    .prepare(
+      `SELECT p.*, c.name as category_name FROM posts p
+       JOIN categories c ON c.id = p.category_id
+       WHERE p.owner_key = ? AND p.status IN ('ready', 'published') AND p.title IS NOT NULL
+       ORDER BY p.created_at DESC, p.id DESC LIMIT ?`,
+    )
+    .all(지금주인(), limit) as Post[];
+}
+
+/** 실제 발행된 글 주소를 사람이 넣는다(네이버 블로그·티스토리). */
+export function X등록(id: number, url: string, platform: string): void {
+  getDb()
+    .prepare("UPDATE posts SET x_url = ?, x_platform = ?, x_registered_at = datetime('now') WHERE id = ? AND owner_key = ?")
+    .run(url, platform, id, 지금주인());
+}
+
+/** 등록을 지운다 — 주소를 잘못 넣었을 때. */
+export function X등록해제(id: number): void {
+  getDb()
+    .prepare("UPDATE posts SET x_url = NULL, x_platform = NULL, x_registered_at = NULL WHERE id = ? AND owner_key = ?")
+    .run(id, 지금주인());
+}
+
+/** X 에 올릴 요약문(해시태그 포함, 복사해 쓸 모양 그대로)을 적는다. */
+export function X요약적기(id: number, text: string): void {
+  getDb()
+    .prepare("UPDATE posts SET x_summary = ?, x_summary_at = datetime('now') WHERE id = ? AND owner_key = ?")
+    .run(text, id, 지금주인());
 }
 
 /** 최종 검수 결과(JSON)를 적고 검수 횟수를 올린다. */

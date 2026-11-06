@@ -19,7 +19,9 @@ const 가짜 = path.join(임시, "fake-claude.mjs");
 fs.writeFileSync(가짜, `#!/usr/bin/env node
 import fs from "node:fs";
 const a = process.argv.slice(2);
-fs.writeFileSync(${JSON.stringify(기록)}, a[a.indexOf("-p") + 1] ?? "");
+const p = a[a.indexOf("-p") + 1] ?? "";
+if (p.includes("[X 등록 요약 요청]")) { process.stdout.write(JSON.stringify({ is_error: false, result: JSON.stringify({ summary: "가상 요약", hashtags: [] }) })); process.exit(0); }
+fs.writeFileSync(${JSON.stringify(기록)}, p);
 const 본문 = "가짜 본문입니다. ".repeat(80);
 const 글 = { title: "시험 제목 하나", content: 본문, image_query: "test",
   tags: ["#가","#나","#다","#라","#마"], title_variants: [] };

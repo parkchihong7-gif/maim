@@ -23,6 +23,7 @@ const a = process.argv.slice(2);
 const 물음 = a[a.indexOf("-p") + 1] || "";
 const 도구 = a.includes("--allowedTools") ? a.slice(a.indexOf("--allowedTools") + 1).filter((x) => /^Web/.test(x)).join("+")
   : (a.includes("--tools") ? "없음" : "?");
+if (물음.includes("[X 등록 요약 요청]")) { process.stdout.write(JSON.stringify({ is_error: false, result: JSON.stringify({ summary: "가상 요약", hashtags: [] }) })); process.exit(0); }
 const 조사 = 물음.includes("자료만 빠르게");
 const 늘리기 = 물음.includes("[방금 쓴 글]");
 fs.appendFileSync(${JSON.stringify(기록)}, JSON.stringify({ 조사, 늘리기, 도구,

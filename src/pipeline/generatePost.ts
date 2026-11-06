@@ -23,7 +23,8 @@ import { 끝맺음고르기, 끝맺음블록, type 제목패턴선택 } from "..
 import { 키워드썼음, 급상승살아있나 } from "../db/repositories/keywordPool.js";
 import { 분량고르기 } from "../claude/글방식.js";
 import { 레인정하기, 전략블록, type 글주문, type 레인 } from "./글전략.js";
-import { 글전략적기 } from "../db/repositories/posts.js";
+import { 글전략적기, X요약적기 } from "../db/repositories/posts.js";
+import { 트윗요약받기 } from "../claude/x트윗요약.js";
 import { 의도보기 } from "../naver/키워드점수.js";
 
 // 목표 분량(2500~4500자)에 못 미치더라도 최소한 이 정도는 되어야 재시도 없이 통과시킨다.
@@ -68,6 +69,8 @@ export interface 생성기록 {
   변주?: string;
   /** 🔥 이슈 · 📘 정보형 · 🧱 일반 */
   레인?: 레인;
+  /** 📣 X(트위터) 등록용 요약을 같이 만들었나 — 실패해도 글 자체는 그대로 둔다 */
+  X요약됨?: boolean;
 }
 
 export function 빈기록(): 생성기록 {
@@ -303,5 +306,17 @@ export async function generatePost(category: Category, directive: PostDirective,
   }
 
   기록.글ms = Date.now() - 글시작;
+
+  // 📣 X 등록용 요약 — 발행 후 X(트위터)에 바로 붙여 쓸 짧은 글을 미리 만들어 둔다
+  // (2026-11-07 추가). 📣 X 등록 탭에서 실제 발행 주소만 넣으면 바로 복사해 쓸 수 있다.
+  // 실패해도 포스팅 자체는 그대로 둔다 — 그 탭의 [🔁 다시 만들기]로 나중에 다시 만들 수 있다.
+  try {
+    const X요약 = await 트윗요약받기(제목.title, parsed.post.content);
+    X요약적기(post.id, X요약.text);
+    기록.X요약됨 = true;
+  } catch (err) {
+    console.warn(`[${category.name}] X 등록용 요약 생성 실패(글은 그대로 둠): ${(err as Error).message}`);
+  }
+
   return post;
 }

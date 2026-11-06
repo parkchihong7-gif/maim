@@ -20,6 +20,7 @@ fs.writeFileSync(가짜, `#!/usr/bin/env node
 import fs from "node:fs";
 const a = process.argv.slice(2);
 const p = a[a.indexOf("-p") + 1] ?? "";
+if (p.includes("[X 등록 요약 요청]")) { process.stdout.write(JSON.stringify({ is_error: false, result: JSON.stringify({ summary: "가상 요약", hashtags: [] }) })); process.exit(0); }
 if (!p.includes("자료만 빠르게")) fs.writeFileSync(${JSON.stringify(기록)}, p);
 const n = Date.now() % 100000;
 const 글 = { keyword: "시험 키워드 조합", title: "시험 키워드 조합 알아 두면 손해 안 보는 3가지 기준",

@@ -17,6 +17,7 @@ fs.writeFileSync(가짜, `#!/usr/bin/env node
 import fs from "node:fs";
 const a = process.argv.slice(2);
 const p = a[a.indexOf("-p") + 1] ?? "";
+if (p.includes("[X 등록 요약 요청]")) { process.stdout.write(JSON.stringify({ is_error: false, result: JSON.stringify({ summary: "가상 요약", hashtags: [] }) })); process.exit(0); }
 if (p.includes("[검수 요청]")) {
   fs.writeFileSync(${JSON.stringify(기록)}, p);
   process.stdout.write(JSON.stringify({ is_error: false, result: JSON.stringify({ summary: "숫자 확인 필요", items: [
