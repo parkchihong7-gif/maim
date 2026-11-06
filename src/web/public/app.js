@@ -674,6 +674,15 @@ async function refreshQueue() {
       tags.length > 0
         ? `<div class="post-tags">${tags.map((t) => `<span class="post-tag">${escapeHtml(t)}</span>`).join("")}</div>`
         : "";
+    // 내부링크 추천 — 같은 카테고리의 완성된 글. 자동으로 링크를 걸 수는 없으니
+    // (실제 네이버 글 주소를 이 프로그램이 모른다) 무엇을 링크하면 좋을지만 알려 준다.
+    const relatedHtml =
+      Array.isArray(p.related) && p.related.length > 0
+        ? `<div class="post-related">
+            <p class="muted post-related-label">📎 함께 보면 좋은 글 — 네이버 에디터에서 이 글들로 직접 링크를 걸어 보세요(내부링크는 구글이 보는 신뢰 신호입니다)</p>
+            <ul class="post-related-list">${p.related.map((r) => `<li>${escapeHtml(r.title)}</li>`).join("")}</ul>
+          </div>`
+        : "";
 
     // 프롬프트가 시키는 순서 그대로. (바꿔 끼운 본 제목이 뒤에 붙으면 «후보 4» 로 보인다)
     const TITLE_VARIANT_LABELS = ["조건·기준형", "방법·절차형", "후기·비교형"];
@@ -719,6 +728,7 @@ async function refreshQueue() {
       ${checklistHtml}
       <p class="post-preview${isExpanded ? "" : " collapsed"}">${escapeHtml(p.content ?? "")}</p>
       ${tagsHtml}
+      ${relatedHtml}
       ${캡처부족}
       ${imagesHtml}`;
     container.appendChild(card);

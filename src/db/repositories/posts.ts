@@ -156,6 +156,25 @@ export function listRecentTitles(limit = 20): string[] {
   return rows.map((r) => r.title);
 }
 
+/**
+ * **내부링크 추천 자료.** 같은 카테고리에서 이미 완성된 글(ready/published) 중
+ * 최근 것 몇 편의 제목 — 포스팅 카드에 "함께 보면 좋은 글"로 보여 주고, 사람이
+ * 네이버 에디터에서 그 글로 직접 링크를 걸게 한다.
+ *
+ * 구글은 **내부링크(사이트 안에서 글끼리 연결됨)** 를 사이트 구조·신뢰도 신호로
+ * 본다. 자동으로 링크를 걸 수는 없다(실제 네이버 글 주소를 이 프로그램이
+ * 모른다 — 발행은 사람이 한다) — 그래서 "무엇을 링크하면 좋을지"만 골라 준다.
+ */
+export function 관련글(categoryId: number, excludeId: number, limit = 3): { id: number; title: string }[] {
+  return getDb()
+    .prepare(
+      `SELECT id, title FROM posts
+       WHERE owner_key = ? AND category_id = ? AND id != ? AND status IN ('ready', 'published') AND title IS NOT NULL
+       ORDER BY created_at DESC, id DESC LIMIT ?`,
+    )
+    .all(지금주인(), categoryId, excludeId, limit) as { id: number; title: string }[];
+}
+
 /** 최종 검수 결과(JSON)를 적고 검수 횟수를 올린다. */
 export function 검수적기(id: number, 결과: unknown): void {
   getDb().prepare("UPDATE posts SET review_json = ?, review_count = COALESCE(review_count,0) + 1 WHERE id = ? AND owner_key = ?")

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { getDb } from "../../db/index.js";
 import { 지금주인, 관리자인가 } from "../../tenancy.js";
+import { 관련글 } from "../../db/repositories/posts.js";
 
 /**
  * 아직 안 쓰신 초안 목록.
@@ -18,7 +19,9 @@ export async function queueRoutes(app: FastifyInstance) {
          WHERE p.owner_key = ? AND p.status IN ('draft', 'ready')
          ORDER BY p.created_at DESC`,
       )
-      .all(관리자인가() ? 1 : 0, 지금주인());
+      .all(관리자인가() ? 1 : 0, 지금주인()) as (Record<string, unknown> & { id: number; category_id: number })[];
+    // 내부링크 추천 — 큐가 보통 몇 장 안 돼 카드마다 하나씩 물어도 가볍다.
+    for (const item of items) (item as Record<string, unknown>).related = 관련글(item.category_id, item.id);
     return { items };
   });
 }

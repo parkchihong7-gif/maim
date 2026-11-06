@@ -701,6 +701,17 @@ textarea:focus {
   font-weight: 600;
 }
 
+.post-related {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+.post-related-label { margin: 0 0 6px; }
+.post-related-list { margin: 0; padding-left: 18px; font-size: 0.88rem; }
+.post-related-list li { margin: 2px 0; }
+
 .post-images-section {
   margin-top: 14px;
   padding-top: 14px;
