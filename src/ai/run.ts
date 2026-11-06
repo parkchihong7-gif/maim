@@ -392,9 +392,13 @@ export async function runAI(options: RunOptions): Promise<string> {
       if (끝났나) return;
       끝났나 = true; clearTimeout(시계);
       if (코드 !== 0) {
-        const 까닭 = 멈춘까닭(것, 코드, 탈난것);
+        // Claude 는 `--output-format json` 이라, 자기 쪽 오류도 표준출력(JSON)에
+        // 쓰고 표준에러는 비워 둘 때가 있다. 그러면 사장님께 «1 로 멈췄습니다: »
+        // 뒤가 빈 채로 보였다(2026-11-07 실제로 겪음) — 표준에러가 비면 표준출력도 본다.
+        const 진단 = 탈난것.trim() ? 탈난것 : 나온것;
+        const 까닭 = 멈춘까닭(것, 코드, 진단);
         // 로그인이 풀린 것은 다시 해도 안 된다. 끊김으로 적어 다음 글을 막는다.
-        if (로그인풀림.test(탈난것)) 상태적기(false, 까닭, 것.id);
+        if (로그인풀림.test(진단)) 상태적기(false, 까닭, 것.id);
         reject(new Error(까닭));
         return;
       }

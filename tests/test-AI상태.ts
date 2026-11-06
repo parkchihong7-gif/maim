@@ -18,6 +18,7 @@ import fs from "node:fs";
 const m = fs.existsSync(${JSON.stringify(모드)}) ? fs.readFileSync(${JSON.stringify(모드)}, "utf8").trim() : "ok";
 if (m === "401") { process.stderr.write("ERROR: HTTP error: 401 Unauthorized"); process.exit(1); }
 if (m === "slow") { process.stderr.write("some other failure"); process.exit(3); }
+if (m === "stdout1") { process.stdout.write(JSON.stringify({ is_error: true, result: "Error: model overloaded, try again" })); process.exit(1); }
 process.stdout.write(JSON.stringify({ is_error: false, result: "ok" }));
 `);
 fs.chmodSync(가짜, 0o755);
@@ -98,6 +99,13 @@ console.log("\n⑥ 무료 이미지 키 — 하나도 없으면 0, 하나 넣으
 참("빠진 것 셋", S.이미지키들().missing.length === 3);
 S.setSetting("pexels_api_key", "abc");
 참("Pexels 하나 → 1개", S.이미지키들().count === 1 && S.이미지키들().set[0] === "Pexels");
+
+console.log("\n⑪ 표준에러가 비어 있으면 표준출력에서 까닭을 찾는다 — 2026-11-07 실제로 겪음");
+fs.writeFileSync(모드, "stdout1");
+let 빈에러메시지 = "";
+try { await R.runAI({ prompt: "ok 라고만", timeoutMs: 10_000 }); } catch (e) { 빈에러메시지 = (e as Error).message; }
+참("«... 로 멈췄습니다: » 뒤가 비지 않고 표준출력 내용이 들어간다", 빈에러메시지.includes("model overloaded"));
+fs.writeFileSync(모드, "ok");
 
 fs.rmSync(임시, { recursive: true, force: true });
 console.log(틀린것 === 0 ? "\n전부 통과했습니다.\n" : `\n${틀린것}건 틀렸습니다.\n`);
