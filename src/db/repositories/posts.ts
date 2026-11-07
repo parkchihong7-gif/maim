@@ -163,25 +163,6 @@ export function listRecentTitles(limit = 20): string[] {
 }
 
 /**
- * **내부링크 추천 자료.** 같은 카테고리에서 이미 완성된 글(ready/published) 중
- * 최근 것 몇 편의 제목 — 포스팅 카드에 "함께 보면 좋은 글"로 보여 주고, 사람이
- * 네이버 에디터에서 그 글로 직접 링크를 걸게 한다.
- *
- * 구글은 **내부링크(사이트 안에서 글끼리 연결됨)** 를 사이트 구조·신뢰도 신호로
- * 본다. 자동으로 링크를 걸 수는 없다(실제 네이버 글 주소를 이 프로그램이
- * 모른다 — 발행은 사람이 한다) — 그래서 "무엇을 링크하면 좋을지"만 골라 준다.
- */
-export function 관련글(categoryId: number, excludeId: number, limit = 3): { id: number; title: string; x_url: string | null; x_platform: string | null }[] {
-  return getDb()
-    .prepare(
-      `SELECT id, title, x_url, x_platform FROM posts
-       WHERE owner_key = ? AND category_id = ? AND id != ? AND status IN ('ready', 'published') AND title IS NOT NULL
-       ORDER BY created_at DESC, id DESC LIMIT ?`,
-    )
-    .all(지금주인(), categoryId, excludeId, limit) as { id: number; title: string; x_url: string | null; x_platform: string | null }[];
-}
-
-/**
  * **📣 X(트위터) 등록 리스트** 에 올릴 글들 — 준비 완료(ready)·발행 완료(published)된
  * 글만. 발행은 사람이 하므로 실제 글 주소를 이 프로그램이 미리 알 수 없다
  * (내부링크 추천과 같은 이유, posts.ts 의 관련글() 설명 참고) — 그래서
