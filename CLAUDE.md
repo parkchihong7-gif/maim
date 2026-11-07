@@ -105,6 +105,8 @@ DATA_DIR=/tmp/maim-data PORT=8793 DASHBOARD_TOKEN=owner-test-token-local \
 ```
 cd ~/maim && git pull && gcloud run deploy maim --source . --region=us-central1 --allow-unauthenticated --concurrency=80
 ```
+**커밋·푸시를 마칠 때마다 이 배포 명령어를 매번 같이 보여줄 것** (2026-11-07 사장님 요청 —
+따로 안 물어봐도 항상 붙여서 드린다).
 
 ## 9. 지킬 것
 - 네이버 자동 발행·자동 로그인 금지(제안도 하지 않는다). 공식 API·OAuth 만.
