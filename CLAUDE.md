@@ -288,6 +288,22 @@ cd ~/maim && git pull && gcloud run deploy maim --source . --region=us-central1 
   **다만 이걸로 사장님의 실제 운영 서버 오류가 바로 해결되는 건 아니다** — 이 고침은 **다음에 같은
   일이 또 나면 이번처럼 빈 문구 대신 진짜 원인이 보이게** 하는 것. 사장님께 다시 [연결 테스트]를
   눌러 보시고, 이번엔 콜론 뒤에 뭐가 나오는지 알려 달라고 요청해 둔 상태 — **아직 답 못 받음.**
+- 11-07(같은 날, 저녁): **브랜치 꼬임이 또 났다 — 이번엔 이름이 딱 한 글자(접두사 `claude/`) 차이였다.**
+  사장님이 "배포했는데 안 바뀐다"며 캡처(여전히 📎 "함께 보면 좋은 글"이 보임) — 확인해보니
+  **이 작업 세션의 로컬 브랜치 이름이 `game-play-ontn8y`(접두사 없음)였는데, 실제 배포 브랜치는
+  `claude/game-play-ontn8y`(접두사 있음)** 라 이 세션이 오늘 커밋한 7개(X 등록 탭부터 X 요약
+  글자수까지) 전부가 **엉뚱한 원격 브랜치(`origin/game-play-ontn8y`)로 올라가고 있었다.** 사장님
+  Cloud Shell은 (정상적으로) `claude/game-play-ontn8y`를 보고 있어서 `git pull`이 "Already up
+  to date"만 반복했던 것 — **사장님 잘못이 전혀 아니다.**
+  고침: `git push origin game-play-ontn8y:claude/game-play-ontn8y`로 밀린 7개 커밋을 실제
+  배포 브랜치에 옮기고(순정 fast-forward, 안전하게 확인 후 진행), 이 세션의 로컬 브랜치 추적을
+  `git branch --set-upstream-to=origin/claude/game-play-ontn8y game-play-ontn8y`로 고쳐
+  **앞으로 이 세션의 `git push`/`git pull`이 자동으로 올바른 원격 브랜치를 향하게** 해 두었다.
+  `origin/game-play-ontn8y`(접두사 없는 쪽)는 이번 사고로 생긴 것 — 지우진 않았다(필요하면
+  사장님이 지우라고 하실 때, 0번 항목의 다른 죽은 브랜치들과 같은 방침).
+  **다음 세션을 위한 교훈**: `git status`로 보이는 로컬 브랜치 **이름**만 믿지 말고, 작업 시작 전에
+  `git branch -vv`로 그 브랜치가 **정말 `claude/game-play-ontn8y`를 추적하는지**(접두사까지) 반드시
+  확인할 것 — 이번처럼 이름이 비슷해 보여도 접두사 하나 차이로 전혀 다른 브랜치다.
 - **남은 일**:
   1. 사장님이 배포 후 블로그 관리 표에서 [📌 매일 포스팅으로] 버튼이 보이는지, 눌러서 켠 카테고리가
      다음 날 아침 정말 빠짐없이 나오는지 확인.
