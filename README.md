@@ -125,13 +125,19 @@ gcloud run services proxy maim --region=us-central1 --port=4173 &
 실행할 수 없습니다 — 대신 아래처럼 **Cloud Shell 안에서 같은 조건으로 한 번
 로그인해서 인증 파일을 버킷에 직접 만들어두는 방법**을 씁니다:
 ```bash
+npm config set allow-scripts=@anthropic-ai/claude-code --location=user
 npm install -g @anthropic-ai/claude-code
 gcloud storage buckets add-iam-policy-binding gs://maim-data-YOUR_PROJECT_ID \
   --member="user:$(gcloud config get-value account)" --role="roles/storage.objectAdmin"
 mkdir -p /tmp/maim-home && export HOME=/tmp/maim-home
 claude login   # 뜨는 링크를 열어 본인 Claude 계정으로 로그인
-gcloud storage cp -r /tmp/maim-home/.claude gs://maim-data-YOUR_PROJECT_ID/home/.claude
+gcloud storage rsync /tmp/maim-home/.claude gs://maim-data-YOUR_PROJECT_ID/home/.claude
 ```
+(**`cp -r`가 아니라 `rsync`를 쓴다** — `cp -r`는 목적지 자리에 이미 파일이 있으면
+폴더를 통째로 한 겹 더 안에 넣어버리고(`home/.claude/.claude/...`가 되어 로그인이
+안 먹는다), 쉘의 `*`로 범위를 좁히면 `.credentials.json`처럼 점으로 시작하는
+파일이 통째로 빠진다 — `rsync`는 둘 다 안전하게 피해간다. 처음 설정할 때도,
+**나중에 로그인이 풀려 다시 할 때도** 항상 이 한 줄이면 된다.)
 그 다음 대시보드에서 다시 "지금 생성"을 눌러 정상 동작하는지 확인하세요.
 
 **5) 매일 자동 초안 준비 예약 (Cloud Scheduler)**:
