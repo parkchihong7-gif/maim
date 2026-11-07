@@ -675,13 +675,16 @@ async function refreshQueue() {
       tags.length > 0
         ? `<div class="post-tags">${tags.map((t) => `<span class="post-tag">${escapeHtml(t)}</span>`).join("")}</div>`
         : "";
-    // 내부링크 추천 — 같은 카테고리의 완성된 글. 자동으로 링크를 걸 수는 없으니
-    // (실제 네이버 글 주소를 이 프로그램이 모른다) 무엇을 링크하면 좋을지만 알려 준다.
+    // 내부링크 추천 — 같은 카테고리의 완성된 글. 📣 X 등록 탭에서 실제 주소를
+    // 넣어 둔 글이면 바로 눌러 갈 수 있는 링크로, 아직 안 넣었으면 제목만(직접
+    // 찾아 링크) — "실제 어디에 포스팅했는지 찾기 어렵다"는 지적 반영(2026-11-07).
     const relatedHtml =
       Array.isArray(p.related) && p.related.length > 0
         ? `<div class="post-related">
             <p class="muted post-related-label">📎 함께 보면 좋은 글 — 네이버 에디터에서 이 글들로 직접 링크를 걸어 보세요(내부링크는 구글이 보는 신뢰 신호입니다)</p>
-            <ul class="post-related-list">${p.related.map((r) => `<li>${escapeHtml(r.title)}</li>`).join("")}</ul>
+            <ul class="post-related-list">${p.related.map((r) => r.x_url
+              ? `<li><a href="${escapeHtml(r.x_url)}" target="_blank" rel="noopener">${escapeHtml(r.title)} ↗</a></li>`
+              : `<li>${escapeHtml(r.title)} <span class="muted small">(주소 미등록 — 📣 X 등록 탭에서 넣어두면 다음부터 바로 링크가 뜹니다)</span></li>`).join("")}</ul>
           </div>`
         : "";
 

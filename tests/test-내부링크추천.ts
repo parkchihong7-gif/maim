@@ -43,6 +43,14 @@ const 추천 = P.관련글(카1.id, 최신글.id, 3);
 참("아직 draft 인 글C는 안 나온다", !추천.some((r) => r.title.includes("글C")));
 참("다른 카테고리 글D는 안 나온다", !추천.some((r) => r.title.includes("글D")));
 참("자기 자신(최신글)은 안 나온다", !추천.some((r) => r.id === 최신글.id));
+참("아직 주소를 안 넣은 글은 x_url 이 비어 있다", 추천.every((r) => r.x_url === null));
+
+console.log("\n①-1 📣 X 등록 탭에서 실제 주소를 넣어 두면 그 주소가 같이 온다 — 「실제 어디에 포스팅했는지 찾기 어렵다」 반영");
+P.X등록(글A.id, "https://blog.naver.com/example/123", "naver");
+const 추천2 = P.관련글(카1.id, 최신글.id, 3);
+const 글A추천 = 추천2.find((r) => r.id === 글A.id)!;
+참("글A 는 등록해 둔 실제 주소가 온다", 글A추천.x_url === "https://blog.naver.com/example/123" && 글A추천.x_platform === "naver");
+참("아직 등록 안 한 글B 는 x_url 이 비어 있다", 추천2.find((r) => r.id === 글B.id)!.x_url === null);
 
 console.log("\n② limit — 완성된 글이 limit 보다 많으면 최근 것부터 그만큼만");
 for (let i = 0; i < 4; i++) {

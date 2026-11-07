@@ -171,14 +171,14 @@ export function listRecentTitles(limit = 20): string[] {
  * 본다. 자동으로 링크를 걸 수는 없다(실제 네이버 글 주소를 이 프로그램이
  * 모른다 — 발행은 사람이 한다) — 그래서 "무엇을 링크하면 좋을지"만 골라 준다.
  */
-export function 관련글(categoryId: number, excludeId: number, limit = 3): { id: number; title: string }[] {
+export function 관련글(categoryId: number, excludeId: number, limit = 3): { id: number; title: string; x_url: string | null; x_platform: string | null }[] {
   return getDb()
     .prepare(
-      `SELECT id, title FROM posts
+      `SELECT id, title, x_url, x_platform FROM posts
        WHERE owner_key = ? AND category_id = ? AND id != ? AND status IN ('ready', 'published') AND title IS NOT NULL
        ORDER BY created_at DESC, id DESC LIMIT ?`,
     )
-    .all(지금주인(), categoryId, excludeId, limit) as { id: number; title: string }[];
+    .all(지금주인(), categoryId, excludeId, limit) as { id: number; title: string; x_url: string | null; x_platform: string | null }[];
 }
 
 /**
