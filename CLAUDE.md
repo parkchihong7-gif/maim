@@ -101,10 +101,17 @@ DATA_DIR=/tmp/maim-data PORT=8793 DASHBOARD_TOKEN=owner-test-token-local \
 ```
 배포는 **사장님이 Cloud Shell 에서**:
 ```
-cd ~/maim && git pull && gcloud run deploy maim --source . --region=us-central1 --allow-unauthenticated --concurrency=80
+cd ~/maim && git pull && gcloud run deploy maim --source . --region=us-central1 --allow-unauthenticated --concurrency=80 --max-instances=1
 ```
 **커밋·푸시를 마칠 때마다 이 배포 명령어를 매번 같이 보여줄 것** (2026-11-07 사장님 요청 —
 따로 안 물어봐도 항상 붙여서 드린다).
+
+**`--max-instances=1` 을 꼭 넣을 것(2026-11-10 추가)** — 이 서버는 SQLite 파일과 AI 로그인 폴더를
+**로컬 디스크 + 60초마다 GCS 로 동기화**하는 방식이라, 컨테이너 인스턴스가 동시에 2개 이상 뜨면
+각자 따로 로그인 상태를 들고 있다가 서로 덮어써서 "방금 로그인했는데 또 풀린다" 처럼 보일 수 있다
+(README.md 원안은 처음부터 `--max-instances=1 --concurrency=1` 이었는데, 어느 시점부터 이 파일의
+배포 명령에서 `--max-instances` 가 빠져 있었다 — concurrency=80 은 그대로 둬도 된다. 한 인스턴스
+«안에서» 여러 요청을 동시에 처리하는 것은 안전하고, 문제는 인스턴스가 **여러 개** 뜨는 쪽이다).
 
 ## 9. 지킬 것
 - 네이버 자동 발행·자동 로그인 금지(제안도 하지 않는다). 공식 API·OAuth 만.
