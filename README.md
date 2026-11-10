@@ -140,6 +140,21 @@ gcloud storage rsync /tmp/maim-home/.claude gs://maim-data-YOUR_PROJECT_ID/home/
 **나중에 로그인이 풀려 다시 할 때도** 항상 이 한 줄이면 된다.)
 그 다음 대시보드에서 다시 "지금 생성"을 눌러 정상 동작하는지 확인하세요.
 
+**나중에 로그인이 또 풀렸을 때(한 번에 복붙)**: Cloud Shell은 세션이 새로 열리면(한동안 안
+쓰다 다시 들어가면) `npm install -g`로 깔아둔 것이 사라져 있을 수 있습니다(홈 폴더는
+남아있어도 전역 설치는 날아갈 수 있음) — 그래서 설치 명령까지 포함해서 매번 아래를 통째로
+다시 실행하는 게 제일 안전합니다(이미 설치돼 있어도 다시 실행해서 해로울 것 없음):
+```bash
+npm config set allow-scripts=@anthropic-ai/claude-code --location=user
+npm install -g @anthropic-ai/claude-code
+rm -rf /tmp/maim-home && mkdir -p /tmp/maim-home && export HOME=/tmp/maim-home
+claude login   # 링크를 열어 로그인. "이 폴더를 믿습니까" 가 뜨면 Yes 선택 후 Enter
+gcloud storage rsync /tmp/maim-home/.claude gs://maim-data-YOUR_PROJECT_ID/home/.claude
+gcloud storage ls gs://maim-data-YOUR_PROJECT_ID/home/.claude/.credentials.json
+```
+마지막 줄이 파일 경로를 보여주면 성공 — 대시보드 [관리자 설정 → 1단계 → 연결 테스트]를
+다시 눌러보면 됩니다. 서버를 다시 켤 필요는 없습니다.
+
 **5) 매일 자동 초안 준비 예약 (Cloud Scheduler)**:
 ```bash
 gcloud scheduler jobs create http maim-daily \
