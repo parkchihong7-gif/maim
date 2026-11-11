@@ -100,6 +100,12 @@ function 로컬모양(localPath: string): { size: number; mtimeMs: number } | nu
   catch { return null; }
 }
 
+/** 시험에서만 쓴다 — 서로 다른 인스턴스가 «같은 DB를 다른 판으로 안다»는 상황을
+ * 한 프로세스 안에서 재연하려고, 알던판을 강제로 되돌리는 용도. */
+export function 시험용알던판적기(rel: string, gen: string, localPath: string): void {
+  적어두기(rel, gen, localPath);
+}
+
 function 적어두기(rel: string, gen: unknown, localPath: string): void {
   const 모양 = 로컬모양(localPath);
   if (모양 && gen !== undefined && gen !== null) 알던판.set(rel, { gen: String(gen), ...모양 });
@@ -267,9 +273,47 @@ export async function uploadState(): Promise<void> {
   const 뜬것 = await 성한DB한벌();
   try {
     await 나눠서(relPaths, AT_ONCE, (rel) => 바뀐것만올리기(bucket, root, rel));
-    if (뜬것) { await bucket.upload(뜬것, { destination: dbRel }); }
+    if (뜬것) await DB올리기(bucket, 뜬것, dbRel);
   } finally {
     if (뜬것) { try { fs.rmSync(뜬것, { force: true }); } catch { /* 이미 없으면 그만 */ } }
+  }
+}
+
+/**
+ * **DB 도 로그인 파일처럼 «내가 알던 판일 때만» 덮는다.**
+ *
+ * 2026-11 — 인스턴스가 둘 떠 있던 사이(배포 전환·스케일아웃), 옛 DB를 들고
+ * 있던 쪽이 60초 주기로 **묻지도 않고** 제 DB를 덮어 올려서, 그새 다른 쪽
+ * 인스턴스가 저장했던 설정(무료 이미지 키 등)이 통째로 사라진 일이 있었다
+ * — 로그인 파일에는 이미 있던 판 번호 검사가 DB 에는 없었던 탓이다.
+ *
+ * DB는 로그인 파일과 달리 충돌해도 «버킷 쪽을 믿고 받아오면» 안 된다 — 지금
+ * 떠 있는 서버가 그 사이에 실제로 커밋한 쓰기(새 글·설정)를 통째로 잃는다.
+ * 그래서 412 가 나면 받지 않고 **크게 알리기만** 한다 — `--max-instances=1`
+ * 이 제대로 걸려 있으면 원래 일어날 수 없는 충돌이라, 사람이 봐야 하는 사고다.
+ */
+export async function DB올리기(bucket: 통, 로컬파일: string, dbRel: string): Promise<void> {
+  const 알던 = 알던판.get(dbRel);
+  try {
+    const [올린것] = await bucket.upload(로컬파일, {
+      destination: dbRel,
+      preconditionOpts: { ifGenerationMatch: 알던 ? Number(알던.gen) : 0 },
+    });
+    적어두기(dbRel, 올린것.metadata.generation, config.paths.dbFile);
+  } catch (탈) {
+    if ((탈 as { code?: number }).code === 412) {
+      const 말 = "[gcsState] ⚠️ DB 충돌 — 다른 인스턴스가 먼저 저장통에 DB를 올려 이번 "
+        + "올리기는 건너뜁니다. 두 서버가 동시에 떠 있던 것으로 보입니다 "
+        + "(배포 시 --max-instances=1 이 들어가 있는지 확인하세요). 방금 저장된 "
+        + "설정·글이 사라졌다면 이게 원인일 수 있습니다.";
+      console.error(말);
+      try {
+        const { 오류적기 } = await import("../db/repositories/errorLog.js");
+        오류적기("gcsState", "db-conflict", 말);
+      } catch { /* 오류 기록 자체가 실패해도 서버는 계속 돈다 */ }
+      return;
+    }
+    throw 탈;
   }
 }
 
