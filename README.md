@@ -99,7 +99,7 @@ gcloud run deploy maim \
   --source . \
   --region=us-central1 \
   --allow-unauthenticated \
-  --min-instances=0 --max-instances=1 --concurrency=1 \
+  --min-instances=0 --max-instances=1 --concurrency=1 --memory=2Gi \
   --timeout=1800 \
   --set-env-vars=HOST=0.0.0.0,DATA_DIR=/tmp/maim-state,HOME=/tmp/maim-state/home,GCS_STATE_BUCKET=maim-data-YOUR_PROJECT_ID,TIMEZONE=Asia/Seoul,CLAUDE_BIN=claude,DASHBOARD_TOKEN=YOUR_DASHBOARD_TOKEN,UNSPLASH_ACCESS_KEY=YOUR_UNSPLASH_KEY,PEXELS_API_KEY=YOUR_PEXELS_KEY
 ```
@@ -168,7 +168,9 @@ gcloud scheduler jobs create http maim-daily \
 
 ### 메모리는 2Gi 로 — 512Mi 로는 DB 가 깨집니다
 
-**한 번 데였습니다.**
+**한 번 데였습니다.** (그리고 2026-11-11에 또 데였습니다 — 아래 처방이 표준 배포
+명령에 안 들어가 있어서 매번 까먹혔던 탓. CLAUDE.md §8 의 반복 배포 명령에는
+이제 `--memory=2Gi` 가 항상 들어가게 고쳐 뒀습니다 — 지우지 마세요.)
 
 `DATA_DIR=/tmp/maim-state` 인데, Cloud Run 의 `/tmp` 는 디스크가 아니라
 **컨테이너 메모리를 깎아 쓰는 램디스크**입니다. 시작할 때 버킷에서 파일을

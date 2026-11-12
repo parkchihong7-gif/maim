@@ -22,6 +22,8 @@ function getBucket() {
 // 생성된 포스팅 이미지가 저장되는 접두사. 이 아래 파일들은 시작 시 한꺼번에
 // 내려받지 않고, 실제로 요청됐을 때 downloadFileIfMissing()으로 낱개만 받는다.
 const GENERATED_PREFIX = "generated/";
+/** 저장통에 올라간 게 확인된 생성 이미지를, 이만큼 안 바뀌면 로컬에서 지운다(필요하면 다시 받아온다). */
+const 생성이미지_로컬보관_ms = 6 * 60 * 60 * 1000;
 
 /**
  * **내려받지도 올리지도 않을 것들.** 한 번 데였다.
@@ -138,6 +140,17 @@ export async function downloadEssentialState(): Promise<void> {
     await file.download({ destination: config.paths.dbFile });
     const [meta] = await file.getMetadata();
     적어두기(dbRel, meta.generation, config.paths.dbFile);
+    const 받은크기 = fs.statSync(config.paths.dbFile).size;
+    // DB 를 아직 열기 전이라 error_log(=DB 안의 표)에는 못 남긴다 — Cloud Run 로그에만
+    // 크게 남긴다. 10KB 는 마이그레이션만 돌아간 맨 처음 빈 DB보다도 작은, 사실상
+    // 0바이트나 다름없는 깨진 파일에만 걸리게 넉넉히 잡은 기준이다.
+    if (받은크기 < 10_000) {
+      console.error(
+        `[gcsState] ⚠️ 버킷에서 받은 DB가 ${받은크기}바이트로 매우 작습니다 — `
+        + "깨졌거나(2026-11-11 사고 때처럼 메모리 부족으로 쓰다 잘림) 정말 새 DB일 수 있습니다. "
+        + "글·카테고리가 갑자기 안 보이면 이게 원인일 수 있습니다.",
+      );
+    }
     console.log(`[gcsState] DB 를 먼저 복원했습니다 (gs://${config.gcsStateBucket}/${dbRel}).`);
   } catch (err) {
     if ((err as { code?: number })?.code === 404) {
@@ -279,6 +292,34 @@ export async function uploadState(): Promise<void> {
   }
 }
 
+/** gcsState 자체 사고를 error_log에 크게 남긴다. 기록 자체가 실패해도 서버는 계속 돈다. */
+async function 크게알리기(category: string, 말: string): Promise<void> {
+  console.error(말);
+  try {
+    const { 오류적기 } = await import("../db/repositories/errorLog.js");
+    오류적기("gcsState", category, 말);
+  } catch { /* 오류 기록 자체가 실패해도 서버는 계속 돈다 */ }
+}
+
+/**
+ * 직전에 올렸던(또는 받았던) DB보다 **갑자기 뚝 떨어지게 작아졌으면** 올리지 않는다.
+ *
+ * 2026-11-11 — 멀쩡하던 DB(4.58MB)가 60초 뒤 올린 판에서 **0바이트**로 바뀌어
+ * 올라간 적이 실제로 있었다(그 뒤 서버가 한동안 멈췄다 빈 DB로 다시 시작 —
+ * `/tmp`가 컨테이너 메모리를 깎아 쓰는 램디스크라, 메모리가 모자라면 쓰던
+ * 파일이 그 자리에서 잘린다는 건 2026-11-04 콜드스타트 조사 때도 나온
+ * 얘기다). 판 번호 검사(DB올리기의 ifGenerationMatch)는 **"남이 먼저 올린
+ * 새 판"** 은 막아 주지만, **"내가 들고 있던 파일 자체가 깨졌다"** 는 경우는
+ * 못 막는다 — 그때는 이 인스턴스 혼자서, 충돌 없이, 깨진 걸 그대로 올리기
+ * 때문이다. 그래서 크기를 직접 비교하는 이 안전장치가 따로 필요하다.
+ */
+const DB_급감_허용비율 = 0.2; // 직전의 1/5 밑으로 떨어지면 의심한다
+
+function DB가너무작아졌나(지금크기: number, dbRel: string): boolean {
+  const 알던 = 알던판.get(dbRel);
+  return !!알던 && 알던.size > 0 && 지금크기 < 알던.size * DB_급감_허용비율;
+}
+
 /**
  * **DB 도 로그인 파일처럼 «내가 알던 판일 때만» 덮는다.**
  *
@@ -293,6 +334,16 @@ export async function uploadState(): Promise<void> {
  * 이 제대로 걸려 있으면 원래 일어날 수 없는 충돌이라, 사람이 봐야 하는 사고다.
  */
 export async function DB올리기(bucket: 통, 로컬파일: string, dbRel: string): Promise<void> {
+  const 지금크기 = fs.statSync(로컬파일).size;
+  if (DB가너무작아졌나(지금크기, dbRel)) {
+    const 알던 = 알던판.get(dbRel)!;
+    await 크게알리기("db-shrink",
+      `[gcsState] ⚠️ DB 급감 — 직전엔 ${알던.size}바이트였는데 이번엔 ${지금크기}바이트라 `
+      + "올리지 않고 건너뜁니다(메모리 부족 등으로 파일이 쓰다 잘렸을 수 있습니다). "
+      + "글·설정이 실제로 많이 줄었어야 할 사정이 있다면(대량 삭제 등) 이 알림은 무시해도 됩니다.");
+    return;
+  }
+
   const 알던 = 알던판.get(dbRel);
   try {
     const [올린것] = await bucket.upload(로컬파일, {
@@ -302,15 +353,11 @@ export async function DB올리기(bucket: 통, 로컬파일: string, dbRel: stri
     적어두기(dbRel, 올린것.metadata.generation, config.paths.dbFile);
   } catch (탈) {
     if ((탈 as { code?: number }).code === 412) {
-      const 말 = "[gcsState] ⚠️ DB 충돌 — 다른 인스턴스가 먼저 저장통에 DB를 올려 이번 "
+      await 크게알리기("db-conflict",
+        "[gcsState] ⚠️ DB 충돌 — 다른 인스턴스가 먼저 저장통에 DB를 올려 이번 "
         + "올리기는 건너뜁니다. 두 서버가 동시에 떠 있던 것으로 보입니다 "
         + "(배포 시 --max-instances=1 이 들어가 있는지 확인하세요). 방금 저장된 "
-        + "설정·글이 사라졌다면 이게 원인일 수 있습니다.";
-      console.error(말);
-      try {
-        const { 오류적기 } = await import("../db/repositories/errorLog.js");
-        오류적기("gcsState", "db-conflict", 말);
-      } catch { /* 오류 기록 자체가 실패해도 서버는 계속 돈다 */ }
+        + "설정·글이 사라졌다면 이게 원인일 수 있습니다.");
       return;
     }
     throw 탈;
@@ -327,7 +374,17 @@ async function 바뀐것만올리기(bucket: 통, root: string, rel: string): Pr
   const 지금모양 = 로컬모양(localPath);
   if (!지금모양) return;
   const 알던 = 알던판.get(rel);
-  if (알던 && 알던.size === 지금모양.size && 알던.mtimeMs === 지금모양.mtimeMs) return;
+  if (알던 && 알던.size === 지금모양.size && 알던.mtimeMs === 지금모양.mtimeMs) {
+    // 저장통에 이미 올라가 있다고 확인된 생성 이미지는, 한동안 안 바뀌면
+    // 로컬(=컨테이너 메모리를 깎아 쓰는 /tmp)에서 지운다 — 필요하면
+    // downloadFileIfMissing() 이 그때그때 다시 받아온다. 2026-11-11 DB가
+    // 메모리 부족으로 쓰다 잘린 사고 뒤, generated/ 가 로컬에 끝없이
+    // 쌓이던 것도 같은 위험 요인이라 판단해 추가.
+    if (rel.startsWith(GENERATED_PREFIX) && Date.now() - 지금모양.mtimeMs > 생성이미지_로컬보관_ms) {
+      try { fs.rmSync(localPath, { force: true }); } catch { /* 없으면 그만 */ }
+    }
+    return;
+  }
 
   // 로그인 파일은 «내가 알던 판일 때만» 덮는다. 모르는 파일이면 «아직 없을
   // 때만» 만든다. 그사이 사람이 새로 올렸으면 여기서 멈추고 그쪽을 받는다.
