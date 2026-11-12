@@ -277,6 +277,7 @@ export async function generatePost(category: Category, directive: PostDirective,
     title: 제목.title,
     content: parsed.post.content,
     imageQuery: parsed.post.image_query,
+    imageQueryVariants: parsed.post.image_query_variants,
     tags: parsed.post.tags,
     titleVariants: 제목.title_variants,
   });

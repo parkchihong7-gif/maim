@@ -14,6 +14,8 @@ export interface Post {
   image_alts_json: string | null;
   title_variants_json: string | null;
   image_query: string | null;
+  /** image_query로 사진이 안 나올 때 시도할 2차 유사 키워드(JSON 배열) */
+  image_query_variants_json: string | null;
   tags_json: string | null;
   scheduled_at: string | null;
   published_at: string | null;
@@ -47,17 +49,20 @@ export function insertDraftPost(input: {
   imageQuery: string;
   tags: string[];
   titleVariants?: string[];
+  /** image_query로 사진이 안 나올 때 시도할 2차 유사 키워드(최대 3개) — images/searchImages.ts */
+  imageQueryVariants?: string[];
 }): Post {
   const result = getDb()
     .prepare(
-      `INSERT INTO posts (category_id, status, title, content, image_query, tags_json, title_variants_json, owner_key)
-       VALUES (?, 'draft', ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO posts (category_id, status, title, content, image_query, image_query_variants_json, tags_json, title_variants_json, owner_key)
+       VALUES (?, 'draft', ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       input.categoryId,
       input.title,
       input.content,
       input.imageQuery,
+      input.imageQueryVariants && input.imageQueryVariants.length > 0 ? JSON.stringify(input.imageQueryVariants) : null,
       JSON.stringify(input.tags),
       input.titleVariants && input.titleVariants.length > 0 ? JSON.stringify(input.titleVariants) : null,
       지금주인(),
@@ -69,6 +74,17 @@ export function getTitleVariants(post: Post): string[] {
   if (!post.title_variants_json) return [];
   try {
     const parsed = JSON.parse(post.title_variants_json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/** image_query로 사진이 안 나올 때 시도할 2차 유사 키워드. */
+export function getImageQueryVariants(post: Post): string[] {
+  if (!post.image_query_variants_json) return [];
+  try {
+    const parsed = JSON.parse(post.image_query_variants_json);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];

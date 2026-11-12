@@ -437,6 +437,24 @@ cd ~/maim && git pull && gcloud run deploy maim --source . --region=us-central1 
   **남은 일**: 사장님이 다음 몇 편 포스팅 때 실제로 겹치는 사진이 줄어드는지 체감 확인. 카테고리
   수가 아주 적고 무료 이미지 키가 하나뿐인 채로 수백 편을 더 쌓으면 그래도 가끔은 재사용될 수
   있다(위 2번의 마지막 안전망) — 그땐 Unsplash/Pexels/Pixabay 키를 전부 채웠는지부터 확인.
+- 11-12(같은 날, 더 이어서): **대표 검색어로 사진이 안 나올 때를 위한 2차 유사 키워드.**
+  사장님 요청: image_query(대표 이미지 검색어)에 맞는 사진이 없을 때, 전혀 안 어울리는 범용
+  키워드(business·lifestyle 등)로 바로 넘어가기 전에, **그 글 주제와 가까운 유사 키워드**를
+  AI가 글 쓸 때 미리 준비해 두고 그걸 먼저 시도하게 해 달라는 것.
+  1. AI 응답 스키마에 **`image_query_variants`**(2~3개, image_query보다 더 넓은 의미의 영어
+     키워드) 추가 — `styleRules.ts`에 지시문, `promptBuilder.ts` JSON 예시, `parseResponse.ts`
+     스키마+다듬기(빠뜨려도 빈 배열, 숫자·빈 문자열 거르고 80자 자르고 3개까지만).
+  2. `posts` 표에 `image_query_variants_json` 칸 추가(`db/index.ts` 칸붙이기), `posts.ts`에
+     `getImageQueryVariants()`, `insertDraftPost()`가 저장하게, `generatePost.ts`가 전달.
+  3. `searchWithFallback()`에 **2단계**로 끼워 넣음 — ①원래 검색어의 변형들 → **②AI가 준
+     2차 유사 키워드(새로 추가)** → ③그래도 모자라면 범용 키워드 → ④그래도 모자라면 전에 쓴
+     사진 재사용(11-12 앞 항목의 중복 방지 안전망). 각 단계는 별도 시도 예산이라 앞 단계가
+     소진돼도 뒷 단계는 항상 온전히 돈다.
+  `attachImage.ts`가 `getImageQueryVariants(post)`를 넘겨주게 연결. 시험
+  `tests/test-답다듬기.ts`에 ①-1(스키마 정리) 추가, `tests/test-이미지중복방지.ts`에 ④(2차
+  유사 키워드가 범용 키워드보다 먼저 쓰이는지) 추가. 빌드·전체 시험 통과.
+  **남은 일**: 사장님이 새로 쓰는 글부터 image_query_variants가 실제로 채워지는지(기존 243편엔
+  당연히 없음 — 새 글부터 적용), 좁은 주제의 사진이 전보다 더 잘 맞게 나오는지 체감 확인.
 
 ## 11. 통합 관리자 대시보드와의 관계 (cash-flow 저장소)
 - 3번 = `products/naver-blog/` (판매 문서 `README.md`·`docs/`, 점검 `check.py` — 체험 서버 주소를 두드림, `program.yaml`).

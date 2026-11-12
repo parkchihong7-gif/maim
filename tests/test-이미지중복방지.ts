@@ -8,7 +8,12 @@
  * 집합)을 `searchWithFallback()` 에 `exclude` 로 넘기면, 검색 결과에서
  * 그 사진들을 빼고 고른다. 완전히 새 사진이 하나도 안 남으면(극단적으로
  * 좁은 주제 등) 그제서야 전에 쓴 사진으로라도 채워 **글 자체가 막히지는
- * 않게** 한다. 인터넷은 필요 없다(가짜 fetch).
+ * 않게** 한다.
+ *
+ * ④는 별개 기능 — 대표 검색어(image_query)로 사진이 아예 안 나올 때, 전혀
+ * 안 어울리는 범용 키워드(business·lifestyle 등)로 바로 넘어가기 전에,
+ * AI가 글 쓸 때 미리 준 "2차 유사 키워드"(image_query_variants)부터 시도
+ * 하는지 확인한다. 인터넷은 필요 없다(가짜 fetch).
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -74,6 +79,43 @@ const r3 = await searchWithFallback(
 );
 참("그래도 2장을 채웠다(글이 막히지 않는다)", r3.length === 2);
 참("전에 쓴 a·b·c 중에서 채웠다", r3.every((c) => ["a", "b", "c"].includes(c.sourceId)));
+
+console.log("\n④ 대표 검색어로 사진이 없으면 — 범용 키워드 전에 AI가 준 2차 유사 키워드부터 시도한다");
+let 제네릭호출됨 = false;
+global.fetch = (async (url: string | URL) => {
+  const u = String(url);
+  if (u.startsWith("https://api.unsplash.com/search/photos")) {
+    const q = decodeURIComponent(new URL(u).searchParams.get("query") ?? "");
+    if (q === "zzz no match topic") return { ok: true, json: async () => ({ results: [] }) } as unknown as Response;
+    if (q === "similar keyword one") {
+      return {
+        ok: true,
+        json: async () => ({
+          results: [
+            { id: "d", urls: { regular: "https://img/d" }, links: { html: "https://page/d" } },
+            { id: "e", urls: { regular: "https://img/e" }, links: { html: "https://page/e" } },
+          ],
+        }),
+      } as unknown as Response;
+    }
+    if (["lifestyle", "abstract background", "nature landscape", "business", "technology",
+         "city skyline", "people working", "modern minimal"].includes(q)) {
+      제네릭호출됨 = true;
+    }
+    return { ok: true, json: async () => ({ results: [] }) } as unknown as Response;
+  }
+  if (u.startsWith("https://img/")) {
+    return { ok: true, arrayBuffer: async () => new ArrayBuffer(8) } as unknown as Response;
+  }
+  throw new Error(`예상 못 한 fetch: ${u}`);
+}) as typeof fetch;
+
+const dir4 = path.join(임시, "d4");
+const r4 = await searchWithFallback(
+  "zzz no match topic", dir4, 2, 1, new Set(), ["similar keyword one", "similar keyword two"],
+);
+참("2차 유사 키워드로 사진을 찾았다", r4.length === 2 && r4.every((c) => ["d", "e"].includes(c.sourceId)));
+참("범용 키워드까지는 안 갔다(2차 유사 키워드로 이미 채웠으므로)", !제네릭호출됨);
 
 global.fetch = 원래fetch;
 fs.rmSync(임시, { recursive: true, force: true });

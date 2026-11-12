@@ -28,6 +28,23 @@ const 가 = parsePostResponse(엉성).post;
 참("제목 후보는 제목만 꺼내고 못 쓰는 것은 버린다",
   JSON.stringify(가.title_variants) === JSON.stringify(["노원구 아파트 대출 한도 기준", "노원구 아파트 대출 신청 방법"]));
 
+console.log("\n①-1 image_query_variants — 없으면 빈 배열, 모양이 섞여 와도 걸러서 최대 3개만");
+const 변형없음 = parsePostResponse(JSON.stringify({
+  title: "노원구 소형 아파트 대출 조건", content: 본문, image_query: "apartment",
+  tags: ["#가", "#나", "#다"], title_variants: [],
+})).post;
+참("안 줘도 빈 배열로 받는다(글이 안 깨진다)", Array.isArray(변형없음.image_query_variants)
+  && 변형없음.image_query_variants.length === 0);
+
+const 변형섞임 = parsePostResponse(JSON.stringify({
+  title: "노원구 소형 아파트 대출 조건", content: 본문, image_query: "apartment",
+  image_query_variants: ["apartment loan", 123, "", "a".repeat(100), "housing finance", "city skyline", "extra fifth"],
+  tags: ["#가", "#나", "#다"], title_variants: [],
+})).post;
+참("숫자·빈 문자열은 걸러진다", 변형섞임.image_query_variants.every((x) => typeof x === "string" && x.length > 0));
+참("80자에서 자른다", 변형섞임.image_query_variants.some((x) => x.length === 80));
+참("최대 3개까지만 받는다", 변형섞임.image_query_variants.length === 3);
+
 console.log("\n② 태그가 한 줄 글자로 와도 나눈다");
 const 나 = parsePostResponse(JSON.stringify({
   title: "노원구 소형 아파트 대출 조건", content: 본문, image_query: "apartment",

@@ -46,6 +46,14 @@ function 다듬기(날것: unknown): unknown {
     글.image_query = 글.image_query.trim().slice(0, 80);
   }
 
+  // 대표 검색어로 사진이 안 나올 때 쓸 2차 유사 키워드. 모양이 틀리거나 없으면 그냥 빈 배열 —
+  // images/searchImages.ts의 범용 폴백(generic fallback)으로도 어차피 사진은 확보된다.
+  const 이미지후보 = 글.image_query_variants;
+  글.image_query_variants = (Array.isArray(이미지후보) ? 이미지후보 : [])
+    .map((x) => (typeof x === "string" ? x.trim().slice(0, 80) : ""))
+    .filter((x) => x.length >= 2)
+    .slice(0, 3);
+
   const 후보 = 글.title_variants;
   if (후보 !== undefined) {
     글.title_variants = (Array.isArray(후보) ? 후보 : [])
@@ -67,6 +75,9 @@ export const PostResponseSchema = z.preprocess(다듬기, z.object({
   title: z.string().min(3).max(200),
   content: z.string().min(500),
   image_query: z.string().min(2).max(80),
+  // image_query로 사진이 안 나올 때 시도할 2차 유사 키워드(최대 3개). 빠뜨려도 글은 받는다 —
+  // 어차피 images/searchImages.ts의 범용 폴백이 사진 확보 자체는 끝까지 보장한다.
+  image_query_variants: z.array(z.string().min(2).max(80)).max(3).optional().default([]),
   // 다섯 개를 달라고 시키지만, 셋만 와도 글은 쓸 만하다. 그걸로 글 전체를
   // 버리지 않는다.
   tags: z.array(z.string().regex(/^#/)).min(3).max(15),

@@ -149,6 +149,8 @@ function runMigrations(database: Database.Database) {
   칸붙이기(database, "posts", "inflow_at", "TEXT");
   칸붙이기(database, "posts", "event_id", "INTEGER");           // 🎮 달력 단계 글이면 그 일정
   칸붙이기(database, "posts", "event_step", "TEXT");            // A~F      // 검색어트렌드 12개월 {months, dir, change, at}           // 모으다 멈춘 자리 (JSON) — [이어서 모으기]
+  // 대표 이미지 검색어(image_query)로 사진이 안 나올 때 AI가 미리 준 2차 유사 키워드(JSON 배열) — images/searchImages.ts
+  칸붙이기(database, "posts", "image_query_variants_json", "TEXT");
 
   // ── 글 쓰는 방식 (카테고리 폼 ⑦) — 비워 두면 예전처럼 자동. src/claude/글방식.ts ──
   칸붙이기(database, "categories", "write_mode", "TEXT");      // info / experience

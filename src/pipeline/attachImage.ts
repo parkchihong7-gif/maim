@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import type { Post } from "../db/repositories/posts.js";
-import { addPostImages, getImagePaths, getPost } from "../db/repositories/posts.js";
+import { addPostImages, getImagePaths, getImageQueryVariants, getPost } from "../db/repositories/posts.js";
 import { getCategory } from "../db/repositories/categories.js";
 import { pickGameShots } from "../game/캡처고르기.js";
 import { 관리자인가 } from "../tenancy.js";
@@ -65,6 +65,7 @@ export async function attachImage(post: Post, options: AttachImageOptions = {}):
     Math.max(count * 2, 6),
     options.page ?? 1,
     이미쓴소스들(),
+    getImageQueryVariants(post),
   );
   const summary = (post.content ?? "").slice(0, 500);
   const selected = await selectBestImages(candidates, summary, count, post.title ?? "", options.selectTimeoutMs ?? 60_000);

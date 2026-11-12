@@ -184,12 +184,12 @@ const GENERIC_FALLBACK_TERMS = [
 ];
 
 /**
- * 원래 쿼리로 후보가 부족하면 점점 넓은(짧은) 키워드로 먼저 시도하고, 그래도
- * minCount에 못 미치면 GENERIC_FALLBACK_TERMS로 "강제로" 채운다. 범용 키워드
- * 단계는 구체적 변형 단계와 별도의 시도 예산을 갖기 때문에, 앞 단계에서
- * 시도 횟수를 다 써버려도 범용 키워드 검색 기회 자체는 항상 보장된다 —
- * 그래서 (API 키가 하나라도 유효한 한) 이미지 검색 자체가 완전히 실패하는
- * 경우가 아니면 사실상 항상 minCount장을 확보한다.
+ * 원래 쿼리로 후보가 부족하면 점점 넓은(짧은) 키워드 → AI가 준 2차 유사 키워드
+ * (similarQueries) → 그래도 모자라면 GENERIC_FALLBACK_TERMS로 "강제로" 채운다.
+ * 각 단계는 서로 별도의 시도 예산을 갖기 때문에, 앞 단계에서 시도 횟수를 다
+ * 써버려도 뒤 단계의 검색 기회 자체는 항상 보장된다 — 그래서 (API 키가 하나라도
+ * 유효한 한) 이미지 검색 자체가 완전히 실패하는 경우가 아니면 사실상 항상
+ * minCount장을 확보한다.
  */
 export async function searchWithFallback(
   primaryQuery: string,
@@ -197,6 +197,8 @@ export async function searchWithFallback(
   minCount: number,
   startPage = 1,
   exclude: Set<string> = new Set(),
+  /** image_query로 못 찾을 때 시도할, AI가 미리 준 2차 유사 키워드(주제와 가까운 순). */
+  similarQueries: string[] = [],
 ): Promise<DownloadedCandidate[]> {
   fs.rmSync(destDir, { recursive: true, force: true });
   fs.mkdirSync(destDir, { recursive: true });
@@ -232,14 +234,21 @@ export async function searchWithFallback(
   // 1단계: 원래 쿼리와 그 변형들로 시도(최대 5회) — 주제와 정확히 맞는 사진을 우선 노린다.
   await tryVariants(buildSpecificVariants(primaryQuery), 5);
 
-  // 2단계: 그래도 부족하면 범용 키워드로 "강제 등록"에 필요한 만큼 채운다.
-  // 1단계와 별개의 시도 예산을 쓰므로, 1단계가 시도를 전부 소진했어도
+  // 2단계: 그래도 부족하면 AI가 글 쓸 때 미리 준 "2차 유사 키워드"로 시도한다 — 범용
+  // 키워드(3단계)보다 이 글 주제에 훨씬 가까우므로, 아예 무관한 사진으로 넘어가기 전에
+  // 한 번 더 기회를 준다. 1단계와 별개의 시도 예산을 쓴다.
+  if (downloaded.length < minCount && similarQueries.length > 0) {
+    await tryVariants(similarQueries, similarQueries.length * 2);
+  }
+
+  // 3단계: 그래도 부족하면 범용 키워드로 "강제 등록"에 필요한 만큼 채운다.
+  // 앞 단계와 별개의 시도 예산을 쓰므로, 앞 단계가 시도를 전부 소진했어도
   // 이 단계는 항상 온전히 실행된다.
   if (downloaded.length < minCount) {
     await tryVariants(GENERIC_FALLBACK_TERMS, GENERIC_FALLBACK_TERMS.length * 2);
   }
 
-  // 3단계: 그래도 모자라면 — 안 쓴 새 사진이 바닥난 것이다. 글 자체가 안 만들어지는
+  // 4단계: 그래도 모자라면 — 안 쓴 새 사진이 바닥난 것이다. 글 자체가 안 만들어지는
   // 것보다는, 가끔 겹치는 사진이 나으니 걸러냈던 것으로 채운다.
   if (downloaded.length < minCount && 중복이라뺀것.length > 0) {
     const 모자란수 = minCount - downloaded.length;
