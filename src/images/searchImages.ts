@@ -196,12 +196,18 @@ export async function searchWithFallback(
   destDir: string,
   minCount: number,
   startPage = 1,
+  exclude: Set<string> = new Set(),
 ): Promise<DownloadedCandidate[]> {
   fs.rmSync(destDir, { recursive: true, force: true });
   fs.mkdirSync(destDir, { recursive: true });
 
   const downloaded: DownloadedCandidate[] = [];
+  // 이번엔 못 쓰고 걸러낸(= 이전 글에서 이미 쓴) 후보 — 새 사진이 끝내 모자라면
+  // 안 쓰이느니 이걸로라도 채운다(아래 3단계).
+  const 중복이라뺀것: ImageCandidate[] = [];
   let fileIndex = 0;
+  const 받은키 = new Set<string>(); // 이번 호출 안에서 같은 사진을 두 번 받지 않게
+  const 키 = (c: ImageCandidate) => `${c.sourceSite}:${c.sourceId}`;
 
   const tryVariants = async (variants: string[], maxAttempts: number) => {
     let attempts = 0;
@@ -212,6 +218,10 @@ export async function searchWithFallback(
         const candidates = await fetchImageCandidates(variant, Math.max(minCount * 2, 6), page).catch(() => []);
         for (const candidate of candidates) {
           if (downloaded.length >= minCount * 2) break;
+          const k = 키(candidate);
+          if (받은키.has(k)) continue;
+          if (exclude.has(k)) { 중복이라뺀것.push(candidate); continue; }
+          받은키.add(k);
           const filePath = path.join(destDir, `candidate_${fileIndex++}.jpg`);
           if (await downloadTo(candidate.url, filePath)) downloaded.push({ filePath, ...candidate });
         }
@@ -227,6 +237,21 @@ export async function searchWithFallback(
   // 이 단계는 항상 온전히 실행된다.
   if (downloaded.length < minCount) {
     await tryVariants(GENERIC_FALLBACK_TERMS, GENERIC_FALLBACK_TERMS.length * 2);
+  }
+
+  // 3단계: 그래도 모자라면 — 안 쓴 새 사진이 바닥난 것이다. 글 자체가 안 만들어지는
+  // 것보다는, 가끔 겹치는 사진이 나으니 걸러냈던 것으로 채운다.
+  if (downloaded.length < minCount && 중복이라뺀것.length > 0) {
+    const 모자란수 = minCount - downloaded.length;
+    console.warn(
+      `[searchWithFallback] "${primaryQuery}" -> 안 쓴 새 사진이 모자라, 전에 쓴 사진 `
+      + `최대 ${모자란수}장을 다시 씁니다.`,
+    );
+    for (const candidate of 중복이라뺀것) {
+      if (downloaded.length >= minCount) break;
+      const filePath = path.join(destDir, `candidate_${fileIndex++}.jpg`);
+      if (await downloadTo(candidate.url, filePath)) downloaded.push({ filePath, ...candidate });
+    }
   }
 
   if (downloaded.length === 0) {

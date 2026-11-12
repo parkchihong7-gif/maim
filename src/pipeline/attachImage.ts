@@ -9,7 +9,7 @@ import { searchWithFallback } from "../images/searchImages.js";
 import { selectBestImages } from "../images/selectImage.js";
 import { processImage } from "../images/processImage.js";
 import { config } from "../config.js";
-import { recordImageDownload } from "../db/repositories/imageDownloads.js";
+import { recordImageDownload, 이미쓴소스들 } from "../db/repositories/imageDownloads.js";
 
 export interface AttachImageOptions {
   /** 몇 장을 새로 준비할지. 최초 생성/"재생성" 클릭 모두 기본 3장. */
@@ -64,6 +64,7 @@ export async function attachImage(post: Post, options: AttachImageOptions = {}):
     candidatesDir,
     Math.max(count * 2, 6),
     options.page ?? 1,
+    이미쓴소스들(),
   );
   const summary = (post.content ?? "").slice(0, 500);
   const selected = await selectBestImages(candidates, summary, count, post.title ?? "", options.selectTimeoutMs ?? 60_000);

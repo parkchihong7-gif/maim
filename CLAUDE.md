@@ -419,6 +419,24 @@ cd ~/maim && git pull && gcloud run deploy maim --source . --region=us-central1 
   무료 이미지 키도 복구된 DB에 들어있는지 확인. `/tmp` 사용량이 실제로 어느 수준까지
   올라갔었는지는 이 작업 환경에서 Cloud Run 로그를 못 보므로 직접 확인 불가 — 또 비슷한 증상이
   보이면 `--memory`를 2Gi에서 더 올리는 것도 검토.
+- 11-12(같은 날, 이어서): **이미지 중복 방지.** 사장님이 "200편 넘게 쌓이면서 같은 무료 스톡
+  사진이 여러 글에 반복되는 것 같다"고 지적 — 실제로 막는 장치가 없었다(검색이 Unsplash/Pexels/
+  Pixabay를 그때그때 다시 돌 뿐, 예전에 쓴 사진인지 전혀 안 봄). 이미 `image_downloads` 표에
+  글마다 실제로 채택된 사진의 `source_site`+`source_id`가 기록돼 있었으므로(출처 증빙용으로
+  이미 있던 것), 이걸 그대로 재활용:
+  1. `src/db/repositories/imageDownloads.ts` 에 **`이미쓴소스들()`** 추가 — 이 자리(owner_key)가
+     지금까지 쓴 사진을 `"site:sourceId"` 집합으로 돌려준다.
+  2. `src/images/searchImages.ts` 의 `searchWithFallback()` 에 **`exclude` 매개변수** 추가 —
+     검색 결과 중 이 집합에 있는 사진은 걸러내고 새 사진만 받는다. 다만 **극단적으로 좁은
+     주제라 새 사진이 하나도 안 남으면**(세 단계 다 돌아도 모자람), 글 자체가 막히는 것보다는
+     낫다고 보고 그제서야 전에 쓴 사진으로 채운다(그래도 '처음 보는 사진 우선'은 항상 지켜짐).
+  3. `src/pipeline/attachImage.ts` 가 사진을 찾기 직전에 `이미쓴소스들()`을 불러 넘겨주게 연결.
+  AI 가 고르는 단계(`selectBestImages`)는 그대로 — 애초에 후보 풀 자체에서 중복을 뺐으니 AI 가
+  볼 때부터 전부 새 사진이다. 시험 `test-이미지중복방지.ts`(가짜 fetch로 "제외 없음 → 전부 제외 →
+  그제서야 재사용" 세 상황 확인), 빌드·전체 시험 통과.
+  **남은 일**: 사장님이 다음 몇 편 포스팅 때 실제로 겹치는 사진이 줄어드는지 체감 확인. 카테고리
+  수가 아주 적고 무료 이미지 키가 하나뿐인 채로 수백 편을 더 쌓으면 그래도 가끔은 재사용될 수
+  있다(위 2번의 마지막 안전망) — 그땐 Unsplash/Pexels/Pixabay 키를 전부 채웠는지부터 확인.
 
 ## 11. 통합 관리자 대시보드와의 관계 (cash-flow 저장소)
 - 3번 = `products/naver-blog/` (판매 문서 `README.md`·`docs/`, 점검 `check.py` — 체험 서버 주소를 두드림, `program.yaml`).
