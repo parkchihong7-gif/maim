@@ -2,8 +2,8 @@
  * 🕹️ 게임 스샷 API (2026-10-21 개편). **관리자 접속 전용** — 체험·판매 키에는 404.
  *
  * 집 PC 전용 (헤더 `x-game-agent-token`, 대시보드 토큰과 따로):
- *   POST /api/game/agent/heartbeat   30초마다. 연결 표시 + 단축키·게임 목록·원본보관일을 받아 간다
- *   POST /api/game/agent/shot        단축키로 찍은 사진 + 맨 앞 창 제목 → 게임을 찾아 그 게임 «오늘» 에 넣는다
+ *   POST /api/game/agent/heartbeat   30초마다. 연결 표시 + 촬영주기초·게임 목록·원본보관일을 받아 간다
+ *   POST /api/game/agent/shot        자동 촬영 간격마다 찍은 사진 + 맨 앞 창 제목 → 게임을 찾아 그 게임 «오늘» 에 넣는다
  *
  * 화면(관리자):
  *   GET  /api/game/status · GET/POST/PUT /api/game/games · GET /api/game/shots · 스샷 이미지·메모·지우기
@@ -18,7 +18,7 @@ import { 관리자인가 } from "../../tenancy.js";
 import { getPost } from "../../db/repositories/posts.js";
 import { getCategory, listAllCategories } from "../../db/repositories/categories.js";
 import {
-  게임설정읽기, 게임설정저장, 단축키들, 게임목록, 게임읽기, 게임추가, 게임고치기, 에이전트, 하트비트적기,
+  게임설정읽기, 게임설정저장, 촬영주기_최소초, 촬영주기_최대초, 게임목록, 게임읽기, 게임추가, 게임고치기, 에이전트, 하트비트적기,
   사진기록넣기, 사진경로적기, 사진읽기 as 사진행읽기, 사진지움표시, 사진고치기, 기타옮기기, 사진찾기, 사진수들, 마지막사진,
   글사진들, 글사진빼기, 에이전트토큰들, 보여줄토큰, 새토큰, type 사진, type 날짜,
 } from "../../db/repositories/gamePlay.js";
@@ -89,7 +89,7 @@ export async function gameRoutes(app: FastifyInstance) {
   app.post("/api/game/agent/heartbeat", async (req) => {
     하트비트적기((req.body as { version?: string } | undefined)?.version);
     const s = 게임설정읽기();
-    return { settings: { 단축키: s.단축키, 원본보관일: s.원본보관일 }, games: 게임목록() };
+    return { settings: { 촬영주기초: s.촬영주기초, 원본보관일: s.원본보관일 }, games: 게임목록() };
   });
 
   app.post("/api/game/agent/shot", 큰몸, async (req) => {
@@ -97,7 +97,7 @@ export async function gameRoutes(app: FastifyInstance) {
     const 창 = String(b.window_title ?? "").slice(0, 120);
     const 게임 = 창으로게임(창, 게임목록());
     const gameId = 게임?.id ?? 기타.id;
-    const s = await 사진저장하기(gameId, 사진풀기(b.image), { source: "f9", windowTitle: 창, takenAt: b.taken_at });
+    const s = await 사진저장하기(gameId, 사진풀기(b.image), { source: "auto", windowTitle: 창, takenAt: b.taken_at });
     하트비트적기((req.headers["x-agent-version"] as string | undefined) ?? 에이전트().agent_version);
     return { shot_id: s.id, game_id: gameId, game_name: 게임이름(gameId), today: 사진수들()[gameId]?.오늘 ?? 1 };
   });
@@ -109,7 +109,7 @@ export async function gameRoutes(app: FastifyInstance) {
       needsGameBucket: !지금저장통(),
       agentTokenSet: 에이전트토큰들().length > 0,
       agent: 연결상태(),
-      단축키: 게임설정읽기().단축키,
+      촬영주기초: 게임설정읽기().촬영주기초,
       lastShot: 마지막 && { taken_at: 마지막.taken_at, game_name: 게임이름(마지막.game_id) },
     };
   });
@@ -216,8 +216,8 @@ export async function gameRoutes(app: FastifyInstance) {
   });
 
   // ── 설정·토큰 ──
-  app.get("/api/game/settings", async () => ({ ...게임설정읽기(), 단축키들 }));
-  app.put("/api/game/settings", async (req) => ({ ...게임설정저장((req.body ?? {}) as object), 단축키들 }));
+  app.get("/api/game/settings", async () => ({ ...게임설정읽기(), 촬영주기_최소초, 촬영주기_최대초 }));
+  app.put("/api/game/settings", async (req) => ({ ...게임설정저장((req.body ?? {}) as object), 촬영주기_최소초, 촬영주기_최대초 }));
   app.get("/api/game/agent-token", async () => 보여줄토큰());
   app.post("/api/game/agent-token/new", async () => ({ token: 새토큰(), from: "db" }));
 
@@ -256,7 +256,7 @@ export async function gameRoutes(app: FastifyInstance) {
     const 게임 = getCategory(post.category_id)?.game_id;
     if (!게임) { reply.code(400); return { error: "게임을 연결한 카테고리 글이 아닙니다." }; }
     const n = await pickGameShots(post, 게임, { count: 3, append: true });
-    if (!n) { reply.code(409); return { error: "아직 글에 안 쓴 스샷이 없습니다 — 게임에서 단축키로 더 찍어 주세요.", shortage: true }; }
+    if (!n) { reply.code(409); return { error: "아직 글에 안 쓴 스샷이 없습니다 — 집 PC 프로그램을 켜 두고 게임을 더 플레이해 주세요.", shortage: true }; }
     return getPost(post.id);
   });
 }

@@ -663,7 +663,7 @@ async function refreshQueue() {
         : `<div class="post-images-section"><p class="muted">이미지 없음</p></div>`;
     // 🕹️ 게임 연결 카테고리는 스샷이 모자라도 무료 이미지로 채우지 않는다 — 빈 자리를 알려 준다.
     const 캡처부족 = p.category_game_id && imagePaths.length < 3
-      ? `<p class="g-shortage">📷 스샷 부족 (${imagePaths.length}/3) — 게임에서 단축키로 더 찍은 뒤 [+ 스샷 더 넣기], 또는 [🔄 스샷 바꾸기] 로 직접 고르세요.</p>` : "";
+      ? `<p class="g-shortage">📷 스샷 부족 (${imagePaths.length}/3) — 게임을 더 플레이해 자동 촬영이 쌓이면 [+ 스샷 더 넣기], 또는 [🔄 스샷 바꾸기] 로 직접 고르세요.</p>` : "";
 
     const checklistHtml = `<div class="post-quality-checklist">${buildQualityChecklist(p)
       .map((item) => `<span class="badge ${item.ok ? "badge-active" : "badge-failed"}">${item.ok ? "✅" : "⚠"} ${escapeHtml(item.label)}</span>`)

@@ -1,12 +1,13 @@
 /**
  * **🕹️ 게임 스샷** 을 한 번에 시험한다 (가짜 AI 로 돈다). 2026-10-21 개편 — 단축키 스샷만 남김.
+ * 2026-11-26: 단축키 → 자동 촬영 간격(초)으로 변경.
  *
  *     npx tsx tests/test-게임플레이.ts
  *
  *  ① 칸막이 — 체험·**판매용** 키 404, 집 PC 토큰 틀리면 401, 저장통 없으면 기능 꺼짐
- *  ② 집 PC 흐름 — 하트비트로 단축키·게임 목록 받기 → 창 제목으로 게임 찾기 → 목록에 없는 창은 «기타»
+ *  ② 집 PC 흐름 — 하트비트로 촬영주기초·게임 목록 받기 → 창 제목으로 게임 찾기 → 목록에 없는 창은 «기타»
  *  ③ 게임 목록 — 추가·고치기, «기타» 를 새 게임으로 등록하면 같은 창 스샷이 옮겨 감
- *  ④ 앨범 — 오늘·게임별 거르기, 메모, 지우기(저장통 파일도), 설정(단축키)
+ *  ④ 앨범 — 오늘·게임별 거르기, 메모, 지우기(저장통 파일도), 설정(촬영주기초)
  *  ⑤ 글 — 연결 게임 카테고리는 안 쓴 최근 스샷 3장 · 무료 이미지 0회 · 모자라면 빈 자리 · [+ 더 넣기]
  *  ⑥ 자동 정리 — 발행 안 한 글이 쓰는 스샷은 남긴다
  */
@@ -80,7 +81,7 @@ console.log("\n② 집 PC 흐름");
 const 전상태 = (await app.inject({ method: "GET", url: "/api/game/status", headers: 주인 })).json();
 참("하트비트 전에는 연결 안 됨", 전상태.agent.connected === false && 전상태.agentTokenSet === true);
 const 하트 = (await app.inject({ method: "POST", url: "/api/game/agent/heartbeat", headers: 집, payload: { version: "0.3.0" } })).json();
-참("하트비트로 단축키(F9)·게임 목록을 받아 간다", 하트.settings.단축키 === "F9" && 하트.games.some((g: { id: string; 창제목: string }) => g.id === "dokkaebi" && g.창제목 === "도깨비의세계 -"));
+참("하트비트로 촬영주기초(5)·게임 목록을 받아 간다", 하트.settings.촬영주기초 === 5 && 하트.games.some((g: { id: string; 창제목: string }) => g.id === "dokkaebi" && g.창제목 === "도깨비의세계 -"));
 const 후상태 = (await app.inject({ method: "GET", url: "/api/game/status", headers: 주인 })).json();
 참("하트비트 뒤에는 연결됨 + 버전", 후상태.agent.connected === true && 후상태.agent.version === "0.3.0");
 참("창 제목 찾기: 긴 글자부터, 런처 창은 안 맞음", P.창으로게임("도깨비의세계 - 26.104.005", R.게임목록())?.id === "dokkaebi" && P.창으로게임("도깨비의세계 런처", R.게임목록()) === null);
@@ -123,10 +124,11 @@ const 지울경로 = R.사진읽기(지울.id)!.gcs_path;
 const 지움 = (await app.inject({ method: "POST", url: "/api/game/shots/delete", headers: 주인, payload: { ids: [지울.id] } })).json();
 참("지우기 — 목록에서 빠지고 저장통 파일도 지움", 지움.deleted === 1 && !fs.existsSync(path.join(임시, "shots", 지울경로))
   && (await app.inject({ method: "GET", url: "/api/game/shots?game=dokkaebi&day=today", headers: 주인 })).json().total === 9);
-const 설정 = (await app.inject({ method: "PUT", url: "/api/game/settings", headers: 주인, payload: { 단축키: "F8" } })).json();
-참("단축키 바꾸기 → 하트비트로 전달", 설정.단축키 === "F8"
-  && (await app.inject({ method: "POST", url: "/api/game/agent/heartbeat", headers: 집, payload: {} })).json().settings.단축키 === "F8");
-참("모르는 키는 안 받음", (await app.inject({ method: "PUT", url: "/api/game/settings", headers: 주인, payload: { 단축키: "A" } })).json().단축키 === "F8");
+const 설정 = (await app.inject({ method: "PUT", url: "/api/game/settings", headers: 주인, payload: { 촬영주기초: 8 } })).json();
+참("촬영주기초 바꾸기 → 하트비트로 전달", 설정.촬영주기초 === 8
+  && (await app.inject({ method: "POST", url: "/api/game/agent/heartbeat", headers: 집, payload: {} })).json().settings.촬영주기초 === 8);
+참("범위 밖 값은 한계값으로 자른다(0 → 최소 2초)", (await app.inject({ method: "PUT", url: "/api/game/settings", headers: 주인, payload: { 촬영주기초: 0 } })).json().촬영주기초 === 2);
+참("범위 밖 값은 한계값으로 자른다(999 → 최대 60초)", (await app.inject({ method: "PUT", url: "/api/game/settings", headers: 주인, payload: { 촬영주기초: 999 } })).json().촬영주기초 === 60);
 
 console.log("\n⑤ 글 — 연결 게임 카테고리");
 const 바깥전 = 바깥부름;

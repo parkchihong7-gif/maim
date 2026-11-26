@@ -2,7 +2,7 @@
 
 > 새 세션은 이 파일을 먼저 읽는다. 블로그 포스팅 대시보드의 **본체 코드는 이 저장소(maim)에만 있다.**
 > 통합 관리자 대시보드(`parkchihong7-gif/cash-flow`)에는 판매 문서·점검·접속키 발급만 있다.
-> 마지막 갱신: 2026-11-12
+> 마지막 갱신: 2026-11-26
 
 ## 0. 먼저 알아 둘 것
 - **운영 주소(체험 서버)**: https://maim-1048530680370.us-central1.run.app/ — Google Cloud Run(us-central1), 서비스 이름 `maim`.
@@ -79,7 +79,7 @@ src/claude/             promptBuilder·blogProfile·제목규칙·parseResponse�
 src/ai/                 engines·run      src/images/  searchImages·selectImage·processImage
 src/scheduler/          dailyJob(아침 6시)·예약·시간예상·cron·죽은자리치우기
 src/persistence/        gcsState         tools/  fake-claude.mjs(시험용 가짜 AI)·건지기.py
-src/game/ · routes/game.ts · agent/   🕹️ 게임 스샷(관리자 전용, 단축키 스샷 → 글에 3장) — docs/game/게임스샷.md
+src/game/ · routes/game.ts · agent/   🕹️ 게임 스샷(관리자 전용, 자동 촬영 5초마다 → 글에 3장) — docs/game/게임스샷.md
 ```
 주요 API: `POST /api/run/generate`(지금 생성, 응답에 `timing`) · `POST /api/run/daily` · `GET/POST/PUT/DELETE /api/categories`
 · `POST /api/categories/:id/brief-reset` · `GET /api/queue` · `POST /api/posts/:id/regenerate-image|mark-published`
@@ -455,6 +455,27 @@ cd ~/maim && git pull && gcloud run deploy maim --source . --region=us-central1 
   유사 키워드가 범용 키워드보다 먼저 쓰이는지) 추가. 빌드·전체 시험 통과.
   **남은 일**: 사장님이 새로 쓰는 글부터 image_query_variants가 실제로 채워지는지(기존 243편엔
   당연히 없음 — 새 글부터 적용), 좁은 주제의 사진이 전보다 더 잘 맞게 나오는지 체감 확인.
+- 11-26: **🕹️ 게임 스샷 — 단축키를 없애고 자동 촬영(기본 5초마다)으로 바꿈.** 사장님 요청: "F11 키로
+  스샷을 자동으로 하게 되는데 그냥 5초마다 계속 스샷 되게 변경." 집 PC 프로그램(`agent/main.py`)이
+  키보드 단축키(F6~F11·Print Screen 중 고름)를 기다렸다가 찍던 것을, 켜져 있는 동안 **자동 촬영
+  간격(기본 5초, 설정에서 2~60초로 바꿈)마다 계속 찍게** 고쳤다.
+  - `src/db/repositories/gamePlay.ts`: `단축키` 설정을 `촬영주기초`(숫자, 2~60초 범위 검사)로 교체.
+  - `src/web/routes/game.ts`·`src/web/public/game.js`·`index.html`: 하트비트·상태·설정 API와
+    화면 문구를 전부 "단축키" → "자동 촬영 간격"으로. 설정 화면의 단축키 드롭다운도 초 단위 숫자
+    입력으로 바꿈. 스샷 출처 태그도 `"f9"` → `"auto"`.
+  - `agent/main.py`: `keyboard` 라이브러리·`queue` 기반 "눌림 대기" 로직을 통째로 걷어내고,
+    `돌기()` 메인 루프에 "마지막 찍은 때로부터 촬영주기초 지나면 찍기" 타이머만 남김.
+    **관리자 권한도 더는 필요 없다** — 원래 단축키를 게임에 안 뺏기려고(suppress) 필요했던 것인데,
+    화면 찍기 자체는 처음부터 관리자 권한이 없어도 됐다(`창.py` 자체 주석에도 있던 사실). `관리자인가()`
+    함수·관련 경고문 삭제, `requirements.txt`에서 `keyboard` 패키지 삭제.
+  - 문서 갱신: `docs/game/게임스샷.md`·`docs/game/집PC-클로드.md`·`agent/README.md`
+    (GAME_PLAN.md·인수인계.md는 옛 기록이라 그대로 둠 — 프로젝트 관례).
+  - **주의(문서에도 적어 둠)**: 자동 촬영은 맨 앞 창이 게임이 아니어도 계속 찍는다 — 게임 할 때만
+    켜고 다 하면 끄는 걸 권한다고 안내.
+  시험: `tests/test-게임플레이.ts`(촬영주기초 범위 검사 포함) + `agent/tests/test_집PC.py`(단축키와
+  무관한 시험이라 그대로 통과) 전부 통과, 빌드 통과.
+  **남은 일**: 사장님이 실제 집 PC에서 새 `agent/main.py`로 몇 분 플레이해 보고, 5초마다 잘 찍히는지·
+  관리자 권한 없이도 도깨비의세계(관리자 권한 게임)에서 잘 찍히는지 확인.
 
 ## 11. 통합 관리자 대시보드와의 관계 (cash-flow 저장소)
 - 3번 = `products/naver-blog/` (판매 문서 `README.md`·`docs/`, 점검 `check.py` — 체험 서버 주소를 두드림, `program.yaml`).

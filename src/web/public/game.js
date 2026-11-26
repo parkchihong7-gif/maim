@@ -2,8 +2,8 @@
  * 🕹️ 게임 스샷 탭 (관리자 접속 + 게임 블로그만) — 2026-10-21 개편.
  *
  *   스샷       날짜·게임별 앨범. 사진을 누르면 이미지가 복사된다 → 네이버 에디터에 Ctrl+V. 메모·지우기·«기타» 등록
- *   게임 목록  게임 이름 + 창 제목 글자. 집 PC 는 단축키를 누른 순간 맨 앞 창 제목으로 게임을 찾는다
- *   설정       단축키 · 🔑 집 PC 연결 토큰 · 보관 날수
+ *   게임 목록  게임 이름 + 창 제목 글자. 집 PC 는 자동 촬영마다 맨 앞 창 제목으로 게임을 찾는다
+ *   설정       자동 촬영 간격(초) · 🔑 집 PC 연결 토큰 · 보관 날수
  * 📝 포스팅 카드의 [+ 스샷 더 넣기]·[🔄 스샷 바꾸기] 와 카테고리 폼 ⑧ 연결 게임 목록도 여기서 처리한다.
  *
  * app.js 의 api()·escapeHtml()·getDashboardToken()·refreshQueue() 를 그대로 쓴다.
@@ -100,7 +100,7 @@
     const a = s.agent;
     const 마지막 = s.lastShot ? `마지막 스샷 ${오늘인가(s.lastShot.taken_at) ? "" : 월일(s.lastShot.taken_at) + " "}${시분(s.lastShot.taken_at)} · ${esc(s.lastShot.game_name)}` : "아직 스샷이 없습니다";
     const 막대 = a.connected
-      ? `<div class="g-bar ok"><span><span class="g-dot"></span><b>집 PC 연결됨</b></span><span>📸 단축키 <kbd>${esc(s.단축키)}</kbd></span><span class="muted">${마지막}</span></div>`
+      ? `<div class="g-bar ok"><span><span class="g-dot"></span><b>집 PC 연결됨</b></span><span>📸 ${esc(s.촬영주기초)}초마다 자동 촬영</span><span class="muted">${마지막}</span></div>`
       : `<div class="g-bar off"><span><span class="g-dot"></span><b>집 PC 꺼짐</b></span><span class="muted">${a.secondsAgo === null ? "아직 한 번도 연결되지 않았습니다." : "바탕화면 «maim 게임 켜기» 를 켜면 연결됩니다."}</span><span class="muted">${마지막}</span></div>`;
     칸.innerHTML = 알림.join("") + 막대;
   }
@@ -132,7 +132,7 @@
         <button class="btn-danger btn-small" data-action="g-del-sel" ${G.sel.size ? "" : "disabled"}>선택 지우기${G.sel.size ? ` (${G.sel.size})` : ""}</button>
       </div>
       ${기타보기 ? `<p class="g-note">«기타» 는 게임 목록에 없는 창에서 찍은 스샷입니다. 사진 아래 [이 게임으로 등록] 을 누르면 같은 창에서 찍은 스샷이 모두 그 게임으로 옮겨 가고, 다음부터는 그 게임으로 찍힙니다.</p>` : ""}
-      ${d.items.length ? `<div class="g-grid">${d.items.map(스샷칸).join("")}</div>` : `<div class="g-empty"><b>${날짜글[f.day]} 스샷이 없습니다.</b><br>게임을 하다가 <kbd>${esc(G.status.단축키)}</kbd> 를 누르면 여기에 쌓입니다. 집 PC 의 «maim 게임 켜기» 창이 떠 있어야 합니다.</div>`}
+      ${d.items.length ? `<div class="g-grid">${d.items.map(스샷칸).join("")}</div>` : `<div class="g-empty"><b>${날짜글[f.day]} 스샷이 없습니다.</b><br>게임을 하는 동안 ${esc(G.status.촬영주기초)}초마다 자동으로 쌓입니다. 집 PC 의 «maim 게임 켜기» 창이 떠 있어야 합니다.</div>`}
       ${d.pages > 1 ? `<div class="g-pager"><button class="btn-secondary btn-small" data-action="g-page" data-d="-1" ${d.page <= 1 ? "disabled" : ""}>‹ 이전</button><span>${d.page} / ${d.pages}쪽 · ${d.total}장</span><button class="btn-secondary btn-small" data-action="g-page" data-d="1" ${d.page >= d.pages ? "disabled" : ""}>다음 ›</button></div>` : ""}
       <p class="faint g-small">사진을 누르면 이미지가 복사됩니다 → 네이버 에디터에서 <kbd>Ctrl</kbd>+<kbd>V</kbd>. 왼쪽 위 네모로 여러 장 골라 한꺼번에 지울 수 있습니다.</p>`;
   }
@@ -175,7 +175,7 @@
           <label class="g-field"><span>창 제목 글자 <span class="faint">(게임 창 제목에 들어 있는 말)</span></span><input id="g-new-title" maxlength="60" placeholder="예: MapleStory"></label>
         </div>
         <div class="g-btns g-mt"><button class="btn-primary" data-action="g-add">추가</button>
-          <span class="faint g-small">창 제목을 모르면 비워 두세요. 그 게임을 켜고 단축키를 한 번 누르면 «기타» 에 들어가고, 거기서 [이 게임으로 등록] 을 누르면 됩니다.</span></div>
+          <span class="faint g-small">창 제목을 모르면 비워 두세요. 그 게임을 켜 두면 잠시 뒤 «기타» 에 들어가고, 거기서 [이 게임으로 등록] 을 누르면 됩니다.</span></div>
       </div>`;
   }
 
@@ -184,9 +184,10 @@
     [G.settings, G.token] = await Promise.all([api("/api/game/settings"), api("/api/game/agent-token")]);
     const s = G.settings, t = G.token;
     판("settings").innerHTML = `
-      <div class="card"><h3>📸 스샷 단축키</h3>
-        <div class="g-btns"><select id="g-key" class="g-select">${s.단축키들.map((k) => `<option ${k === s.단축키 ? "selected" : ""}>${esc(k)}</option>`).join("")}</select>
-        <span class="muted g-small">바꾸면 집 PC 프로그램이 30초 안에 새 키를 받아 갑니다.</span></div></div>
+      <div class="card"><h3>📸 자동 촬영 간격</h3>
+        <div class="g-btns"><input type="number" id="g-interval" class="g-select" style="width:80px"
+          min="${s.촬영주기_최소초}" max="${s.촬영주기_최대초}" value="${s.촬영주기초}"> 초마다
+        <span class="muted g-small">게임을 켜 두는 동안 이 간격으로 맨 앞 창을 계속 찍습니다(단축키 없음). 바꾸면 집 PC 프로그램이 30초 안에 새 값을 받아 갑니다.</span></div></div>
       <div class="card" id="g-token-card"><h3>🔑 집 PC 연결</h3>
         ${t.token
           ? `<p class="muted g-small">집 PC 준비 스크립트가 물어볼 때 붙여 넣는 값입니다. 이미 연결돼 있으면 다시 넣을 필요가 없습니다.</p>
@@ -361,7 +362,7 @@
       else if (t.id === "g-f-day") { G.거름 = { ...G.거름, day: t.value, page: 1 }; G.sel.clear(); await 새로고침(); }
       else if (t.id === "g-f-unused") { G.거름 = { ...G.거름, unused: t.checked, page: 1 }; await 새로고침(); }
       else if (t.dataset.gSel) { const n = Number(t.dataset.gSel); if (t.checked) G.sel.add(n); else G.sel.delete(n); 스샷그리기(); }
-      else if (t.id === "g-key") { await api("/api/game/settings", { method: "PUT", body: JSON.stringify({ 단축키: t.value }) }); await 상태읽기(); 위쪽그리기(); }
+      else if (t.id === "g-interval") { await api("/api/game/settings", { method: "PUT", body: JSON.stringify({ 촬영주기초: Number(t.value) }) }); await 상태읽기(); 위쪽그리기(); }
       else if (t.dataset.gUpload !== undefined) {
         for (const f of t.files) await api("/api/game/upload", { method: "POST", body: JSON.stringify({ game: G.거름.game, image: await 파일읽기(f) }) });
         await 새로고침();

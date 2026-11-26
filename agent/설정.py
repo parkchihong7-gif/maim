@@ -4,7 +4,7 @@
   MAIM_SERVER_URL         maim 서버 주소 (예: https://…run.app 또는 시험용 http://127.0.0.1:8793)
   MAIM_GAME_AGENT_TOKEN   서버의 집 PC 연결 토큰과 같은 값
   MAIM_GAME_ROOT          원본 저장 루트 (예: G:\\maim-game, C 드라이브 아닌 곳 권장)
-단축키·원본보관일은 서버(대시보드 [설정])에서 받아 온다.
+자동 촬영 간격(초)·원본보관일은 서버(대시보드 [설정])에서 받아 온다.
 """
 
 from __future__ import annotations

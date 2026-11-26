@@ -1,15 +1,16 @@
-"""🕹️ 집 PC 게임 스샷 프로그램 (2026-10-21 개편).
+"""🕹️ 집 PC 게임 스샷 프로그램 (2026-11-26 개편 — 단축키 → 자동 촬영).
 
-  python main.py                  켜 두기. 게임 중 단축키(기본 F9)를 누르면 맨 앞 창을 찍어 올린다
+  python main.py                  켜 두기. 게임 중 자동 촬영 간격(기본 5초)마다 맨 앞 창을 찍어 올린다
   python main.py --연결시험        서버에 한 번 신호만 보내 보고 끝냄
   python main.py --시험찍기 5       5초 뒤 맨 앞 창을 한 장 찍어 올리고 끝냄(단축키 없이 시험)
 
-하는 일은 다섯 가지뿐이다: 단축키 → 맨 앞 창 찍기 → 집 PC 에 원본 저장 → 서버에 올리기 → 못 올린 것은 나중에 다시.
-게임에는 키보드·마우스를 **하나도 보내지 않는다.** 단축키는 가로채서 게임에 넘기지 않는다(같은 키를 게임이 쓰면 겹치니까).
+하는 일은 다섯 가지뿐이다: 자동 촬영 간격 → 맨 앞 창 찍기 → 집 PC 에 원본 저장 → 서버에 올리기 → 못 올린 것은 나중에 다시.
+게임에는 키보드·마우스를 **하나도 보내지 않는다.** 단축키를 누를 필요가 없다 — 이 프로그램이 켜져 있는 동안
+맨 앞 창을 계속 자동으로 찍는다(2026-11-26 전에는 단축키를 눌러야만 찍었다).
 게임 구분은 서버가 창 제목으로 한다(대시보드 [게임 목록]). 목록에 없는 창은 «기타» 로 들어간다.
 
-도깨비의세계처럼 관리자 권한으로 도는 게임에서는 이 프로그램도 관리자 권한이어야 단축키가 들린다
-(바탕화면 «maim 게임 켜기» 바로가기가 그렇게 돼 있다).
+**주의** — 이 프로그램이 켜져 있는 동안은 맨 앞 창이 무엇이든(게임이 아니어도) 자동 촬영 간격마다 찍어 올린다.
+게임을 할 때만 켜고 다 하면 꺼 두는 걸 권한다(바탕화면 «maim 게임 켜기» 창을 닫으면 꺼진다).
 """
 
 from __future__ import annotations
@@ -17,7 +18,6 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
-import queue
 import sys
 import time
 from pathlib import Path
@@ -51,11 +51,10 @@ class 프로그램:
         self.저장 = 저장소(s.저장루트)
         self.로그 = self.저장.로그
         self.서버 = 서버(s.서버주소, s.토큰, 로그=self.로그, 버전=설정모듈.버전)
-        self.단축키 = "F9"
+        self.촬영주기초 = 5
         self.게임들: list[dict] = []
         self.연결 = None  # 처음엔 모름
-        self.누름 = queue.Queue()
-        self.건 = None    # keyboard 에 건 단축키
+        self._알림 = False
 
     # ── 서버 ─────────────────────────────────────────────
     def 하트비트(self) -> None:
@@ -72,21 +71,12 @@ class 프로그램:
         설 = r.get("settings") or {}
         self.게임들 = r.get("games") or []
         self.s.원본보관일 = int(설.get("원본보관일") or self.s.원본보관일)
-        키 = 설.get("단축키") or "F9"
-        if 키 != self.단축키 or self.건 is None:
-            self.단축키걸기(키)
-        self.다시보내기()
-
-    def 단축키걸기(self, 키: str) -> None:
-        import keyboard  # noqa: 윈도 전용
-        if self.건 is not None:
-            keyboard.remove_hotkey(self.건)
-        # suppress — 단축키는 게임에 넘기지 않는다. 도깨비의세계는 F9 가 우편함이라 같이 열려 버린다.
-        self.건 = keyboard.add_hotkey(키.lower(), lambda: self.누름.put(time.time()), suppress=True)
-        if 키 != self.단축키 or not getattr(self, "_알림", False):
-            self.로그(f"📸 단축키 {키} = 스샷 (대시보드 [설정] 에서 바꿀 수 있습니다)")
+        주기 = int(설.get("촬영주기초") or 5)
+        if 주기 != self.촬영주기초 or not self._알림:
+            self.로그(f"📸 {주기}초마다 자동 촬영 (대시보드 [설정] 에서 바꿀 수 있습니다)")
             self._알림 = True
-        self.단축키 = 키
+        self.촬영주기초 = 주기
+        self.다시보내기()
 
     # ── 찍기 ─────────────────────────────────────────────
     def 찍기(self) -> None:
@@ -135,10 +125,7 @@ class 프로그램:
         self.로그(f"   원본 저장: {self.s.저장루트 / 'captures'}  ·  이 창을 닫으면 꺼집니다")
         if not self.s.토큰:
             self.로그("⚠ MAIM_GAME_AGENT_TOKEN 이 비어 있습니다. 집PC-준비.ps1 을 먼저 돌려 주세요.")
-        if not 관리자인가():
-            self.로그("⚠ 관리자 권한이 아닙니다 — 관리자 권한 게임(도깨비의세계)에서는 단축키가 안 들립니다. «maim 게임 켜기» 바로가기로 켜 주세요.")
-        self.단축키걸기(self.단축키)
-        마지막 = {"하트": 0.0, "정리": 0.0}
+        마지막 = {"하트": 0.0, "정리": 0.0, "찍기": 0.0}
         while True:
             지금 = time.monotonic()
             if 지금 - 마지막["하트"] >= 하트비트초:
@@ -149,23 +136,13 @@ class 프로그램:
                 n = self.저장.오래된원본정리(self.s.원본보관일)
                 if n:
                     self.로그(f"🧹 {self.s.원본보관일}일 지난 원본 폴더 {n}개 정리")
-            try:
-                self.누름.get(timeout=0.5)
-                while not self.누름.empty():   # 길게 눌러 여러 번 들어온 것은 한 번으로
-                    self.누름.get_nowait()
-                self.찍기()
-            except queue.Empty:
-                pass
-            except Exception as 탈:  # 한 번 탈이 나도 프로그램은 계속
-                self.로그(f"⚠ 찍기 탈: {탈}")
-
-
-def 관리자인가() -> bool:
-    try:
-        import ctypes
-        return bool(ctypes.windll.shell32.IsUserAnAdmin())
-    except Exception:
-        return False
+            if 지금 - 마지막["찍기"] >= self.촬영주기초:
+                마지막["찍기"] = 지금
+                try:
+                    self.찍기()
+                except Exception as 탈:  # 한 번 탈이 나도 프로그램은 계속
+                    self.로그(f"⚠ 찍기 탈: {탈}")
+            time.sleep(0.5)
 
 
 def main() -> None:
@@ -179,7 +156,7 @@ def main() -> None:
         print(f"토큰: {'있음' if s.토큰 else '없음 ← 집PC-준비.ps1 을 먼저'} · 저장 루트: {s.저장루트}")
         try:
             r = 서버(s.서버주소, s.토큰, 버전=설정모듈.버전).하트비트()
-            print(f"✅ 연결됨 — 단축키 {r.get('settings', {}).get('단축키')} · 게임 {len(r.get('games') or [])}개. 대시보드 🕹️ 게임 스샷 막대가 «집 PC 연결됨» 으로 바뀝니다.")
+            print(f"✅ 연결됨 — {r.get('settings', {}).get('촬영주기초')}초마다 자동 촬영 · 게임 {len(r.get('games') or [])}개. 대시보드 🕹️ 게임 스샷 막대가 «집 PC 연결됨» 으로 바뀝니다.")
             sys.exit(0)
         except 서버탈 as 탈:
             print(f"❌ 연결 안 됨 — {탈}")

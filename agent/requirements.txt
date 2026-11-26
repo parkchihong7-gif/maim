@@ -1,9 +1,8 @@
 pillow>=10.0
 requests>=2.31
 pyyaml>=6.0
-# 아래는 윈도(집 PC)에서만 쓴다 — 화면 찍기·창 제목·단축키 듣기
+# 아래는 윈도(집 PC)에서만 쓴다 — 화면 찍기·창 제목
 mss>=9.0; sys_platform == "win32"
 pywin32>=306; sys_platform == "win32"
-keyboard>=0.13; sys_platform == "win32"
 # 시험
 pytest>=8.0
